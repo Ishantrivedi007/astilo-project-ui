@@ -1,0 +1,62 @@
+.custom-icon {
+    background: #fff ;
+    padding: 15px 15px ;
+    border-radius: 30px ;
+    box-shadow: 0px 5px 10px #cc9e00d1 ;
+    margin-inline: 10px;
+    position: relative;
+    top: 3px;
+}
+.custom-child-icon {
+    /* height: 40px; */
+    margin-top: 10px;
+    background: #fff ;
+    /* padding: 8px 15px ; */
+    border-radius: 30px ;
+    box-shadow: 0px 5px 10px #cc9e00d1 ;
+    flex-basis: 6.2% !important;
+    justify-content: center;
+    align-items: center;
+    /* border: 3px solid #cc9e00d1; */
+    margin-inline: 10px;
+}
+.separate-icon{
+    margin-left: 1px;
+}
+.card{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    max-width: 581px;
+    padding: 0 5px;
+    margin-top: 40px;
+    border-radius: 30px;
+    font-weight: 100;
+    box-shadow: 0px 0px 70px 0px gold;
+}
+.playlist-card{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    max-width: 450px;
+    padding: 10px 5px 10px 10px;
+    margin-top: 40px;
+    border-radius: 30px;
+    font-weight: 100;       
+}
+.lyrics-card{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    max-width: 300px;
+    padding: 10px 5px 10px 10px;
+    margin-top: 40px;
+    border-radius: 30px;
+    font-weight: 100;       
+}
+.text-color{
+    color: linear-gradient(-45deg, #FFA63D, #FF3D77, #338AFF, #3CF0C5);
+}
