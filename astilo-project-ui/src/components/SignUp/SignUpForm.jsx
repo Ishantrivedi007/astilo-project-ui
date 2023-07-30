@@ -14,6 +14,13 @@ import UserAvatar from "../SharedComponents/UserAvatar";
 import { FileUpload } from "primereact/fileupload";
 import { Button } from "primereact/button";
 import SharedTextArea from "../SharedComponents/SharedTextArea";
+import SharedDropDown from "../SharedComponents/SharedDropDown";
+import { PrimeReactProvider, PrimeReactContext } from "primereact/api";
+
+//theme
+import "primereact/resources/themes/lara-light-indigo/theme.css";
+//core
+import "primereact/resources/primereact.min.css";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -127,17 +134,7 @@ const Signup = () => {
                       />
                     </Grid>
                     <Grid xs={6}>
-                      <InputField
-                        //css={{ borderRadius: "$40" }}
-                        //style={{ borderRadius: "200px", paddingLeft: "10px" }}
-                        //className={"rounded-3xl"}
-                        rounded
-                        fullWidth
-                        size="lg"
-                        bordered
-                        color="primary"
-                        labelPlaceholder="Country"
-                      />
+                      <SharedDropDown />
                     </Grid>
                   </Grid>
                 </Grid.Container>
