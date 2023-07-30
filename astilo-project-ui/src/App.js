@@ -15,7 +15,6 @@ import "primereact/resources/themes/lara-light-indigo/theme.css";
 //core
 import "primereact/resources/primereact.min.css";
 import Signup from "./components/SignUp/SignUpForm.jsx";
-import AnimatedSignupPage from "./components/SharedComponents/AnimatedSignup.jsx";
 
 export default function App() {
   const [visible, setVisible] = useState(false);
@@ -39,7 +38,6 @@ export default function App() {
               <Route path="/movies" element={<Movies />} />
               <Route path="*" element={<PageNotFound />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/anima" element={<AnimatedSignupPage />} />
             </Routes>
           </BrowserRouter>
         </PrimeReactProvider>
