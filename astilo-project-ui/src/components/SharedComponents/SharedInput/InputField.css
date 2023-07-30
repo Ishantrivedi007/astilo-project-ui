@@ -1,0 +1,13 @@
+.input-field-container {
+    /* position: relative; */
+    display: flex;
+  }
+  .input-field-container button {
+    /* position: absolute; */
+    top: 50%;
+    right: 0.5rem; /* Adjust the margin right here */
+    transform: translateY(-50%);
+  }
+  .input-field-container p {
+    font-size: 13px;
+  }
