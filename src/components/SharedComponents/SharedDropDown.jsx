@@ -63,7 +63,8 @@ const SharedDropDown = () => {
       filter
       valueTemplate={selectedCountryTemplate}
       itemTemplate={countryOptionTemplate}
-      className="w-full md:w-14rem"
+      style={{ borderRadius: "30px !important" }}
+      className="w-full md:w-14rem border rounded rounded-xl"
     />
     //   </div>
   );
