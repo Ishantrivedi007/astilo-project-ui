@@ -120,11 +120,11 @@ const Signup = () => {
                     //css={{ borderRadius: "38px" }}
                     //className="border rounded-3xl"
                   >
-                    <Grid xs={6}>
+                    <Grid xs={7}>
                       <InputField
-                        //css={{ borderRadius: "$40" }}
-                        //style={{ borderRadius: "200px", paddingLeft: "10px" }}
-                        //className={"rounded-3xl"}
+                        css={{ borderRadius: "$40" }}
+                        style={{ paddingLeft: "10px" }}
+                        className={"rounded-3xl"}
                         rounded
                         fullWidth
                         size="lg"
@@ -133,7 +133,7 @@ const Signup = () => {
                         labelPlaceholder="Email"
                       />
                     </Grid>
-                    <Grid xs={6}>
+                    <Grid xs={5}>
                       <SharedDropDown />
                     </Grid>
                   </Grid>
