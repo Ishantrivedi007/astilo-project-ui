@@ -23,6 +23,7 @@ import { DataView } from "primereact/dataview";
 import { Rating } from "primereact/rating";
 import { Calendar } from "primereact/calendar";
 import TodoList from "./TodoList";
+import Chat from "./ChatBox";
 
 const sampleData = [
   {
@@ -1028,6 +1029,7 @@ const Dashboard = () => {
       </Card>
 
       <TodoList />
+      <Chat />
 
       {/* Repeat for other cards */}
     </div>
