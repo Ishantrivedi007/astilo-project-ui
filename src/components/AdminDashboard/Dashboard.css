@@ -52,3 +52,23 @@
   .bar-chart{
     padding-bottom: 100px !important;
   }
+  .fb-logo img{
+    background: #5f7ab5 !important;
+  }
+  .share-card{
+    width: 300px !important;
+    border-radius: 20px !important;
+    overflow: hidden;
+    padding: 0px !important;
+    
+  }
+  .share-card .p-card-content{
+    
+    padding: 0px !important;
+    
+  }
+  .share-card .p-card-body{
+    
+    padding: 0px !important;
+    
+  }
