@@ -1,0 +1,37 @@
+.todo-card {
+  width: 400px;
+  margin: 20px auto;
+  padding: 20px;
+  border-radius: 20px !important;
+}
+
+.todo-list-container {
+  margin-top: 20px;
+}
+
+.input-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  border-radius: 20px !important;
+}
+
+.todo-input {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.task-container {
+  display: flex;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.task-text {
+  margin-left: 10px;
+  font-size: 16px;
+}
+
+.completed-task {
+  text-decoration: line-through;
+}
