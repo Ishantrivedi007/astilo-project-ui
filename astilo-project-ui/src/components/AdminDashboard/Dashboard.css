@@ -35,21 +35,7 @@
     padding: 10px 0;
   }
   
-  .table-card {
-    flex: 1 1 100%;
-    padding: 20px;
-  }
   
-  .table-header {
-    background-color: #f2f2f2;
-    font-weight: bold;
-  }
-  
-  .table-body img {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-  }
   .bar-chart{
     padding-bottom: 100px !important;
   }
@@ -71,4 +57,218 @@
     
     padding: 0px !important;
     
+  }
+  .prime-table .p-datatable-header {
+    background: #979DA6 !important;
+    background-color: #edc54c;
+    border-radius: 9px;
+}
+.prime-table .p-datatable .p-datatable-header {
+   
+    border-radius: 9px;
+}
+.prime-table .p-paginator-bottom {
+   
+    border-radius: 9px !important;
+}
+.timeline .p-timeline-event-marker {
+    
+    background-color: #730A13 !important;
+}
+
+.product-list {
+    padding: 16px;
+    /* border-radius: 12px;
+    box-shadow: 0px 4px 30px rgba(221, 224, 255, 0.54); */
+  }
+  
+  .product-item {
+    /* background-color: #f5f5f5; */
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .product-image {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+  }
+  
+  .product-info {
+    margin-left: 16px;
+  }
+  
+  .product-name {
+    font-weight: bold;
+  }
+  
+  .product-price {
+    color: #888;
+  }
+  
+  .product-img img{
+    width: 100%;
+    height: auto;
+    border-radius: 22px !important;
+  }
+
+  /* Dashboard.css */
+
+.product-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .product-image-container {
+    margin-right: 1rem;
+  }
+  
+  .product-image-container img {
+    width: 100px;
+    height: auto;
+  }
+  
+  .product-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  .product-price {
+    font-size: 1rem;
+    color: #777;
+  }
+  
+  .product-rating {
+    display: flex;
+    align-items: center;
+  }
+  
+  .custom-rating-stars {
+    font-size: 1rem;
+    color: #ffc107;
+    margin-right: 0.5rem;
+  }
+  
+  .product-rating-value {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #777;
+  }
+/* Dashboard.css */
+
+.product-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .product-image-container {
+    margin-right: 1rem;
+  }
+  
+  .product-image-container img {
+    width: 100px;
+    height: auto;
+  }
+  
+  .product-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  
+  .product-price {
+    font-size: 1rem;
+    color: #777;
+  }
+  
+  .product-rating {
+    display: flex;
+    align-items: center;
+  }
+  
+  .custom-rating-stars {
+    font-size: 1rem;
+    color: #ffc107;
+    margin-right: 0.5rem;
+  }
+  
+  .product-rating-value {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #777;
+  }
+  .calendar-card {
+    margin-top: 2rem;
+    padding: 1rem;
+   
+    border-radius: 20px;
+    width: 50%;
+  }
+  
+  .calendar-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #000000;
+    margin-bottom: 1rem;
+  }
+  
+  .custom-calendar {
+    width: 100%;
+    
+    border-radius: 20px;
+    padding: 0.5rem;
+    font-family: 'Arial', sans-serif;
+  }
+  
+  /* Optional: Customize the calendar's header and footer colors */
+  .p-datepicker-header {
+    background-color:#edc54c !important;
+    color: #fff;
+  }
+  
+  .p-datepicker-footer {
+    background-color: #edc54c;
+    border-top: none;
+  }
+  
+  /* Optional: Change the default PrimeReact theme */
+  .p-datepicker .p-datepicker-calendar-container,
+  .p-datepicker .p-datepicker-calendar {
+    background-color: #fff;
+    color: #333;
+  }
+  
+  .p-datepicker .p-datepicker-day {
+    color: #333;
+  }
+  
+  .p-datepicker .p-highlight {
+    background-color: #edc54c;
+    color: #fff;
+  }
+  
+  .p-datepicker .p-datepicker-today {
+    background-color: #edc54c !important;
+    color: #fff;
+  }
+  
+  .p-datepicker .p-datepicker-today.p-highlight {
+    background-color: #edc54c;
+    color: #fff;
+  }
+  .p-datepicker table td > span {
+    
+    background: #fff;
+}
+.p-datepicker:not(.p-disabled) table td span:not(.p-highlight):not(.p-disabled):hover {
+    background: #e1ca84 !important;
+}
+.p-datepicker .p-datepicker-calendar .p-highlight ::after{
+    background-color: #e1ca84 !important;
+    border-color: #e1ca84 !important;
   }
