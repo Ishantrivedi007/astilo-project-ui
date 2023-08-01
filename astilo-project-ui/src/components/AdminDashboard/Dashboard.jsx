@@ -230,6 +230,111 @@ const Dashboard = () => {
         <h2>Doughnut Chart</h2>
         <Chart type="doughnut" data={doughnutChartData} />
       </Card>
+      <Card className="share-card p-shadow-4 " style={{ display: "flex" }}>
+        <Grid container direction="row" style={{ display: "flex " }}>
+          <Grid
+            style={{
+              //background: "#5f7ab5",
+              border: "1px solid #dfe7ef",
+
+              position: "relative", // Set position to relative for the background image
+            }}
+          >
+            <Image
+              className="fb-logo"
+              src="/fb.svg"
+              alt="fb"
+              width="100%"
+              style={{
+                background: "#5f7ab5",
+                height: "50%",
+                position: "relative",
+              }} // Set position to relative for the background image
+            />
+            <Image
+              src="/facebook.svg"
+              alt="Facebook"
+              height="50px"
+              width="50px"
+              style={{
+                position: "absolute", // Set position to absolute for the foreground image
+                top: "50%", // Vertically center the image
+                left: "50%", // Horizontally center the image
+                transform: "translate(-50%, -50%)", // Center the image precisely
+                zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+              }}
+            />{" "}
+          </Grid>
+        </Grid>
+        <Grid.Container direction="row" xs={12}>
+          <Grid.Container xs={6}>
+            <div className="text-4xl font-bold text-900 mr-4">89K</div>
+            <span className="font-semibold text-lg">Friends</span>
+          </Grid.Container>
+          <Grid.Container xs={6}>
+            <div className="text-4xl font-bold text-900 mr-4">89K</div>
+            <span className="font-semibold text-lg">Friends</span>
+          </Grid.Container>
+        </Grid.Container>
+
+        <span className="font-semibold text-lg">Feeds</span>
+        <div className="text-4xl font-bold text-900 mr-4">8,665</div>
+      </Card>
+
+      <Image
+        src="/fb.svg"
+        alt="fb"
+        width="100%"
+        style={{ background: "#5f7ab5", height: "50%" }}
+      />
+      <Card
+        className="chart-card p-shadow-4"
+        style={{
+          //background: "#5f7ab5",
+          border: "1px solid #dfe7ef",
+          padding: "2rem",
+          marginBottom: "2rem",
+          boxShadow: "0px 4px 30px rgba(221,224,255,.54)",
+          borderRadius: "12px",
+          position: "relative", // Set position to relative for the background image
+        }}
+      >
+        <Image
+          className="fb-logo"
+          src="/fb.svg"
+          alt="fb"
+          width="100%"
+          style={{
+            background: "#5f7ab5",
+            height: "50%",
+            position: "relative",
+          }} // Set position to relative for the background image
+        />
+
+        <Image
+          src="/facebook.svg"
+          alt="Facebook"
+          height="100px"
+          width="100px"
+          style={{
+            position: "absolute", // Set position to absolute for the foreground image
+            top: "50%", // Vertically center the image
+            left: "50%", // Horizontally center the image
+            transform: "translate(-50%, -50%)", // Center the image precisely
+            zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+          }}
+        />
+
+        <div className="p-grid p-nogutter">
+          <div className="p-col-12 mt-3">
+            <Button
+              label="View Details"
+              icon="pi pi-arrow-right"
+              className="p-button-secondary p-button-rounded"
+            />
+          </div>
+        </div>
+      </Card>
 
       {/* Repeat for other cards */}
     </div>
