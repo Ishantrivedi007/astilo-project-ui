@@ -274,7 +274,7 @@ const Dashboard = () => {
           <Grid.Container direction="row" xs={12} style={{ display: "flex" }}>
             <Grid xs={5} direction="column" alignItems="center">
               <div className="text-4xl font-bold text-900 ml-5">89K</div>
-              <span className="font-semibold text-lg ml-4">Friends</span>
+              <span className="font-semibold text-lg ml-5">Friends</span>
             </Grid>
             <Grid
               xs={2}
