@@ -5,13 +5,13 @@
     padding: 20px;
     background: #eff3f8;
   }
-  
   .chart-card,
   .table-card {
     flex: 1 1 300px;
     border-radius: 20px;
     overflow: hidden;
   }
+  
   .bar-chart,
   .stats-card,
   .chart-card {
@@ -25,6 +25,7 @@
     padding: 10px !important;
     
   }
+  
   .bar-chart h2,
   .stats-card h2,
   .chart-card h2,
@@ -60,7 +61,6 @@
     border-radius: 20px !important;
     overflow: hidden;
     padding: 0px !important;
-    
   }
   .share-card .p-card-content{
     

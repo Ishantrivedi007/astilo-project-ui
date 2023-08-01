@@ -8,6 +8,7 @@ import "./Dashboard.css";
 
 import "primeflex/primeflex.css";
 import { Grid } from "@nextui-org/react";
+import { Divider } from "primereact/divider";
 
 const lineChartData = {
   labels: ["Jan", "Feb", "Mar", "Apr", "May"],
@@ -230,111 +231,265 @@ const Dashboard = () => {
         <h2>Doughnut Chart</h2>
         <Chart type="doughnut" data={doughnutChartData} />
       </Card>
-      <Card className="share-card p-shadow-4 " style={{ display: "flex" }}>
-        <Grid container direction="row" style={{ display: "flex " }}>
-          <Grid
-            style={{
-              //background: "#5f7ab5",
-              border: "1px solid #dfe7ef",
+      <Grid.Container xs={12} justify="space-evenly">
+        <Card
+          className="share-card p-shadow-4 !h-[225px]"
+          style={{ display: "flex" }}
+        >
+          <Grid container direction="row" style={{ display: "flex " }}>
+            <Grid
+              style={{
+                //background: "#5f7ab5",
+                border: "1px solid #dfe7ef",
 
-              position: "relative", // Set position to relative for the background image
-            }}
-          >
-            <Image
-              className="fb-logo"
-              src="/fb.svg"
-              alt="fb"
-              width="100%"
-              style={{
-                background: "#5f7ab5",
-                height: "50%",
-                position: "relative",
-              }} // Set position to relative for the background image
-            />
-            <Image
-              src="/facebook.svg"
-              alt="Facebook"
-              height="50px"
-              width="50px"
-              style={{
-                position: "absolute", // Set position to absolute for the foreground image
-                top: "50%", // Vertically center the image
-                left: "50%", // Horizontally center the image
-                transform: "translate(-50%, -50%)", // Center the image precisely
-                zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+                position: "relative", // Set position to relative for the background image
               }}
-            />{" "}
+            >
+              <Image
+                className="fb-logo"
+                src="/fb.svg"
+                alt="fb"
+                width="100%"
+                style={{
+                  background: "#5f7ab5",
+                  height: "50%",
+                  position: "relative",
+                }} // Set position to relative for the background image
+              />
+              <Image
+                src="/facebook.svg"
+                alt="Facebook"
+                height="50px"
+                width="50px"
+                style={{
+                  position: "absolute", // Set position to absolute for the foreground image
+                  top: "50%", // Vertically center the image
+                  left: "50%", // Horizontally center the image
+                  transform: "translate(-50%, -50%)", // Center the image precisely
+                  zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+                }}
+              />{" "}
+            </Grid>
           </Grid>
-        </Grid>
-        <Grid.Container direction="row" xs={12}>
-          <Grid.Container xs={6}>
-            <div className="text-4xl font-bold text-900 mr-4">89K</div>
-            <span className="font-semibold text-lg">Friends</span>
+          <Grid.Container direction="row" xs={12} style={{ display: "flex" }}>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 ml-5">89K</div>
+              <span className="font-semibold text-lg ml-4">Friends</span>
+            </Grid>
+            <Grid
+              xs={2}
+              direction="column"
+              alignItems="center"
+              style={{ display: "flex" }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRight: "1px solid #dcdcdc",
+                  margin: "0 10px",
+                }}
+              ></div>
+            </Grid>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 mr-5">8,665</div>
+              <span className="font-semibold text-lg mr-5">Feeds</span>
+            </Grid>
           </Grid.Container>
-          <Grid.Container xs={6}>
-            <div className="text-4xl font-bold text-900 mr-4">89K</div>
-            <span className="font-semibold text-lg">Friends</span>
+        </Card>
+        <Card
+          className="share-card p-shadow-4 !h-[225px]"
+          style={{ display: "flex" }}
+        >
+          <Grid container direction="row" style={{ display: "flex " }}>
+            <Grid
+              style={{
+                //background: "#5f7ab5",
+                border: "1px solid #dfe7ef",
+
+                position: "relative", // Set position to relative for the background image
+              }}
+            >
+              <Image
+                className="fb-logo"
+                src="/insta.svg"
+                alt="insta"
+                width="100%"
+                style={{
+                  background: "#5f7ab5",
+                  height: "50%",
+                  position: "relative",
+                }} // Set position to relative for the background image
+              />
+              <Image
+                src="/instagram.svg"
+                alt="Instagram"
+                height="50px"
+                width="50px"
+                style={{
+                  position: "absolute", // Set position to absolute for the foreground image
+                  top: "50%", // Vertically center the image
+                  left: "50%", // Horizontally center the image
+                  transform: "translate(-50%, -50%)", // Center the image precisely
+                  zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+                }}
+              />{" "}
+            </Grid>
+          </Grid>
+          <Grid.Container direction="row" xs={12} style={{ display: "flex" }}>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 ml-5">79K</div>
+              <span className="font-semibold text-lg ml-5">Followers</span>
+            </Grid>
+            <Grid
+              xs={2}
+              direction="column"
+              alignItems="center"
+              style={{ display: "flex" }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRight: "1px solid #dcdcdc",
+                  margin: "0 10px",
+                }}
+              ></div>
+            </Grid>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 mr-5">8,665</div>
+              <span className="font-semibold text-lg mr-5">Feeds</span>
+            </Grid>
           </Grid.Container>
-        </Grid.Container>
+        </Card>
 
-        <span className="font-semibold text-lg">Feeds</span>
-        <div className="text-4xl font-bold text-900 mr-4">8,665</div>
-      </Card>
+        <Card
+          className="share-card p-shadow-4 !h-[225px]"
+          style={{ display: "flex" }}
+        >
+          <Grid container direction="row" style={{ display: "flex " }}>
+            <Grid
+              style={{
+                //background: "#5f7ab5",
+                border: "1px solid #dfe7ef",
 
-      <Image
-        src="/fb.svg"
-        alt="fb"
-        width="100%"
-        style={{ background: "#5f7ab5", height: "50%" }}
-      />
-      <Card
-        className="chart-card p-shadow-4"
-        style={{
-          //background: "#5f7ab5",
-          border: "1px solid #dfe7ef",
-          padding: "2rem",
-          marginBottom: "2rem",
-          boxShadow: "0px 4px 30px rgba(221,224,255,.54)",
-          borderRadius: "12px",
-          position: "relative", // Set position to relative for the background image
-        }}
-      >
-        <Image
-          className="fb-logo"
-          src="/fb.svg"
-          alt="fb"
-          width="100%"
-          style={{
-            background: "#5f7ab5",
-            height: "50%",
-            position: "relative",
-          }} // Set position to relative for the background image
-        />
+                position: "relative", // Set position to relative for the background image
+              }}
+            >
+              <Image
+                className="fb-logo"
+                src="/link.svg"
+                alt="link"
+                width="100%"
+                style={{
+                  background: "#5f7ab5",
+                  height: "50%",
+                  position: "relative",
+                }} // Set position to relative for the background image
+              />
+              <Image
+                src="/linkedin.svg"
+                alt="Linkedin"
+                height="50px"
+                width="50px"
+                style={{
+                  position: "absolute", // Set position to absolute for the foreground image
+                  top: "50%", // Vertically center the image
+                  left: "50%", // Horizontally center the image
+                  transform: "translate(-50%, -50%)", // Center the image precisely
+                  zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+                }}
+              />{" "}
+            </Grid>
+          </Grid>
+          <Grid.Container direction="row" xs={12} style={{ display: "flex" }}>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 ml-5">89K</div>
+              <span className="font-semibold text-lg ml-5">Contacts</span>
+            </Grid>
+            <Grid
+              xs={2}
+              direction="column"
+              alignItems="center"
+              style={{ display: "flex" }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRight: "1px solid #dcdcdc",
+                  margin: "0 10px",
+                }}
+              ></div>
+            </Grid>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 mr-5">1,292</div>
+              <span className="font-semibold text-lg mr-5">Feeds</span>
+            </Grid>
+          </Grid.Container>
+        </Card>
+        <Card
+          className="share-card p-shadow-4 !h-[225px]"
+          style={{ display: "flex" }}
+        >
+          <Grid container direction="row" style={{ display: "flex " }}>
+            <Grid
+              style={{
+                //background: "#5f7ab5",
+                border: "1px solid #dfe7ef",
 
-        <Image
-          src="/facebook.svg"
-          alt="Facebook"
-          height="100px"
-          width="100px"
-          style={{
-            position: "absolute", // Set position to absolute for the foreground image
-            top: "50%", // Vertically center the image
-            left: "50%", // Horizontally center the image
-            transform: "translate(-50%, -50%)", // Center the image precisely
-            zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
-          }}
-        />
-
-        <div className="p-grid p-nogutter">
-          <div className="p-col-12 mt-3">
-            <Button
-              label="View Details"
-              icon="pi pi-arrow-right"
-              className="p-button-secondary p-button-rounded"
-            />
-          </div>
-        </div>
-      </Card>
+                position: "relative", // Set position to relative for the background image
+              }}
+            >
+              <Image
+                className="fb-logo"
+                src="/yt.svg"
+                alt="yt"
+                width="100%"
+                style={{
+                  background: "#5f7ab5",
+                  height: "50%",
+                  position: "relative",
+                }} // Set position to relative for the background image
+              />
+              <Image
+                src="/youtube.svg"
+                alt="Youtube"
+                height="50px"
+                width="50px"
+                style={{
+                  position: "absolute", // Set position to absolute for the foreground image
+                  top: "50%", // Vertically center the image
+                  left: "50%", // Horizontally center the image
+                  transform: "translate(-50%, -50%)", // Center the image precisely
+                  zIndex: 1, // Set the zIndex to 1 to make sure it appears on top
+                }}
+              />{" "}
+            </Grid>
+          </Grid>
+          <Grid.Container direction="row" xs={12} style={{ display: "flex" }}>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 ml-5">1.2M</div>
+              <span className="font-semibold text-lg ml-5">Followers</span>
+            </Grid>
+            <Grid
+              xs={2}
+              direction="column"
+              alignItems="center"
+              style={{ display: "flex" }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  borderRight: "1px solid #dcdcdc",
+                  margin: "0 10px",
+                }}
+              ></div>
+            </Grid>
+            <Grid xs={5} direction="column" alignItems="center">
+              <div className="text-4xl font-bold text-900 mr-5">12M</div>
+              <span className="font-semibold text-lg mr-5">Views</span>
+            </Grid>
+          </Grid.Container>
+        </Card>
+      </Grid.Container>
 
       {/* Repeat for other cards */}
     </div>
