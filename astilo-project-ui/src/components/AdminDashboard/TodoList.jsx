@@ -4,6 +4,7 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { Checkbox } from "primereact/checkbox";
 import { Toast } from "primereact/toast";
+import "./TodoList.css";
 
 const TodoList = () => {
   const [newTask, setNewTask] = useState("");
@@ -40,8 +41,8 @@ const TodoList = () => {
     <Card className="todo-card p-shadow-4 rounded-xl">
       <Toast ref={toast} />
 
+      <h2 className="font-bold">To Do List</h2>
       <div className="todo-list-container">
-        <h2>Todo List</h2>
         <div className="input-container">
           <InputText
             className="todo-input"
