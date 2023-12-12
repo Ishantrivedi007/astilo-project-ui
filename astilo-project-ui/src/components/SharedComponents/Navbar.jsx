@@ -19,7 +19,7 @@ const Header = () => {
         <Navbar.Link href="/music">Music</Navbar.Link>
         <Navbar.Link href="/Movies">Movies</Navbar.Link>
         <Navbar.Link href="/store">Store</Navbar.Link>
-        <Navbar.Link href="#">Dashboard</Navbar.Link>
+        <Navbar.Link href="/dashboard">Dashboard</Navbar.Link>
         <Navbar.Link href="/users">Users</Navbar.Link>
         <Navbar.Link href="/users">NimRose Desk</Navbar.Link>
       </Navbar.Content>
