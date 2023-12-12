@@ -4,7 +4,7 @@ import Shop from "./Shop/Shop.js";
 import TableContainer from "./Navbar/TableContainer.js";
 import store from "./redux/store.js";
 import { Provider } from "react-redux";
-import MusicPlayer from "./Audio/MusicPlayer.js";
+import MusicPlayer from "./Audio/MusicPlayer.jsx";
 import Movies from "./components/Movies/Movies.js";
 import PageNotFound from "./components/SharedComponents/404NotFound/PageNotFound.jsx";
 import Header from "./components/SharedComponents/Navbar.jsx";
