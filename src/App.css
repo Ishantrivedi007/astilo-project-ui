@@ -1,6 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 .App {
   text-align: center;
-  
+  background-color: rgb(203 213 225) !important;
 }
 
 .App-logo {
@@ -37,6 +41,3 @@
     transform: rotate(360deg);
   }
 }
-@tailwind base;
-@tailwind components;
-@tailwind utilities;

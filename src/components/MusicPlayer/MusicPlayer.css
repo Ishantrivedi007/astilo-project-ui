@@ -1,0 +1,17 @@
+.hide-scrollbar {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* Internet Explorer 10+ */
+
+  }
+  
+  ::-webkit-scrollbar {
+    display: none; /* WebKit */
+  }
+
+  .play-button {
+    border-width: 3px;
+    border-style: solid;
+    border-image: linear-gradient(43deg, #4158d0 0%, #c850c0 46%, #ffcc70 100%);
+    border-image-slice: 1;
+    border-radius: 10px; /* Adjust the border-radius value as needed */
+  }
