@@ -1,0 +1,33 @@
+.featured-swiper {
+  padding-bottom: 3rem;
+  overflow: visible;
+
+  .swiper-slide.featured-slide {
+    width: min(760px, 90vw);
+    height: 380px;
+    opacity: 0.4;
+    transition: opacity 0.4s ease;
+
+    @media (max-width: 640px) {
+      height: 300px;
+    }
+
+    &.swiper-slide-active {
+      opacity: 1;
+    }
+  }
+
+  .swiper-pagination-bullet {
+    background: rgb(var(--ink-rgb) / 0.35);
+    opacity: 1;
+  }
+  .swiper-pagination-bullet-active {
+    background: linear-gradient(
+      90deg,
+      rgb(var(--accent-rgb)),
+      rgb(var(--accent-2-rgb))
+    );
+    width: 22px;
+    border-radius: 999px;
+  }
+}
