@@ -1,0 +1,82 @@
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+
+  span {
+    width: 3px;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(
+      rgb(var(--accent-rgb)),
+      rgb(var(--accent-2-rgb))
+    );
+    transform-origin: bottom;
+    animation: eq 0.9s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+    &:nth-child(4) {
+      animation-delay: 0.45s;
+    }
+    &:nth-child(5) {
+      animation-delay: 0.6s;
+    }
+  }
+
+  &[data-paused="true"] span {
+    animation-play-state: paused;
+    transform: scaleY(0.25);
+  }
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.album-glow {
+  position: absolute;
+  inset: -16%;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 0deg,
+    rgb(var(--accent-rgb)),
+    rgb(var(--accent-2-rgb)),
+    rgb(var(--accent-rgb))
+  );
+  filter: blur(30px);
+  opacity: 0.4;
+  animation: art-spin 8s linear infinite;
+  transition: opacity 0.4s ease;
+
+  &[data-playing="true"] {
+    opacity: 0.75;
+  }
+}
+
+@keyframes art-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lyrics-scroll {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+}

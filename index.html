@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0b0620" />
+    <meta name="description" content="Astilo's — music, movies & more, vibing." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var DARK = ["midnight-gold", "cosmic", "noir-teal", "royal", "ember"];
+          var LIGHT = ["pearl", "aurora", "champagne", "sunset", "pistachio"];
+          var id = localStorage.getItem("astilo-theme") || "cosmic";
+          if (DARK.indexOf(id) < 0 && LIGHT.indexOf(id) < 0) id = "cosmic";
+          var mode = DARK.indexOf(id) >= 0 ? "dark" : "light";
+          var r = document.documentElement;
+          r.dataset.theme = id;
+          r.classList.add(mode);
+          r.style.colorScheme = mode;
+        } catch (e) {}
+      })();
+    </script>
+    <title>Astilo's</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

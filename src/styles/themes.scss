@@ -1,0 +1,168 @@
+// ===========================================================================
+//  Astilo's theme tokens
+//  Every theme exposes the same contract as RGB channel triples so Tailwind
+//  utilities (bg-accent, text-ink/60, border-hair ...) resolve with alpha.
+//    --bg-rgb        page base
+//    --surface-rgb   cards / panels
+//    --accent-rgb    primary accent
+//    --accent-2-rgb  secondary accent
+//    --ink-rgb       primary text
+//    --ink-muted-rgb secondary text
+//    --hair-rgb      hairline / border (usually the accent, used at low alpha)
+//    --bg-gradient   atmospheric background gradient
+// ===========================================================================
+
+@mixin theme(
+  $bg,
+  $surface,
+  $accent,
+  $accent2,
+  $ink,
+  $inkMuted,
+  $hair,
+  $gradient
+) {
+  --bg-rgb: #{$bg};
+  --surface-rgb: #{$surface};
+  --accent-rgb: #{$accent};
+  --accent-2-rgb: #{$accent2};
+  --ink-rgb: #{$ink};
+  --ink-muted-rgb: #{$inkMuted};
+  --hair-rgb: #{$hair};
+  --glow-rgb: #{$accent};
+  --bg-gradient: #{$gradient};
+}
+
+// ------------------------------- LIGHT --------------------------------------
+
+[data-theme="pearl"] {
+  @include theme(
+    251 250 255,
+    255 255 255,
+    118 87 232,
+    180 140 255,
+    22 21 42,
+    74 72 99,
+    118 87 232,
+    linear-gradient(135deg, #ffffff 0%, #ede5ff 55%, #dcd7ff 100%)
+  );
+}
+
+[data-theme="aurora"] {
+  @include theme(
+    250 248 255,
+    255 255 255,
+    139 92 246,
+    236 72 153,
+    23 20 33,
+    76 73 89,
+    139 92 246,
+    linear-gradient(135deg, #ffddf2 0%, #dcd6ff 50%, #d7f0ff 100%)
+  );
+}
+
+[data-theme="champagne"] {
+  @include theme(
+    255 252 245,
+    255 255 255,
+    183 121 31,
+    224 168 62,
+    29 26 20,
+    92 86 74,
+    183 121 31,
+    linear-gradient(135deg, #fff8e7 0%, #ffe9b8 55%, #f8dfaf 100%)
+  );
+}
+
+[data-theme="sunset"] {
+  @include theme(
+    255 251 245,
+    255 255 255,
+    214 90 49,
+    233 162 59,
+    32 24 21,
+    107 95 88,
+    214 90 49,
+    linear-gradient(135deg, #ffe8c2 0%, #ffd4a8 50%, #ffd2c2 100%)
+  );
+}
+
+[data-theme="pistachio"] {
+  @include theme(
+    249 255 245,
+    255 255 255,
+    104 143 53,
+    217 144 88,
+    23 32 22,
+    86 96 79,
+    104 143 53,
+    linear-gradient(135deg, #e4f6c7 0%, #fff2c7 50%, #ffe4d0 100%)
+  );
+}
+
+// ------------------------------- DARK ---------------------------------------
+
+[data-theme="midnight-gold"] {
+  @include theme(
+    7 7 7,
+    17 16 13,
+    245 210 122,
+    201 154 62,
+    255 249 232,
+    184 178 165,
+    245 210 122,
+    linear-gradient(135deg, #070707 0%, #18140d 55%, #261d0c 100%)
+  );
+}
+
+[data-theme="cosmic"] {
+  @include theme(
+    8 10 28,
+    17 20 43,
+    155 124 255,
+    79 140 255,
+    248 247 255,
+    169 167 196,
+    155 124 255,
+    linear-gradient(135deg, #080a1c 0%, #17113d 50%, #101a4d 100%)
+  );
+}
+
+[data-theme="noir-teal"] {
+  @include theme(
+    5 8 7,
+    13 21 19,
+    240 200 117,
+    101 214 193,
+    245 245 234,
+    173 176 165,
+    240 200 117,
+    linear-gradient(135deg, #050807 0%, #0b211e 50%, #281b19 100%)
+  );
+}
+
+[data-theme="royal"] {
+  @include theme(
+    3 6 23,
+    8 13 42,
+    255 214 107,
+    139 124 255,
+    248 247 255,
+    166 166 196,
+    255 214 107,
+    linear-gradient(135deg, #030617 0%, #0e184d 50%, #2b1a57 100%)
+  );
+}
+
+[data-theme="ember"] {
+  @include theme(
+    11 11 10,
+    21 20 17,
+    255 155 84,
+    255 209 102,
+    250 250 247,
+    181 178 170,
+    255 155 84,
+    linear-gradient(135deg, #0b0b0a 0%, #20150d 50%, #30140d 100%)
+  );
+}

@@ -1,135 +1,86 @@
-import colors from "tailwindcss/colors";
-const { nextui } = require("@nextui-org/react");
+import { heroui } from "@heroui/react";
+
+const themed = (v) => `rgb(var(${v}) / <alpha-value>)`;
 
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   content: [
-    "./src/**/*.{html,js,jsx,tsx}",
-    "./node_modules/@nextui-org/theme/dist/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@tremor/**/*.{js,ts,jsx,tsx}",
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     transparent: "transparent",
     current: "currentColor",
     extend: {
+      fontFamily: {
+        sans: ['"Space Grotesk"', "system-ui", "sans-serif"],
+        display: ['"Syne"', '"Space Grotesk"', "system-ui", "sans-serif"],
+      },
       colors: {
-        // light mode
-        tremor: {
-          brand: {
-            faint: colors.blue[50],
-            muted: colors.blue[200],
-            subtle: colors.blue[400],
-            DEFAULT: colors.blue[500],
-            emphasis: colors.blue[700],
-            inverted: colors.white,
-          },
-          background: {
-            muted: colors.gray[50],
-            subtle: colors.gray[100],
-            DEFAULT: colors.white,
-            emphasis: colors.gray[700],
-          },
-          border: {
-            DEFAULT: colors.gray[200],
-          },
-          ring: {
-            DEFAULT: colors.gray[200],
-          },
-          content: {
-            subtle: colors.gray[400],
-            DEFAULT: colors.gray[500],
-            emphasis: colors.gray[700],
-            strong: colors.gray[900],
-            inverted: colors.white,
-          },
+        app: themed("--bg-rgb"),
+        surface: themed("--surface-rgb"),
+        hair: themed("--hair-rgb"),
+        accent: {
+          DEFAULT: themed("--accent-rgb"),
+          2: themed("--accent-2-rgb"),
         },
-        // dark mode
-        "dark-tremor": {
-          brand: {
-            faint: "#0B1229",
-            muted: colors.blue[950],
-            subtle: colors.blue[800],
-            DEFAULT: colors.blue[500],
-            emphasis: colors.blue[400],
-            inverted: colors.blue[950],
-          },
-          background: {
-            muted: "#131A2B",
-            subtle: colors.gray[800],
-            DEFAULT: colors.gray[900],
-            emphasis: colors.gray[300],
-          },
-          border: {
-            DEFAULT: colors.gray[800],
-          },
-          ring: {
-            DEFAULT: colors.gray[800],
-          },
-          content: {
-            subtle: colors.gray[600],
-            DEFAULT: colors.gray[500],
-            emphasis: colors.gray[200],
-            strong: colors.gray[50],
-            inverted: colors.gray[950],
-          },
+        ink: {
+          DEFAULT: themed("--ink-rgb"),
+          muted: themed("--ink-muted-rgb"),
         },
       },
-      boxShadow: {
-        // light
-        "tremor-input": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        "tremor-card":
-          "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
-        "tremor-dropdown":
-          "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-        // dark
-        "dark-tremor-input": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        "dark-tremor-card":
-          "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
-        "dark-tremor-dropdown":
-          "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+      keyframes: {
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-10px)" },
+        },
+        wiggle: {
+          "0%, 100%": { transform: "rotate(-6deg)" },
+          "50%": { transform: "rotate(6deg)" },
+        },
+        "spin-slow": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        eq: {
+          "0%, 100%": { transform: "scaleY(0.3)" },
+          "50%": { transform: "scaleY(1)" },
+        },
+        pulseGlow: {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgb(var(--glow-rgb) / 0.45)" },
+          "50%": { boxShadow: "0 0 26px 8px rgb(var(--glow-rgb) / 0.18)" },
+        },
       },
-      borderRadius: {
-        "tremor-small": "0.375rem",
-        "tremor-default": "0.5rem",
-        "tremor-full": "9999px",
-      },
-      fontSize: {
-        "tremor-label": ["0.75rem", { lineHeight: "1rem" }],
-        "tremor-default": ["0.875rem", { lineHeight: "1.25rem" }],
-        "tremor-title": ["1.125rem", { lineHeight: "1.75rem" }],
-        "tremor-metric": ["1.875rem", { lineHeight: "2.25rem" }],
+      animation: {
+        float: "float 5s ease-in-out infinite",
+        wiggle: "wiggle 0.4s ease-in-out",
+        "spin-slow": "spin-slow 8s linear infinite",
+        eq: "eq 0.9s ease-in-out infinite",
+        "pulse-glow": "pulseGlow 2.6s ease-in-out infinite",
       },
     },
   },
-  safelist: [
-    {
-      pattern:
-        /^(bg-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-      variants: ["hover", "ui-selected"],
-    },
-    {
-      pattern:
-        /^(text-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-      variants: ["hover", "ui-selected"],
-    },
-    {
-      pattern:
-        /^(border-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-      variants: ["hover", "ui-selected"],
-    },
-    {
-      pattern:
-        /^(ring-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-    },
-    {
-      pattern:
-        /^(stroke-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-    },
-    {
-      pattern:
-        /^(fill-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|100|200|300|400|500|600|700|800|900|950))$/,
-    },
-  ],
   darkMode: "class",
-  plugins: [nextui()],
+  plugins: [
+    heroui({
+      themes: {
+        light: {
+          colors: {
+            primary: { DEFAULT: "#7657E8", foreground: "#ffffff" },
+            secondary: { DEFAULT: "#B48CFF", foreground: "#1b1730" },
+            focus: "#7657E8",
+          },
+        },
+        dark: {
+          colors: {
+            background: "#0b0620",
+            primary: { DEFAULT: "#9B7CFF", foreground: "#12021a" },
+            secondary: { DEFAULT: "#4F8CFF", foreground: "#ffffff" },
+            focus: "#9B7CFF",
+          },
+        },
+      },
+    }),
+  ],
 };

@@ -1,70 +1,67 @@
-# Getting Started with Create React App
+# Astilo's UI
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React + TypeScript + Vite app using [HeroUI](https://heroui.com/) (the successor to NextUI) for components.
 
-## Available Scripts
+## Stack
 
-In the project directory, you can run:
+- **Vite** (dev server / bundler) — replaces Create React App
+- **TypeScript** + React 18
+- **HeroUI** (`@heroui/react`) + Tailwind CSS v3
+- **Theme system** — 10 curated palettes (5 light / 5 dark) switchable at runtime
+  from the navbar 🎨 menu. Tokens live in `src/styles/themes.scss` as
+  `[data-theme]` blocks (RGB channel triples); registry + provider in `src/theme/`.
+  Choice persists to `localStorage`; a tiny inline script in `index.html` applies
+  it before first paint (no flash). Default: **Cosmic**.
+- **SCSS** (`sass`) for component styles + the global design system (`src/styles/`)
+- **TanStack Query** (`@tanstack/react-query`) — data fetching (lyrics, store, TMDB)
+- **ApexCharts** (`react-apexcharts`) — animated, theme-aware dashboard charts
+- **TanStack Table** (`@tanstack/react-table`) — sortable/filterable users table
+- **sonner** — toasts · **react-countup** — animated stats · **framer-motion** —
+  scroll reveals · **@formkit/auto-animate** — list transitions
+- Route-level code splitting (`React.lazy`) so ApexCharts/Swiper load per page
+- Shared UI kit in `src/components/shared/` (`PageHeading`, `GlassPanel`,
+  `GradientButton`, `StatCard`, `Reveal`, `Chart`, `Sparkline`, `BarList`) —
+  reused across every page
+- React Router v6, MUI (loader), Swiper, axios
 
-### `npm start`
+## Getting started
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+npm install
+npm run dev      # start dev server on http://localhost:3000
+npm run build    # type-check + production build to dist/
+npm run preview  # preview the production build
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Environment
 
-### `npm test`
+`.env` is **git-ignored** (holds secrets). Copy the template and fill it in:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+cp .env.example .env
+```
 
-### `npm run build`
+| Var | Purpose |
+| --- | --- |
+| `VITE_BASE_URL` | base URL for the shared API request helper (optional) |
+| `VITE_TMDB_TOKEN` | TMDB v4 read access token → live Movies catalogue |
+| `VITE_TMDB_API_KEY` | TMDB v3 API key (alternative to the token) |
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Get a free TMDB credential at <https://www.themoviedb.org/settings/api>. With
+neither set, the Movies page renders a built-in demo catalogue. Only
+`VITE_`-prefixed vars are exposed to the client, via `import.meta.env`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Structure
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```
+src/
+  app/                Routing (AppRoute, AppRoutes, AuthorizedRoute)
+  components/
+    DashBoard/        Tremor dashboard + chart data
+    Login/
+    Movies/           Swiper coverflow gallery
+    MusicPlayer/      Player, playlist, lyrics
+    Navbar/           AcmeLogo
+    SharedComponents/ NavBar, SharedButton, Loader, config, SharedApiRequest
+    Store/            Product grid
+```
