@@ -5,8 +5,9 @@ from app.controllers.auth_controller import AuthController
 from app.controllers.favorites_controller import FavoritesController
 from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
-from app.controllers.media_controller import LyricsController, TmdbController
+from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.playlists_controller import PlaylistsController
+from app.controllers.songs_controller import SongSearchController, SongsController
 from app.controllers.store_controller import OrdersController, ProductsController
 from app.controllers.users_controller import UsersController
 from app.db import init_db
@@ -49,11 +50,15 @@ def build_app():
     cherrypy.tree.mount(TmdbController(), "/api/media/tmdb", conf)
     cherrypy.tree.mount(LyricsController(), "/api/media/lyrics", conf)
     cherrypy.tree.mount(AnimeController(), "/api/media/anime", conf)
+    cherrypy.tree.mount(LyricsSearchController(), "/api/media/genius-search", conf)
+    cherrypy.tree.mount(SongsController(), "/api/music/songs", conf)
+    cherrypy.tree.mount(SongSearchController(), "/api/music/search", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
         "server.socket_port": config.PORT,
         "engine.autoreload.on": True,
+        "response.timeout": 300,
     })
 
     return root

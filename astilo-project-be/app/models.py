@@ -184,3 +184,69 @@ class OrderItem(Base):
             "quantity": self.quantity,
             "unitPrice": self.unit_price,
         }
+
+
+class Song(Base):
+    """A track downloaded via yt-dlp for the Music tab's Search Song feature."""
+
+    __tablename__ = "songs"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    artist = Column(String(255))
+    audio_url = Column(String(500), nullable=False)
+    cover_url = Column(String(500))
+    duration_seconds = Column(Integer)
+    youtube_id = Column(String(64))
+    source_url = Column(String(500))
+    media_type = Column(String(10), nullable=False, default="audio")  # audio | video
+    bitrate_kbps = Column(Integer)
+    quality_label = Column(String(20))
+    created_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "artist": self.artist,
+            "audioUrl": self.audio_url,
+            "coverUrl": self.cover_url,
+            "durationSeconds": self.duration_seconds,
+            "youtubeId": self.youtube_id,
+            "sourceUrl": self.source_url,
+            "mediaType": self.media_type,
+            "bitrateKbps": self.bitrate_kbps,
+            "qualityLabel": self.quality_label,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class LyricsCache(Base):
+    """Cached lyrics (Genius or lrclib) so repeat lookups skip the network call."""
+
+    __tablename__ = "lyrics_cache"
+
+    id = Column(Integer, primary_key=True)
+    genius_song_id = Column(String(64), unique=True, nullable=False)  # "genius:<id>" or "lrclib:<id>"
+    artist = Column(String(255))
+    title = Column(String(255))
+    genius_url = Column(String(500))
+    thumbnail_url = Column(String(500))
+    lyrics_text = Column(Text)
+    source = Column(String(20))  # genius | lrclib
+    hit_count = Column(Integer, default=1)
+    fetched_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "geniusSongId": self.genius_song_id,
+            "artist": self.artist,
+            "title": self.title,
+            "geniusUrl": self.genius_url,
+            "thumbnailUrl": self.thumbnail_url,
+            "lyricsText": self.lyrics_text,
+            "source": self.source,
+            "fetchedAt": self.fetched_at.isoformat() if self.fetched_at else None,
+            "hitCount": self.hit_count,
+        }
