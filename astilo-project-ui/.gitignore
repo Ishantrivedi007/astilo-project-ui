@@ -9,7 +9,12 @@ pnpm-debug.log*
 node_modules
 dist
 dist-ssr
+.vite
 *.local
+*.tsbuildinfo
+
+# Local-only media, keep off the remote
+public/*.mp3
 
 # Editor directories and files
 .vscode/*
