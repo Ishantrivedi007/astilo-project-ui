@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import App from "./App";
 import { queryClient } from "./lib/queryClient";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { PreferencesProvider } from "./theme/PreferencesProvider";
 import "./styles/index.scss";
 
 function Providers({ children }: { children: React.ReactNode }) {
@@ -14,19 +15,21 @@ function Providers({ children }: { children: React.ReactNode }) {
   return (
     <HeroUIProvider navigate={navigate} useHref={useHref}>
       <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          {children}
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              style: {
-                background: "rgb(var(--surface-rgb))",
-                color: "rgb(var(--ink-rgb))",
-                border: "1px solid rgb(var(--hair-rgb) / 0.2)",
-              },
-            }}
-          />
-        </QueryClientProvider>
+        <PreferencesProvider>
+          <QueryClientProvider client={queryClient}>
+            {children}
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                style: {
+                  background: "rgb(var(--surface-rgb))",
+                  color: "rgb(var(--ink-rgb))",
+                  border: "1px solid rgb(var(--hair-rgb) / 0.2)",
+                },
+              }}
+            />
+          </QueryClientProvider>
+        </PreferencesProvider>
       </ThemeProvider>
     </HeroUIProvider>
   );

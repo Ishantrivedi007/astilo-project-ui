@@ -1,81 +1,19 @@
 import axios from "axios";
 
 /**
- * Lyrics lookup with graceful fallback:
- *   1. Genius   — only if VITE_GENIUS_ACCESS_TOKEN is set (via a CORS proxy,
- *                 since api.genius.com sends no CORS headers)
- *   2. lrclib.net — keyless, CORS-enabled, very reliable
- *   3. lyrics.ovh — keyless backup
- *   4. caller-supplied fallback text
- *
- * The Genius token is read from the environment only — never hard-code it.
+ * Lyrics lookup, proxied through our own backend (`/api/media/lyrics`).
+ * The backend tries lrclib.net then lyrics.ovh server-side and returns
+ * whichever plain-text result it finds; the browser makes no third-party
+ * calls itself.
  */
 
-const GENIUS_TOKEN = import.meta.env.VITE_GENIUS_ACCESS_TOKEN?.trim();
-const PROXY = "https://api.allorigins.win/raw?url=";
+const API_BASE = (import.meta.env.VITE_BASE_URL?.trim() || "http://localhost:8080/api");
 
-const stripLrc = (text: string) =>
-  text
-    .replace(/\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-async function fromGenius(artist: string, title: string): Promise<string | null> {
-  if (!GENIUS_TOKEN) return null;
+async function fromBackend(artist: string, title: string): Promise<string | null> {
   try {
-    const searchUrl = `https://api.genius.com/search?q=${encodeURIComponent(
-      `${artist} ${title}`
-    )}&access_token=${GENIUS_TOKEN}`;
-    const { data } = await axios.get(PROXY + encodeURIComponent(searchUrl), {
-      timeout: 9000,
-    });
-    const songUrl: string | undefined = data?.response?.hits?.[0]?.result?.url;
-    if (!songUrl) return null;
-
-    const { data: html } = await axios.get<string>(
-      PROXY + encodeURIComponent(songUrl),
-      { timeout: 9000, responseType: "text" }
-    );
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const blocks = doc.querySelectorAll('[data-lyrics-container="true"]');
-    if (!blocks.length) return null;
-    const text = Array.from(blocks)
-      .map((b) => {
-        b.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
-        return b.textContent ?? "";
-      })
-      .join("\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    return text || null;
-  } catch {
-    return null;
-  }
-}
-
-async function fromLrclib(artist: string, title: string): Promise<string | null> {
-  try {
-    const { data } = await axios.get("https://lrclib.net/api/get", {
-      params: { artist_name: artist, track_name: title },
-      timeout: 8000,
-    });
-    const text = data?.plainLyrics || stripLrc(data?.syncedLyrics ?? "");
-    return text?.trim() || null;
-  } catch {
-    return null;
-  }
-}
-
-async function fromLyricsOvh(
-  artist: string,
-  title: string
-): Promise<string | null> {
-  try {
-    const { data } = await axios.get(
-      `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(
-        title
-      )}`,
-      { timeout: 8000 }
+    const { data } = await axios.get<{ lyrics: string | null }>(
+      `${API_BASE}/media/lyrics`,
+      { params: { artist, title }, timeout: 9000 }
     );
     return data?.lyrics?.trim() || null;
   } catch {
@@ -88,12 +26,7 @@ export async function fetchLyrics(
   title: string,
   fallback: string
 ): Promise<string> {
-  return (
-    (await fromGenius(artist, title)) ??
-    (await fromLrclib(artist, title)) ??
-    (await fromLyricsOvh(artist, title)) ??
-    fallback
-  );
+  return (await fromBackend(artist, title)) ?? fallback;
 }
 
 /* ---- time-synced lyrics (karaoke) ----------------------------------- */
@@ -132,38 +65,22 @@ function parseLrc(lrc: string): LrcLine[] {
   return lines.sort((a, b) => a.time - b.time);
 }
 
-async function syncedFromLrclib(
-  artist: string,
-  title: string
-): Promise<LyricsResult | null> {
-  try {
-    const { data } = await axios.get("https://lrclib.net/api/get", {
-      params: { artist_name: artist, track_name: title },
-      timeout: 8000,
-    });
-    const parsed = data?.syncedLyrics ? parseLrc(data.syncedLyrics) : [];
-    const synced = parsed.length ? parsed : null;
-    const plain = (
-      data?.plainLyrics ||
-      (synced ? synced.map((l) => l.text).join("\n") : "")
-    ).trim();
-    if (!synced && !plain) return null;
-    return { synced, plain };
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchLyricsSynced(
   artist: string,
   title: string,
   fallback: string
 ): Promise<LyricsResult> {
-  const viaLrclib = await syncedFromLrclib(artist, title);
-  if (viaLrclib) return viaLrclib;
-
-  const ovh = await fromLyricsOvh(artist, title);
-  if (ovh) return { synced: null, plain: ovh };
-
-  return { synced: null, plain: fallback };
+  try {
+    const { data } = await axios.get<{ lyrics: string | null; synced: string | null }>(
+      `${API_BASE}/media/lyrics`,
+      { params: { artist, title }, timeout: 9000 }
+    );
+    const parsed = data?.synced ? parseLrc(data.synced) : [];
+    const synced = parsed.length ? parsed : null;
+    const plain = (data?.lyrics || (synced ? synced.map((l) => l.text).join("\n") : "")).trim();
+    if (!synced && !plain) return { synced: null, plain: fallback };
+    return { synced, plain: plain || fallback };
+  } catch {
+    return { synced: null, plain: fallback };
+  }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, Spinner } from "@heroui/react";
+import { Button } from "@heroui/react";
+import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { toast } from "sonner";
 import {
   useMovieStore,
@@ -215,7 +216,7 @@ const MoviePicker = ({
         <div className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-hair/20 bg-surface p-1 shadow-xl">
           {loading && (
             <div className="flex justify-center p-3">
-              <Spinner size="sm" />
+              <AppLoader size="sm" />
             </div>
           )}
           {results.map((m) => (

@@ -119,6 +119,15 @@ code {
   }
 }
 
+@keyframes nav-neon-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
 @layer components {
   .nav-glass {
     position: relative;
@@ -143,6 +152,32 @@ code {
       );
       pointer-events: none;
     }
+
+    /* slow-travelling neon rim, apple-glass-meets-signage */
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      border-radius: inherit;
+      padding: 1.25px;
+      background: linear-gradient(
+          100deg,
+          rgb(var(--accent-rgb) / 0.85),
+          transparent 25%,
+          rgb(var(--accent-2-rgb) / 0.85) 50%,
+          transparent 75%,
+          rgb(var(--accent-rgb) / 0.85)
+        )
+        0 0 / 220% 100%;
+      animation: nav-neon-flow 9s linear infinite;
+      -webkit-mask: linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.55;
+      pointer-events: none;
+    }
   }
 
   .nav-glass-scrolled {
@@ -151,6 +186,10 @@ code {
     -webkit-backdrop-filter: blur(28px) saturate(200%);
     box-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.5),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+
+    &::after {
+      opacity: 0.85;
+    }
   }
 }
 
@@ -170,6 +209,62 @@ code {
 .light .glass-card {
   background: rgb(var(--surface-rgb) / 0.78);
   box-shadow: 0 14px 34px -16px rgba(20, 18, 40, 0.22);
+}
+
+/* background style variants (Customize page) — body already carries the
+   theme's gradient by default ("aurora" adds the drifting blobs on top) */
+.bg-style-gradient {
+  /* theme gradient, held still — no blobs */
+}
+
+.bg-style-minimal {
+  background: rgb(var(--bg-rgb));
+}
+body:has(.bg-style-minimal) {
+  background: rgb(var(--bg-rgb));
+  background-attachment: scroll;
+}
+
+/* real generated noise-grain texture (SVG feTurbulence, not a flat gradient) */
+.bg-texture-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+.light .bg-texture-layer {
+  opacity: 0.09;
+  mix-blend-mode: multiply;
+}
+
+/* user-uploaded photo background */
+.bg-custom-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+.bg-custom-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--bg-rgb) / 0.55) 0%,
+    rgb(var(--bg-rgb) / 0.78) 100%
+  );
+  backdrop-filter: blur(2px);
 }
 
 /* animated atmospheric blobs */

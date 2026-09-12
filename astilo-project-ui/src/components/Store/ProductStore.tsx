@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import axios from "axios";
 import { toast } from "sonner";
-import { Card, CardBody, CardFooter, Chip, Button, Spinner } from "@heroui/react";
+import { Card, CardBody, CardFooter, Chip, Button } from "@heroui/react";
+import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { PageHeading, Reveal } from "../shared";
 
 export interface Product {
@@ -56,7 +57,7 @@ const ProductStore = () => {
 
       {isLoading ? (
         <div className="flex justify-center py-24">
-          <Spinner color="secondary" label="loading the goods…" />
+          <AppLoader label="loading the goods…" />
         </div>
       ) : (
         <div

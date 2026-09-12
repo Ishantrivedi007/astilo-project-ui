@@ -1,15 +1,17 @@
 import axios from "axios";
 
-const TOKEN = import.meta.env.VITE_TMDB_TOKEN?.trim();
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY?.trim();
+const API_BASE = (import.meta.env.VITE_BASE_URL?.trim() || "http://localhost:8080/api");
 
-/** Is a TMDB credential configured? If not, the UI falls back to mock data. */
-export const hasTmdb = Boolean(TOKEN || API_KEY);
+/**
+ * TMDB is proxied through our own backend (`/api/media/tmdb/...`) so the
+ * API key/token never reaches the browser. The backend returns 503 when it
+ * has no TMDB credentials configured, in which case callers fall back to
+ * mock data.
+ */
+export const hasTmdb = true;
 
 const client = axios.create({
-  baseURL: "https://api.themoviedb.org/3",
-  headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
-  params: !TOKEN && API_KEY ? { api_key: API_KEY } : undefined,
+  baseURL: `${API_BASE}/media/tmdb`,
 });
 
 const IMG = "https://image.tmdb.org/t/p";

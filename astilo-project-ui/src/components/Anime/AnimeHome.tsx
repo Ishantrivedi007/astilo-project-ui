@@ -10,7 +10,8 @@ import "swiper/css/effect-coverflow";
 import "swiper/css/pagination";
 import "./Anime.scss";
 
-import { fetchRow, hasTmdb, type MediaItem } from "../../lib/tmdb";
+import type { MediaItem } from "../../lib/tmdb";
+import { fetchAnimeRow } from "../../lib/anime";
 import { ANIME_ROWS, buildMockAnimeRow } from "./catalog";
 import MovieRow from "../Movies/MovieRow";
 import { useMovieStore } from "../Movies/useMovieStore";
@@ -25,12 +26,11 @@ const AnimeHome = () => {
 
   const results = useQueries({
     queries: ANIME_ROWS.map((row) => ({
-      queryKey: ["tmdb-anime", row.id, hasTmdb],
+      queryKey: ["jikan-anime", row.id],
       staleTime: 1000 * 60 * 10,
       queryFn: async (): Promise<MediaItem[]> => {
-        if (!hasTmdb) return buildMockAnimeRow(row.id);
         try {
-          const data = await fetchRow(row.endpoint);
+          const data = await fetchAnimeRow(row.endpoint);
           return data.length ? data : buildMockAnimeRow(row.id);
         } catch {
           return buildMockAnimeRow(row.id);
@@ -51,22 +51,15 @@ const AnimeHome = () => {
     return list.slice(0, 10);
   }, [results]);
 
-  const visibleRows = ANIME_ROWS.filter(
-    (row) => filter === "all" || row.endpoint.kind === filter
-  );
+  const visibleRows = ANIME_ROWS.filter((row) => {
+    if (filter === "all") return true;
+    const rowKind = row.endpoint.format === "MOVIE" ? "movie" : "tv";
+    return rowKind === filter;
+  });
 
   return (
     <div>
-      <PageHeading
-        eyebrow="✦ shonen · seinen · slice-of-life"
-        action={
-          !hasTmdb ? (
-            <Chip variant="flat" className="bg-ink/10 text-ink/70">
-              demo catalogue · add a TMDB key for live data
-            </Chip>
-          ) : undefined
-        }
-      >
+      <PageHeading eyebrow="✦ shonen · seinen · slice-of-life">
         The <span className="gradient-text">anime</span> corner
       </PageHeading>
 

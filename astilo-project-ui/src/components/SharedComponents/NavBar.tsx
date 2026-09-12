@@ -14,7 +14,6 @@ import {
 } from "@heroui/react";
 
 import { AppRoute } from "../../app/AppRoute";
-import ThemeSwitcher from "../../theme/ThemeSwitcher";
 
 const links = [
   { label: "Home", href: AppRoute.home },
@@ -24,6 +23,9 @@ const links = [
   { label: "Store", href: AppRoute.store },
   { label: "Dashboard", href: AppRoute.dashboard },
 ];
+
+// Shown in the mobile menu only — desktop gets the 🎨 icon button instead.
+const mobileOnlyLinks = [{ label: "Customize", href: AppRoute.customize }];
 
 const useScrolled = (threshold = 12) => {
   const [scrolled, setScrolled] = useState(false);
@@ -116,8 +118,21 @@ const NavBar = () => {
         </NavbarContent>
 
         <NavbarContent justify="end" className="gap-2">
-          <NavbarItem>
-            <ThemeSwitcher />
+          <NavbarItem className="hidden sm:flex">
+            <motion.div whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.08, rotate: 25 }}>
+              <Button
+                isIconOnly
+                radius="full"
+                size="sm"
+                variant="light"
+                aria-label="Customize"
+                title="Customize"
+                className="text-ink/70 hover:bg-ink/5"
+                onPress={() => navigate(AppRoute.customize)}
+              >
+                🎨
+              </Button>
+            </motion.div>
           </NavbarItem>
           <NavbarItem>
             <motion.div whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.04 }}>
@@ -136,7 +151,7 @@ const NavBar = () => {
 
         <NavbarMenu className="gap-1 pt-6">
           <AnimatePresence>
-            {links.map((link, i) => (
+            {[...links, ...mobileOnlyLinks].map((link, i) => (
               <NavbarMenuItem key={link.href}>
                 <motion.div
                   initial={{ opacity: 0, x: -16 }}

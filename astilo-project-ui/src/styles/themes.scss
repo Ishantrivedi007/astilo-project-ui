@@ -100,6 +100,136 @@
   );
 }
 
+[data-theme="vanilla-gold"] {
+  @include theme(
+    255 253 248,
+    255 255 255,
+    184 137 45,
+    229 185 92,
+    24 22 17,
+    117 111 97,
+    184 137 45,
+    linear-gradient(135deg, #fffdf8 0%, #fff4d6 45%, #f6e4b5 100%)
+  );
+}
+
+[data-theme="apricot-cream"] {
+  @include theme(
+    255 249 244,
+    255 255 255,
+    231 111 60,
+    244 162 97,
+    33 24 20,
+    118 101 93,
+    231 111 60,
+    linear-gradient(135deg, #fff9f4 0%, #ffe8d6 48%, #ffd2bc 100%)
+  );
+}
+
+[data-theme="lemon-sorbet"] {
+  @include theme(
+    255 253 241,
+    255 255 255,
+    198 149 24,
+    232 185 35,
+    29 27 19,
+    119 113 91,
+    198 149 24,
+    linear-gradient(120deg, #fffdf1 0%, #fff5b5 50%, #ffe7a3 100%)
+  );
+}
+
+[data-theme="blush-gold"] {
+  @include theme(
+    255 249 250,
+    255 255 255,
+    183 110 121,
+    217 164 65,
+    33 24 27,
+    120 106 110,
+    183 110 121,
+    linear-gradient(135deg, #fff9fa 0%, #ffe7e8 45%, #f8e3c7 100%)
+  );
+}
+
+[data-theme="matcha-silk"] {
+  @include theme(
+    249 252 244,
+    255 255 255,
+    113 134 58,
+    180 154 90,
+    23 27 18,
+    105 112 94,
+    113 134 58,
+    linear-gradient(135deg, #f9fcf4 0%, #e8f0d3 50%, #f4e7c4 100%)
+  );
+}
+
+[data-theme="sky-champagne"] {
+  @include theme(
+    247 251 255,
+    255 255 255,
+    162 123 50,
+    106 159 196,
+    18 24 32,
+    104 113 122,
+    162 123 50,
+    linear-gradient(135deg, #f7fbff 0%, #e2f1fa 50%, #f5e7c7 100%)
+  );
+}
+
+[data-theme="cool-sky"] {
+  @include theme(
+    245 251 255,
+    255 255 255,
+    46 139 192,
+    127 209 224,
+    16 32 42,
+    92 116 128,
+    46 139 192,
+    linear-gradient(135deg, #f5fbff 0%, #ddf1ff 50%, #cdebff 100%)
+  );
+}
+
+[data-theme="mint-breeze"] {
+  @include theme(
+    243 255 250,
+    255 255 255,
+    47 168 140,
+    127 224 196,
+    14 31 26,
+    91 122 112,
+    47 168 140,
+    linear-gradient(135deg, #f3fffa 0%, #d8fbef 50%, #c7f5e6 100%)
+  );
+}
+
+[data-theme="coral-ivory"] {
+  @include theme(
+    255 248 244,
+    255 255 255,
+    232 97 63,
+    255 177 153,
+    36 21 17,
+    122 98 89,
+    232 97 63,
+    linear-gradient(135deg, #fff8f4 0%, #ffe3d6 50%, #ffd0c0 100%)
+  );
+}
+
+[data-theme="iris-mist"] {
+  @include theme(
+    247 246 255,
+    255 255 255,
+    91 79 224,
+    156 140 255,
+    23 21 43,
+    106 103 132,
+    91 79 224,
+    linear-gradient(135deg, #f7f6ff 0%, #e7e3ff 50%, #d8d2ff 100%)
+  );
+}
+
 // ------------------------------- DARK ---------------------------------------
 
 [data-theme="midnight-gold"] {
@@ -164,5 +294,135 @@
     181 178 170,
     255 155 84,
     linear-gradient(135deg, #0b0b0a 0%, #20150d 50%, #30140d 100%)
+  );
+}
+
+[data-theme="obsidian-gold"] {
+  @include theme(
+    5 5 5,
+    16 16 14,
+    232 185 87,
+    255 224 154,
+    255 249 232,
+    170 161 141,
+    232 185 87,
+    linear-gradient(135deg, #050505 0%, #12100a 45%, #241a08 100%)
+  );
+}
+
+[data-theme="onyx-copper"] {
+  @include theme(
+    8 7 6,
+    21 17 14,
+    217 138 78,
+    240 183 122,
+    255 247 239,
+    166 154 144,
+    217 138 78,
+    linear-gradient(135deg, #080706 0%, #17100c 50%, #2b170c 100%)
+  );
+}
+
+[data-theme="rose-noir"] {
+  @include theme(
+    7 6 7,
+    19 14 16,
+    231 166 166,
+    215 178 109,
+    255 245 244,
+    166 154 154,
+    231 166 166,
+    linear-gradient(135deg, #070607 0%, #1c1015 50%, #302018 100%)
+  );
+}
+
+[data-theme="carbon-amber"] {
+  @include theme(
+    8 9 9,
+    18 19 18,
+    255 184 77,
+    255 210 122,
+    248 248 245,
+    146 146 140,
+    255 184 77,
+    linear-gradient(120deg, #080909 0%, #16140e 50%, #27200f 100%)
+  );
+}
+
+[data-theme="champagne-plum"] {
+  @include theme(
+    7 6 9,
+    18 14 23,
+    241 209 138,
+    180 140 255,
+    251 248 255,
+    170 163 178,
+    241 209 138,
+    linear-gradient(135deg, #070609 0%, #160e20 50%, #27152b 100%)
+  );
+}
+
+[data-theme="midnight-navy-gold"] {
+  @include theme(
+    4 7 13,
+    11 16 25,
+    242 200 102,
+    126 167 255,
+    246 248 252,
+    146 154 168,
+    242 200 102,
+    linear-gradient(135deg, #04070d 0%, #09152a 50%, #172044 100%)
+  );
+}
+
+[data-theme="emerald-teal"] {
+  @include theme(
+    5 11 9,
+    13 22 19,
+    47 217 160,
+    87 184 216,
+    239 255 249,
+    147 168 160,
+    47 217 160,
+    linear-gradient(135deg, #050b09 0%, #0b231c 50%, #0a2a2c 100%)
+  );
+}
+
+[data-theme="burgundy-coral"] {
+  @include theme(
+    11 5 6,
+    23 12 14,
+    224 87 107,
+    255 166 107,
+    255 242 240,
+    179 154 152,
+    224 87 107,
+    linear-gradient(135deg, #0b0506 0%, #2a0c12 50%, #3a140f 100%)
+  );
+}
+
+[data-theme="indigo-violet"] {
+  @include theme(
+    5 4 15,
+    13 11 36,
+    139 108 255,
+    79 124 255,
+    245 243 255,
+    162 156 194,
+    139 108 255,
+    linear-gradient(135deg, #05040f 0%, #150e3a 50%, #21125a 100%)
+  );
+}
+
+[data-theme="charcoal-electric"] {
+  @include theme(
+    8 9 10,
+    19 20 21,
+    255 122 61,
+    61 217 255,
+    245 246 247,
+    141 146 150,
+    255 122 61,
+    linear-gradient(120deg, #08090a 0%, #141516 50%, #1b1210 100%)
   );
 }

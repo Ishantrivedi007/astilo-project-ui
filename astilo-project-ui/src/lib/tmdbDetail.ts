@@ -8,13 +8,10 @@ import {
   type TmdbRaw,
 } from "./tmdb";
 
-const TOKEN = import.meta.env.VITE_TMDB_TOKEN?.trim();
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY?.trim();
+const API_BASE = (import.meta.env.VITE_BASE_URL?.trim() || "http://localhost:8080/api");
 
 const client = axios.create({
-  baseURL: "https://api.themoviedb.org/3",
-  headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
-  params: !TOKEN && API_KEY ? { api_key: API_KEY } : undefined,
+  baseURL: `${API_BASE}/media/tmdb`,
 });
 
 export interface CastMember {
@@ -82,12 +79,17 @@ export async function fetchDetail(
   id: number | string
 ): Promise<MediaDetail> {
   if (!hasTmdb) return buildMockDetail(kind, id);
-  const { data } = await client.get<RawDetail>(`/${kind}/${id}`, {
-    params: {
-      append_to_response: "videos,credits,recommendations,images",
-      include_image_language: "en,null",
-    },
-  });
+  let data: RawDetail;
+  try {
+    ({ data } = await client.get<RawDetail>(`/${kind}/${id}`, {
+      params: {
+        append_to_response: "videos,credits,recommendations,images",
+        include_image_language: "en,null",
+      },
+    }));
+  } catch {
+    return buildMockDetail(kind, id);
+  }
   const base = normalize(data, kind);
   return {
     ...base,

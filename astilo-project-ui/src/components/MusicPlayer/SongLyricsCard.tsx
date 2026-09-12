@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Spinner } from "@heroui/react";
+import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { GradientButton } from "../shared";
 import { fetchLyricsSynced } from "../../lib/lyrics";
 import type { Track } from "./tracks";
@@ -74,7 +74,7 @@ const SongLyricsCard = ({ track, currentTime }: SongLyricsCardProps) => {
       >
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
-            <Spinner color="secondary" label="finding the words…" />
+            <AppLoader label="finding the words…" />
           </div>
         ) : synced ? (
           <div className="flex flex-col gap-1">

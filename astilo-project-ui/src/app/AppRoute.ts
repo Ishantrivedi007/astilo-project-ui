@@ -4,6 +4,8 @@ export const AppRoute = {
   music: "/music",
   movies: "/movies",
   anime: "/anime",
+  animeWatch: "/anime/watch",
   dashboard: "/dashboard",
+  customize: "/customize",
   login: "/login",
 } as const;
