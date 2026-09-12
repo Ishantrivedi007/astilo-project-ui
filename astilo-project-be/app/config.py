@@ -17,5 +17,9 @@ class Config:
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", "8080"))
 
+    TMDB_TOKEN = os.getenv("TMDB_TOKEN", "")
+    TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
+    GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN", "")
+
 
 config = Config()

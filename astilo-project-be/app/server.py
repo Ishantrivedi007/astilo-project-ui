@@ -3,7 +3,9 @@ import cherrypy
 from app.config import config
 from app.controllers.auth_controller import AuthController
 from app.controllers.favorites_controller import FavoritesController
+from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
+from app.controllers.media_controller import LyricsController, TmdbController
 from app.controllers.playlists_controller import PlaylistsController
 from app.controllers.store_controller import OrdersController, ProductsController
 from app.controllers.users_controller import UsersController
@@ -44,6 +46,9 @@ def build_app():
     cherrypy.tree.mount(PlaylistsController(), "/api/playlists", conf)
     cherrypy.tree.mount(ProductsController(), "/api/store/products", conf)
     cherrypy.tree.mount(OrdersController(), "/api/store/orders", conf)
+    cherrypy.tree.mount(TmdbController(), "/api/media/tmdb", conf)
+    cherrypy.tree.mount(LyricsController(), "/api/media/lyrics", conf)
+    cherrypy.tree.mount(AnimeController(), "/api/media/anime", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
