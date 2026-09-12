@@ -1,25 +1,11 @@
-import { useState } from "react";
+import { tracks } from "./tracks";
 
-interface Track {
-  name: string;
-  artist: string;
-  length: string;
-  emoji: string;
+interface PlaylistCardProps {
+  active: number;
+  onSelect: (index: number) => void;
 }
 
-const tracks: Track[] = [
-  { name: "Copines", artist: "Aya Nakamura", length: "3:36", emoji: "🔥" },
-  { name: "La Vie En Rose", artist: "Louis Armstrong", length: "3:27", emoji: "🌹" },
-  { name: "Iris", artist: "Goo Goo Dolls", length: "4:49", emoji: "👁️" },
-  { name: "Hello", artist: "Adele", length: "4:55", emoji: "📞" },
-  { name: "Conversations in the Dark", artist: "John Legend", length: "3:59", emoji: "🌙" },
-  { name: "It Might Be You", artist: "Stephen Bishop", length: "3:52", emoji: "✨" },
-  { name: "Someone Like You", artist: "Adele", length: "4:45", emoji: "💧" },
-];
-
-const PlaylistCard = () => {
-  const [active, setActive] = useState(0);
-
+const PlaylistCard = ({ active, onSelect }: PlaylistCardProps) => {
   return (
     <div className="glass-card flex h-full flex-col p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -34,10 +20,10 @@ const PlaylistCard = () => {
           <li key={track.name}>
             <button
               type="button"
-              onClick={() => setActive(i)}
+              onClick={() => onSelect(i)}
               className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left transition-all ${
                 active === i
-                  ? "bg-gradient-to-r from-accent/25 to-accent-2/10 ring-1 ring-accent/40"
+                  ? "bg-gradient-to-r from-accent/25 to-accent-2/10 ring-1 ring-inset ring-accent/40"
                   : "hover:bg-ink/5"
               }`}
             >
@@ -45,6 +31,14 @@ const PlaylistCard = () => {
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-ink">
                   {track.name}
+                  {track.audio && (
+                    <span
+                      className="ml-1.5 align-middle text-[10px] text-accent-2"
+                      title="Playable"
+                    >
+                      ▶
+                    </span>
+                  )}
                 </span>
                 <span className="block truncate text-xs text-ink/50">
                   {track.artist}
