@@ -1,0 +1,6 @@
+cherrypy==18.9.0
+legacy-cgi; python_version >= "3.13"  # CherryPy 18.x still imports `cgi`, removed from stdlib in 3.13
+SQLAlchemy==2.0.35
+PyJWT==2.9.0
+bcrypt==4.2.0
+python-dotenv==1.0.1

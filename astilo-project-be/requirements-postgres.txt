@@ -1,0 +1,2 @@
+# Install this in addition to requirements.txt when DATABASE_URL points at Postgres.
+psycopg2-binary==2.9.9
