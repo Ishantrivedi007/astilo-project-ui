@@ -2,14 +2,7 @@ import { useMemo } from "react";
 import { chartData } from "./chartData";
 import { KPIS, REVENUE, SIGNUPS, TOP_CONTENT, TRAFFIC } from "./dashboardData";
 import UsersTable from "./UsersTable";
-import {
-  PageHeading,
-  GlassPanel,
-  StatCard,
-  Reveal,
-  Chart,
-  BarList,
-} from "../shared";
+import { GlassPanel, StatCard, Reveal, Chart, BarList } from "../shared";
 
 const usd = (n: number) => `$${Intl.NumberFormat("us").format(Math.round(n))}`;
 const compact = (n: number) =>
@@ -56,10 +49,6 @@ export default function DashBoard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeading eyebrow="✦ the numbers">
-        Command <span className="gradient-text">center</span>
-      </PageHeading>
-
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {KPIS.map((kpi, i) => (
           <Reveal key={kpi.label} index={i}>

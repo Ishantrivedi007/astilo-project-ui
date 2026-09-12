@@ -1,19 +1,32 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Input } from "@heroui/react";
-import { GradientButton } from "../shared";
+import { Slider } from "@heroui/react";
+import { AppInput, GradientButton } from "../shared";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import {
+  deleteSong,
   downloadSong,
+  fetchPreviewStream,
   fetchSongs,
   searchSongs,
+  updateSong,
   type DownloadedSong,
   type DownloadOptions,
   type SongSearchHit,
 } from "../../lib/musicApi";
 import { DEFAULT_COVER, secondsToLength } from "./tracks";
 import { SONGS_QUERY_KEY } from "./useMusicLibrary";
+
+const previewSliderClassNames = {
+  base: "w-full",
+  filler: "bg-gradient-to-r from-accent to-accent-2",
+  track: "bg-ink/15 border-x-transparent",
+  thumb: "bg-ink shadow-glow",
+};
+
+const toNumber = (value: number | number[]): number =>
+  Array.isArray(value) ? value[0] : value;
 
 const FUN_MESSAGES = [
   "Scouring YouTube for the perfect match…",
@@ -38,7 +51,69 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
   const [format, setFormat] = useState<"mp3" | "video">("mp3");
   const [bitrate, setBitrate] = useState(192);
   const [quality, setQuality] = useState("720");
+  const [editingSongId, setEditingSongId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editArtist, setEditArtist] = useState("");
   const queryClient = useQueryClient();
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewTime, setPreviewTime] = useState(0);
+  const [previewDuration, setPreviewDuration] = useState(0);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    // Stop any preview when the user leaves the results (new search, unmount).
+    return () => el?.pause();
+  }, []);
+
+  const stopPreview = () => {
+    audioRef.current?.pause();
+    setPreviewId(null);
+    setPreviewPlaying(false);
+    setPreviewTime(0);
+    setPreviewDuration(0);
+  };
+
+  const togglePreview = async (hit: SongSearchHit) => {
+    if (previewId === hit.youtubeId) {
+      if (previewPlaying) {
+        audioRef.current?.pause();
+        setPreviewPlaying(false);
+      } else {
+        audioRef.current?.play().catch(() => {});
+        setPreviewPlaying(true);
+      }
+      return;
+    }
+
+    audioRef.current?.pause();
+    setPreviewId(hit.youtubeId);
+    setPreviewPlaying(false);
+    setPreviewTime(0);
+    setPreviewDuration(hit.durationSeconds ?? 0);
+    setPreviewLoading(true);
+    try {
+      const { streamUrl } = await fetchPreviewStream(hit.youtubeId);
+      if (audioRef.current) {
+        audioRef.current.src = streamUrl;
+        await audioRef.current.play();
+        setPreviewPlaying(true);
+      }
+    } catch {
+      toast.error("Couldn't load a preview for that result.");
+      setPreviewId(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const seekPreview = (value: number) => {
+    setPreviewTime(value);
+    if (audioRef.current) audioRef.current.currentTime = value;
+  };
 
   const { data: library = [], isLoading: libraryLoading } = useQuery({
     queryKey: SONGS_QUERY_KEY,
@@ -75,10 +150,42 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, title, artist }: { id: number; title: string; artist: string }) =>
+      updateSong(id, { title, artist }),
+    onSuccess: () => {
+      toast.success("Song updated");
+      queryClient.invalidateQueries({ queryKey: SONGS_QUERY_KEY });
+      setEditingSongId(null);
+    },
+    onError: () => toast.error("Couldn't update that song."),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteSong(id),
+    onSuccess: () => {
+      toast.success("Song deleted");
+      queryClient.invalidateQueries({ queryKey: SONGS_QUERY_KEY });
+    },
+    onError: () => toast.error("Couldn't delete that song."),
+  });
+
+  const startEdit = (song: DownloadedSong) => {
+    setEditingSongId(song.id);
+    setEditTitle(song.title);
+    setEditArtist(song.artist || "");
+  };
+
+  const saveEdit = () => {
+    if (editingSongId == null || !editTitle.trim()) return;
+    updateMutation.mutate({ id: editingSongId, title: editTitle.trim(), artist: editArtist.trim() });
+  };
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || searchQuery.isFetching) return;
     setActiveHit(null);
+    stopPreview();
     setSubmittedQuery(query.trim());
   };
 
@@ -115,12 +222,10 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
         </p>
 
         <form onSubmit={handleSearchSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Input
+          <AppInput
             value={query}
             onValueChange={setQuery}
             placeholder="e.g. Blinding Lights The Weeknd"
-            variant="bordered"
-            radius="full"
             className="flex-1"
             isDisabled={searchQuery.isFetching}
           />
@@ -152,6 +257,16 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
 
         {results.length > 0 && (
           <div className="mt-6 space-y-2">
+            <audio
+              ref={audioRef}
+              preload="none"
+              onTimeUpdate={(e) => setPreviewTime(e.currentTarget.currentTime)}
+              onLoadedMetadata={(e) => setPreviewDuration(e.currentTarget.duration)}
+              onEnded={stopPreview}
+              onPause={() => setPreviewPlaying(false)}
+              onPlay={() => setPreviewPlaying(true)}
+              className="hidden"
+            />
             {results.map((hit) => (
               <div key={hit.youtubeId} className="rounded-3xl bg-ink/5 p-3">
                 <div className="flex items-center gap-3">
@@ -169,12 +284,50 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                   </div>
                   <button
                     type="button"
+                    onClick={() => togglePreview(hit)}
+                    className="shrink-0 rounded-full bg-ink/10 px-3 py-2 text-xs font-bold text-ink hover:bg-ink/15"
+                    aria-label={previewId === hit.youtubeId && previewPlaying ? "Pause preview" : "Play preview"}
+                  >
+                    {previewId === hit.youtubeId && previewLoading
+                      ? "…"
+                      : previewId === hit.youtubeId && previewPlaying
+                        ? "⏸"
+                        : "▶"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openOptionsFor(hit)}
                     className="shrink-0 rounded-full bg-ink/10 px-4 py-2 text-xs font-bold text-ink hover:bg-ink/15"
                   >
                     Download
                   </button>
                 </div>
+
+                {previewId === hit.youtubeId && (
+                  <div className="mt-3 flex items-center gap-3 rounded-2xl bg-ink/5 px-4 py-3">
+                    <span className="w-9 shrink-0 font-mono text-[11px] text-ink/50">
+                      {secondsToLength(previewTime)}
+                    </span>
+                    <Slider
+                      aria-label="Preview progress"
+                      classNames={previewSliderClassNames}
+                      value={Math.min(previewTime, previewDuration || 1)}
+                      maxValue={previewDuration || 1}
+                      onChange={(v) => seekPreview(toNumber(v))}
+                      isDisabled={previewLoading}
+                    />
+                    <span className="w-9 shrink-0 font-mono text-[11px] text-ink/50">
+                      {secondsToLength(previewDuration)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={stopPreview}
+                      className="shrink-0 text-xs font-semibold text-ink/50 hover:text-ink/80"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
 
                 {activeHit?.youtubeId === hit.youtubeId && (
                   <div className="mt-3 rounded-2xl bg-ink/5 p-4">
@@ -310,44 +463,100 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
             </p>
           )}
           {library.map((song) => (
-            <div
-              key={song.id}
-              className="flex items-center gap-3 rounded-2xl px-3 py-2 hover:bg-ink/5"
-            >
-              <img
-                src={song.coverUrl || DEFAULT_COVER}
-                alt={song.title}
-                className="h-10 w-10 rounded-xl object-cover"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ink">
-                  {song.title}
-                </p>
-                <p className="truncate text-xs text-ink/50">
-                  {song.artist}
-                  {" · "}
-                  {song.mediaType === "video"
-                    ? `${song.qualityLabel === "best" ? "Best" : `${song.qualityLabel}p`} video`
-                    : `${song.bitrateKbps ?? 192}kbps`}
-                </p>
+            <div key={song.id} className="rounded-2xl px-3 py-2 hover:bg-ink/5">
+              <div className="flex items-center gap-3">
+                <img
+                  src={song.coverUrl || DEFAULT_COVER}
+                  alt={song.title}
+                  className="h-10 w-10 shrink-0 rounded-xl object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink">
+                    {song.title}
+                  </p>
+                  <p className="truncate text-xs text-ink/50">
+                    {song.artist}
+                    {" · "}
+                    {song.mediaType === "video"
+                      ? `${song.qualityLabel === "best" ? "Best" : `${song.qualityLabel}p`} video`
+                      : `${song.bitrateKbps ?? 192}kbps`}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {song.mediaType === "audio" ? (
+                    <button
+                      type="button"
+                      onClick={() => onPlay(song)}
+                      className="rounded-full bg-ink/10 px-3 py-1 text-[11px] font-bold text-ink hover:bg-ink/15"
+                    >
+                      Play
+                    </button>
+                  ) : (
+                    <a
+                      href={song.audioUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full bg-ink/10 px-3 py-1 text-[11px] font-bold text-ink hover:bg-ink/15"
+                    >
+                      View
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => (editingSongId === song.id ? setEditingSongId(null) : startEdit(song))}
+                    className="rounded-full bg-ink/10 px-2 py-1 text-[11px] font-bold text-ink hover:bg-ink/15"
+                    aria-label="Edit"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Delete "${song.title}"? This removes the downloaded file too.`)) {
+                        deleteMutation.mutate(song.id);
+                      }
+                    }}
+                    disabled={deleteMutation.isPending}
+                    className="rounded-full bg-ink/10 px-2 py-1 text-[11px] font-bold text-danger hover:bg-danger/10 disabled:opacity-50"
+                    aria-label="Delete"
+                  >
+                    🗑
+                  </button>
+                </div>
               </div>
-              {song.mediaType === "audio" ? (
-                <button
-                  type="button"
-                  onClick={() => onPlay(song)}
-                  className="shrink-0 rounded-full bg-ink/10 px-3 py-1 text-[11px] font-bold text-ink hover:bg-ink/15"
-                >
-                  Play
-                </button>
-              ) : (
-                <a
-                  href={song.audioUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="shrink-0 rounded-full bg-ink/10 px-3 py-1 text-[11px] font-bold text-ink hover:bg-ink/15"
-                >
-                  View
-                </a>
+
+              {editingSongId === song.id && (
+                <div className="mt-2 flex flex-col gap-2 rounded-2xl bg-ink/5 p-3">
+                  <AppInput
+                    value={editTitle}
+                    onValueChange={setEditTitle}
+                    label="Title"
+                    size="sm"
+                  />
+                  <AppInput
+                    value={editArtist}
+                    onValueChange={setEditArtist}
+                    label="Artist"
+                    size="sm"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={updateMutation.isPending || !editTitle.trim()}
+                      className="rounded-full bg-ink text-bg px-3 py-1 text-[11px] font-bold disabled:opacity-50"
+                    >
+                      {updateMutation.isPending ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSongId(null)}
+                      className="text-[11px] font-semibold text-ink/50 hover:text-ink/80"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           ))}

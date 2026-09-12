@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Input, Link } from "@heroui/react";
-import { GradientButton } from "../shared";
+import { Link } from "@heroui/react";
+import { AppInput, GradientButton } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { authErrorMessage } from "../../auth/authApi";
@@ -52,23 +52,21 @@ const Login = () => {
         </div>
 
         <div className="flex flex-col gap-4">
-          <Input
+          <AppInput
             type="email"
             label="Email"
-            variant="bordered"
+            placeholder="you@example.com"
             value={email}
             onValueChange={setEmail}
             isRequired
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             type="password"
             label="Password"
-            variant="bordered"
+            placeholder="••••••••"
             value={password}
             onValueChange={setPassword}
             isRequired
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
           <GradientButton type="submit" fullWidth className="mt-2" isDisabled={submitting}>
             {submitting ? "Signing in…" : "Let me in ✨"}

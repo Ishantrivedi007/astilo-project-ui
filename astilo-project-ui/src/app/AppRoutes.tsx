@@ -15,7 +15,6 @@ const MovieDetail = lazy(() => import("../components/Movies/MovieDetail"));
 const AnimeHome = lazy(() => import("../components/Anime/AnimeHome"));
 const AnimeDetail = lazy(() => import("../components/Anime/AnimeDetail"));
 const AnimeWatch = lazy(() => import("../components/Anime/AnimeWatch"));
-const DashboardPage = lazy(() => import("../components/DashBoard/Dashboard"));
 const Customize = lazy(() => import("../components/Customize/Customize"));
 const Login = lazy(() => import("../components/Login/Login"));
 const Signup = lazy(() => import("../components/Login/Signup"));
@@ -58,10 +57,6 @@ const AppRoutes = () => (
         element={getAuthRoute(
           <AnimeDetail basePath={AppRoute.anime} backLabel="All anime" />
         )}
-      />
-      <Route
-        path={AppRoute.dashboard}
-        element={getAuthRoute(<DashboardPage />)}
       />
       <Route path={AppRoute.customize} element={getAuthRoute(<Customize />)} />
       <Route

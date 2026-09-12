@@ -9,6 +9,8 @@ export interface Track {
   cover?: string;
   /** Lyrics bundled with the song, used as the fallback for the lyrics lookup. */
   lyrics?: string;
+  /** Backend Song id — set only for downloaded tracks, used by the Manage tab. */
+  songId?: number;
 }
 
 export const DEFAULT_COVER = "/nextuiplayer.jpeg";

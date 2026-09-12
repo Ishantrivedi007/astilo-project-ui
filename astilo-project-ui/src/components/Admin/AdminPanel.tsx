@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Tabs, Tab, Button, Chip, Input, Textarea } from "@heroui/react";
-import { PageHeading, GlassPanel, StatCard, Chart, BarList } from "../shared";
+import { Tabs, Tab, Button, Chip } from "@heroui/react";
+import { PageHeading, GlassPanel, StatCard, Chart, BarList, AppInput, AppTextarea } from "../shared";
+import DashBoard from "../DashBoard/Dashboard";
 import { useAuth } from "../../auth/AuthProvider";
 import { avatarUrl } from "../../lib/avatar";
 import {
@@ -232,50 +233,44 @@ const ProductsTab = () => {
     >
       {editingId !== null && (
         <div className="mb-5 grid grid-cols-1 gap-3 rounded-2xl border border-hair/20 p-4 sm:grid-cols-2">
-          <Input
+          <AppInput
             label="Name"
-            variant="bordered"
+            placeholder="Product name"
             value={form.name}
             onValueChange={(v) => setForm((f) => ({ ...f, name: v }))}
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             label="Category"
-            variant="bordered"
+            placeholder="e.g. Audio"
             value={form.category}
             onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             type="number"
             label="Price"
-            variant="bordered"
+            placeholder="0.00"
             value={String(form.price)}
             onValueChange={(v) => setForm((f) => ({ ...f, price: Number(v) || 0 }))}
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             type="number"
             label="Stock"
-            variant="bordered"
+            placeholder="0"
             value={String(form.stock)}
             onValueChange={(v) => setForm((f) => ({ ...f, stock: Number(v) || 0 }))}
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             label="Image URL"
-            variant="bordered"
+            placeholder="https://…"
             value={form.imageUrl}
             onValueChange={(v) => setForm((f) => ({ ...f, imageUrl: v }))}
-            classNames={{ inputWrapper: "border-hair/40" }}
             className="sm:col-span-2"
           />
-          <Textarea
+          <AppTextarea
             label="Description"
-            variant="bordered"
+            placeholder="What makes this product great?"
             value={form.description}
             onValueChange={(v) => setForm((f) => ({ ...f, description: v }))}
-            classNames={{ inputWrapper: "border-hair/40" }}
             className="sm:col-span-2"
           />
           <div className="flex gap-2 sm:col-span-2">
@@ -573,8 +568,14 @@ const AdminPanel = () => {
       <Tabs
         aria-label="Admin sections"
         variant="underlined"
+        defaultSelectedKey="dashboard"
         classNames={{ tabList: "gap-6", cursor: "bg-accent" }}
       >
+        <Tab key="dashboard" title="Dashboard">
+          <div className="mt-4">
+            <DashBoard />
+          </div>
+        </Tab>
         <Tab key="overview" title="Overview">
           <div className="mt-4">
             <OverviewTab users={users ?? []} products={products ?? []} orders={orders ?? []} />

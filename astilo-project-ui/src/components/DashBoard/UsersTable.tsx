@@ -9,9 +9,9 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { Chip, Input, Pagination } from "@heroui/react";
+import { Chip, Pagination } from "@heroui/react";
 import { USERS, type UserRow } from "./dashboardData";
-import { GlassPanel } from "../shared";
+import { AppInput, GlassPanel } from "../shared";
 
 const statusColor: Record<UserRow["status"], "success" | "warning" | "danger"> = {
   active: "success",
@@ -107,14 +107,12 @@ const UsersTable = () => {
       title="Team members"
       subtitle={`${table.getFilteredRowModel().rows.length} people`}
       action={
-        <Input
+        <AppInput
           size="sm"
-          variant="bordered"
           placeholder="Search name or email…"
           value={globalFilter}
           onValueChange={setGlobalFilter}
           className="w-full max-w-[240px]"
-          classNames={{ inputWrapper: "border-hair/40 bg-transparent" }}
         />
       }
     >

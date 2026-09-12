@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button, Chip, Input, Textarea } from "@heroui/react";
+import { Button, Chip } from "@heroui/react";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
+import { AppInput, AppTextarea } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { fetchProduct, fetchProducts, type StoreProduct } from "../../lib/store";
 import { useProductStore, type ProductReview } from "./useProductStore";
@@ -251,23 +252,19 @@ const ProductDetail = () => {
 
         <form onSubmit={submitReview} className="glass-card mb-6 flex flex-col gap-3 p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <Input
+            <AppInput
               placeholder="Your name"
               value={author}
               onValueChange={setAuthor}
-              variant="bordered"
               className="max-w-[220px]"
-              classNames={{ inputWrapper: "border-hair/40" }}
             />
             <StarRating value={rating} onChange={setRating} />
           </div>
-          <Textarea
+          <AppTextarea
             placeholder="What did you think? (optional)"
             value={body}
             onValueChange={setBody}
-            variant="bordered"
             minRows={2}
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
           <Button type="submit" radius="full" className="self-start bg-ink/10 font-semibold text-ink">
             Post review

@@ -6,6 +6,7 @@ import PlaylistCard from "./PlaylistCard";
 import MusicTabs, { type MusicTabId } from "./MusicTabs";
 import SongSearchTab from "./SongSearchTab";
 import LyricsSearchTab from "./LyricsSearchTab";
+import ManageTab from "./ManageTab";
 import { useMusicLibrary } from "./useMusicLibrary";
 import type { DownloadedSong } from "../../lib/musicApi";
 
@@ -79,6 +80,12 @@ const MusicPlayerIndex = () => {
       {tab === "lyrics" && (
         <Reveal>
           <LyricsSearchTab />
+        </Reveal>
+      )}
+
+      {tab === "manage" && (
+        <Reveal>
+          <ManageTab />
         </Reveal>
       )}
     </section>

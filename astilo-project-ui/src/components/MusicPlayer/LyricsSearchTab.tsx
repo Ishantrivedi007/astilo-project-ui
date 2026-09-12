@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Input } from "@heroui/react";
-import { GradientButton } from "../shared";
+import { AppInput, GradientButton } from "../shared";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { fetchTopLyrics, searchLyrics, type LyricsHit } from "../../lib/geniusApi";
 import { DEFAULT_COVER } from "./tracks";
@@ -47,12 +46,10 @@ const LyricsSearchTab = () => {
           Look up any song by title or artist — powered by Genius.
         </p>
         <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Input
+          <AppInput
             value={query}
             onValueChange={setQuery}
             placeholder="e.g. Someone Like You Adele"
-            variant="bordered"
-            radius="full"
             className="flex-1"
           />
           <GradientButton type="submit" radius="full" isDisabled={!query.trim()}>

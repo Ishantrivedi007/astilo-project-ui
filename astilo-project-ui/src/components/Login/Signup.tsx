@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Input, Link } from "@heroui/react";
-import { GradientButton } from "../shared";
+import { Link } from "@heroui/react";
+import { AppInput, GradientButton } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { authErrorMessage } from "../../auth/authApi";
@@ -56,33 +56,30 @@ const Signup = () => {
         </div>
 
         <div className="flex flex-col gap-4">
-          <Input
+          <AppInput
             label="Name"
-            variant="bordered"
+            placeholder="Your name"
             value={name}
             onValueChange={setName}
             isRequired
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             type="email"
             label="Email"
-            variant="bordered"
+            placeholder="you@example.com"
             value={email}
             onValueChange={setEmail}
             isRequired
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
-          <Input
+          <AppInput
             type="password"
             label="Password"
-            variant="bordered"
+            placeholder="••••••••"
             value={password}
             onValueChange={setPassword}
             isRequired
             isInvalid={passwordTooShort}
             errorMessage={passwordTooShort ? "At least 6 characters" : undefined}
-            classNames={{ inputWrapper: "border-hair/40" }}
           />
           <GradientButton type="submit" fullWidth className="mt-2" isDisabled={submitting}>
             {submitting ? "Creating account…" : "Create account 🎉"}

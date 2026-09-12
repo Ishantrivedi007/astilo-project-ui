@@ -22,7 +22,6 @@ const BASE_LINKS = [
   { label: "Movies", href: AppRoute.movies },
   { label: "Anime", href: AppRoute.anime },
   { label: "Store", href: AppRoute.store },
-  { label: "Dashboard", href: AppRoute.dashboard },
 ];
 
 // Shown in the mobile menu only — desktop gets the 🎨 icon button instead.

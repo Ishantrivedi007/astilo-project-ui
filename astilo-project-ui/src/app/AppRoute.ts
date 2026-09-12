@@ -10,7 +10,6 @@ export const AppRoute = {
   movies: "/movies",
   anime: "/anime",
   animeWatch: "/anime/watch",
-  dashboard: "/dashboard",
   customize: "/customize",
   admin: "/admin",
 } as const;

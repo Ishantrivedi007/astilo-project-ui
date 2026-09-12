@@ -6,3 +6,5 @@ export { default as Reveal } from "./Reveal";
 export { default as Chart, useChartTheme } from "./Chart";
 export { default as Sparkline } from "./Sparkline";
 export { default as BarList } from "./BarList";
+export { default as AppInput } from "./AppInput";
+export { default as AppTextarea } from "./AppTextarea";

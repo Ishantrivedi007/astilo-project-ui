@@ -10,7 +10,8 @@ export const useMusicLibrary = () => {
   const { data: downloaded = [], isLoading } = useQuery({
     queryKey: SONGS_QUERY_KEY,
     queryFn: fetchSongs,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const dynamicTracks: Track[] = downloaded
@@ -22,6 +23,7 @@ export const useMusicLibrary = () => {
       emoji: "🎧",
       audio: song.audioUrl,
       cover: song.coverUrl || undefined,
+      songId: song.id,
     }));
 
   const tracks: Track[] = [...staticTracks, ...dynamicTracks];

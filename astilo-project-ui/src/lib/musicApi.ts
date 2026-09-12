@@ -51,6 +51,20 @@ export async function searchSongs(q: string): Promise<SongSearchResponse> {
   return data;
 }
 
+export interface PreviewStream {
+  youtubeId: string;
+  streamUrl: string;
+  durationSeconds: number;
+}
+
+export async function fetchPreviewStream(youtubeId: string): Promise<PreviewStream> {
+  const { data } = await axios.get<PreviewStream>(`${API_BASE}/music/preview`, {
+    params: { youtubeId },
+    timeout: 15000,
+  });
+  return data;
+}
+
 export interface DownloadOptions {
   youtubeId?: string;
   query?: string;
@@ -66,4 +80,20 @@ export async function downloadSong(options: DownloadOptions): Promise<Downloaded
     timeout: 120000,
   });
   return data;
+}
+
+export interface SongUpdateInput {
+  title?: string;
+  artist?: string;
+}
+
+export async function updateSong(id: number, input: SongUpdateInput): Promise<DownloadedSong> {
+  const { data } = await axios.put<DownloadedSong>(`${API_BASE}/music/songs/${id}`, input, {
+    timeout: 9000,
+  });
+  return data;
+}
+
+export async function deleteSong(id: number): Promise<void> {
+  await axios.delete(`${API_BASE}/music/songs/${id}`, { timeout: 9000 });
 }
