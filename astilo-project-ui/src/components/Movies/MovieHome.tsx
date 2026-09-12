@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button, Chip } from "@heroui/react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { EffectCoverflow, Pagination, Autoplay } from "swiper/modules";
@@ -11,9 +13,12 @@ import "./Movies.scss";
 import { fetchRow, hasTmdb, type MediaItem } from "../../lib/tmdb";
 import { MOVIE_ROWS, buildMockRow } from "./catalog";
 import MovieRow from "./MovieRow";
+import { useMovieStore } from "./useMovieStore";
 import { PageHeading } from "../shared";
 
 const MovieHome = () => {
+  const { toggleWatchlist } = useMovieStore();
+  const navigate = useNavigate();
   const results = useQueries({
     queries: MOVIE_ROWS.map((row) => ({
       queryKey: ["tmdb", row.id, hasTmdb],
@@ -94,9 +99,12 @@ const MovieHome = () => {
                     </Chip>
                   )}
                 </div>
-                <h3 className="font-display text-3xl font-extrabold drop-shadow">
+                <Link
+                  to={`/movies/${movie.kind}/${movie.id}`}
+                  className="font-display text-3xl font-extrabold drop-shadow hover:underline"
+                >
                   {movie.title}
-                </h3>
+                </Link>
                 {movie.overview && (
                   <p className="mt-2 line-clamp-2 max-w-xl text-sm text-white/80">
                     {movie.overview}
@@ -104,14 +112,25 @@ const MovieHome = () => {
                 )}
                 <div className="mt-4 flex gap-2">
                   <Button
+                    onPress={() =>
+                      navigate(`/movies/${movie.kind}/${movie.id}`)
+                    }
                     radius="full"
                     className="bg-white font-bold text-black transition-transform hover:scale-105"
                   >
-                    ▶ Play
+                    ▶ Details
                   </Button>
                   <Button
                     radius="full"
                     variant="bordered"
+                    onPress={() => {
+                      const added = toggleWatchlist(movie);
+                      toast[added ? "success" : "message"](
+                        added
+                          ? "Added to watchlist"
+                          : "Removed from watchlist"
+                      );
+                    }}
                     className="border-white/40 font-semibold text-white"
                   >
                     + Watchlist

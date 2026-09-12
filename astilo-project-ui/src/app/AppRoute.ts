@@ -3,6 +3,7 @@ export const AppRoute = {
   store: "/store",
   music: "/music",
   movies: "/movies",
+  anime: "/anime",
   dashboard: "/dashboard",
   login: "/login",
 } as const;

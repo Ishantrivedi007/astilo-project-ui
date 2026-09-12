@@ -9,6 +9,8 @@ import { AppRoute } from "./AppRoute";
 const CentralisedStore = lazy(() => import("../components/Store"));
 const MusicPlayerIndex = lazy(() => import("../components/MusicPlayer"));
 const MovieHome = lazy(() => import("../components/Movies/MovieHome"));
+const MovieDetail = lazy(() => import("../components/Movies/MovieDetail"));
+const AnimeHome = lazy(() => import("../components/Anime/AnimeHome"));
 const DashboardPage = lazy(() => import("../components/DashBoard/Dashboard"));
 const Login = lazy(() => import("../components/Login/Login"));
 
@@ -29,6 +31,17 @@ const AppRoutes = () => (
       <Route path={AppRoute.home} element={getAuthRoute(<CentralisedStore />)} />
       <Route path={AppRoute.music} element={getAuthRoute(<MusicPlayerIndex />)} />
       <Route path={AppRoute.movies} element={getAuthRoute(<MovieHome />)} />
+      <Route
+        path={`${AppRoute.movies}/:kind/:id`}
+        element={getAuthRoute(<MovieDetail />)}
+      />
+      <Route path={AppRoute.anime} element={getAuthRoute(<AnimeHome />)} />
+      <Route
+        path={`${AppRoute.anime}/:kind/:id`}
+        element={getAuthRoute(
+          <MovieDetail basePath={AppRoute.anime} backLabel="All anime" />
+        )}
+      />
       <Route
         path={AppRoute.dashboard}
         element={getAuthRoute(<DashboardPage />)}

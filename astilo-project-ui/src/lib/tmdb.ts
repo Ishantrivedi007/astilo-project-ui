@@ -68,6 +68,19 @@ export interface TmdbEndpoint {
   kind?: "movie" | "tv";
 }
 
+export async function searchMedia(query: string): Promise<MediaItem[]> {
+  const q = query.trim();
+  if (!q || !hasTmdb) return [];
+  const { data } = await client.get<{ results: (TmdbRaw & { media_type: string })[] }>(
+    "/search/multi",
+    { params: { query: q, include_adult: false } }
+  );
+  return (data.results ?? [])
+    .filter((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path)
+    .map((r) => normalize(r as TmdbRaw))
+    .slice(0, 8);
+}
+
 export async function fetchRow(endpoint: TmdbEndpoint): Promise<MediaItem[]> {
   const { data } = await client.get<{ results: TmdbRaw[] }>(endpoint.path, {
     params: endpoint.params,
