@@ -48,6 +48,33 @@ class ProductsController:
     @cherrypy.tools.auth()
     @cherrypy.tools.admin_only()
     @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, product_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            product = session.get(Product, int(product_id))
+            if not product:
+                raise cherrypy.HTTPError(404, "Product not found")
+
+            if "name" in body:
+                product.name = (body["name"] or "").strip()
+            if "description" in body:
+                product.description = body["description"]
+            if "price" in body:
+                product.price = float(body["price"])
+            if "imageUrl" in body:
+                product.image_url = body["imageUrl"]
+            if "category" in body:
+                product.category = body["category"]
+            if "stock" in body:
+                product.stock = int(body["stock"])
+
+            session.flush()
+            return product.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.admin_only()
+    @cherrypy.tools.json_out()
     def DELETE(self, product_id):
         with get_session() as session:
             product = session.get(Product, int(product_id))
@@ -62,14 +89,26 @@ class OrdersController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self, order_id=None):
-        user_id = int(cherrypy.request.user["sub"])
+    def GET(self, order_id=None, show_all=None):
+        claims = cherrypy.request.user
+        user_id = int(claims["sub"])
+        is_admin = claims.get("role") == "admin"
+
         with get_session() as session:
             if order_id is None:
-                orders = session.query(Order).filter_by(user_id=user_id).all()
-                return [o.to_dict() for o in orders]
+                query = session.query(Order)
+                if not (show_all and is_admin):
+                    query = query.filter_by(user_id=user_id)
+                orders = query.order_by(Order.created_at.desc()).all()
+                return [
+                    {**o.to_dict(), "userId": o.user_id, "userEmail": o.user.email if o.user else None}
+                    for o in orders
+                ] if is_admin else [o.to_dict() for o in orders]
 
-            order = session.query(Order).filter_by(id=int(order_id), user_id=user_id).first()
+            query = session.query(Order).filter_by(id=int(order_id))
+            if not is_admin:
+                query = query.filter_by(user_id=user_id)
+            order = query.first()
             if not order:
                 raise cherrypy.HTTPError(404, "Order not found")
             return order.to_dict()

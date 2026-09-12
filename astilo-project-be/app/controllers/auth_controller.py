@@ -30,7 +30,11 @@ class AuthController:
             if session.query(User).filter_by(email=email).first():
                 raise cherrypy.HTTPError(409, "Email already registered")
 
-            user = User(name=name, email=email, password_hash=hash_password(password))
+            # Bootstrap: the very first account on a fresh install becomes admin,
+            # so there's always a way in without touching the database by hand.
+            role = "admin" if session.query(User).count() == 0 else "user"
+
+            user = User(name=name, email=email, password_hash=hash_password(password), role=role)
             session.add(user)
             session.flush()
             token = create_token(user)
