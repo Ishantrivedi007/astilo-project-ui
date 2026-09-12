@@ -10,12 +10,15 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3
 from mutagen.mp3 import MP3
 
+from app.config import config
 from app.db import get_session
 from app.models import Song
 
 BE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPO_ROOT = os.path.dirname(BE_DIR)
-DOWNLOADS_DIR = os.path.join(REPO_ROOT, "astilo-project-ui", "public", "downloads")
+DOWNLOADS_DIR = config.MUSIC_DOWNLOADS_DIR or os.path.join(
+    REPO_ROOT, "astilo-project-ui", "public", "downloads"
+)
 
 # Optional local ffmpeg build (see README) — used when ffmpeg isn't on PATH.
 FFMPEG_LOCATION = os.path.join(BE_DIR, "tools", "ffmpeg-master-latest-win64-gpl", "bin")
@@ -123,14 +126,147 @@ class SongSearchController:
         return {"results": results, "mp3Bitrates": list(MP3_BITRATES), "videoQualities": list(VIDEO_QUALITIES)}
 
 
+def _file_exists_for(song: Song) -> bool:
+    if not song.audio_url:
+        return False
+    # audio_url is always "/downloads/<file>" — resolve it against
+    # DOWNLOADS_DIR directly rather than assuming the public/ layout.
+    filename = song.audio_url.rsplit("/", 1)[-1]
+    return os.path.isfile(os.path.join(DOWNLOADS_DIR, filename))
+
+
+def _delete_files_for(song: Song):
+    for url in (song.audio_url, song.cover_url):
+        if not url:
+            continue
+        path = os.path.join(DOWNLOADS_DIR, url.rsplit("/", 1)[-1])
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+        except OSError:
+            pass
+
+
+class SongPreviewController:
+    """Resolves a direct, streamable audio URL for a YouTube id — no download,
+    no file written to disk. Used so users can audition a search result before
+    committing to a download."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, youtubeId=None):
+        youtube_id = (youtubeId or "").strip()
+        if not youtube_id:
+            raise cherrypy.HTTPError(400, "youtubeId is required")
+
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
+            "format": "bestaudio/best",
+            "skip_download": True,
+        }
+        if FFMPEG_LOCATION:
+            ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(
+                    f"https://www.youtube.com/watch?v={youtube_id}", download=False
+                )
+        except Exception as exc:
+            raise cherrypy.HTTPError(502, f"Preview failed: {exc}")
+
+        stream_url = info.get("url")
+        if not stream_url:
+            raise cherrypy.HTTPError(502, "No playable audio stream found")
+
+        return {
+            "youtubeId": youtube_id,
+            "streamUrl": stream_url,
+            "durationSeconds": int(info.get("duration") or 0),
+        }
+
+
 class SongsController:
     exposed = True
 
     @cherrypy.tools.json_out()
-    def GET(self):
+    def GET(self, id=None):
         with get_session() as session:
+            if id is not None:
+                try:
+                    song_id = int(id)
+                except ValueError:
+                    raise cherrypy.HTTPError(400, "id must be a number")
+                song = session.get(Song, song_id)
+                if not song or not _file_exists_for(song):
+                    raise cherrypy.HTTPError(404, "Song not found")
+                return song.to_dict()
+
             songs = session.query(Song).order_by(Song.created_at.desc()).all()
-            return [s.to_dict() for s in songs]
+            live, stale = [], []
+            for s in songs:
+                (live if _file_exists_for(s) else stale).append(s)
+            for s in stale:
+                session.delete(s)
+            if stale:
+                session.flush()
+            return [s.to_dict() for s in live]
+
+    @cherrypy.tools.json_out()
+    def PUT(self, id, **kwargs):
+        data = kwargs
+        if cherrypy.request.headers.get("Content-Type", "").startswith("application/json"):
+            body = cherrypy.request.body.read()
+            data = json.loads(body) if body else {}
+
+        try:
+            song_id = int(id)
+        except ValueError:
+            raise cherrypy.HTTPError(400, "id must be a number")
+
+        with get_session() as session:
+            song = session.get(Song, song_id)
+            if not song:
+                raise cherrypy.HTTPError(404, "Song not found")
+
+            title = (data.get("title") or "").strip()
+            artist = (data.get("artist") or "").strip()
+            if title:
+                song.title = title
+            if artist:
+                song.artist = artist
+            session.flush()
+
+            if song.media_type == "audio" and (title or artist) and _file_exists_for(song):
+                media_path = os.path.join(DOWNLOADS_DIR, song.audio_url.rsplit("/", 1)[-1])
+                try:
+                    tags = EasyID3(media_path)
+                except Exception:
+                    tags = None
+                if tags is not None:
+                    tags["title"] = song.title
+                    tags["artist"] = song.artist or ""
+                    tags.save()
+
+            return song.to_dict()
+
+    @cherrypy.tools.json_out()
+    def DELETE(self, id):
+        try:
+            song_id = int(id)
+        except ValueError:
+            raise cherrypy.HTTPError(400, "id must be a number")
+
+        with get_session() as session:
+            song = session.get(Song, song_id)
+            if not song:
+                raise cherrypy.HTTPError(404, "Song not found")
+            _delete_files_for(song)
+            session.delete(song)
+            return {"deleted": True, "id": song_id}
 
     @cherrypy.tools.json_out()
     def POST(self, **kwargs):

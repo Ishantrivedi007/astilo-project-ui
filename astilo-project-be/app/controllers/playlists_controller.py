@@ -62,6 +62,24 @@ class PlaylistsController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, playlist_id):
+        user_id = int(cherrypy.request.user["sub"])
+        body = cherrypy.request.json or {}
+        name = (body.get("name") or "").strip()
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required")
+
+        with get_session() as session:
+            playlist = session.query(Playlist).filter_by(id=int(playlist_id), user_id=user_id).first()
+            if not playlist:
+                raise cherrypy.HTTPError(404, "Playlist not found")
+            playlist.name = name
+            session.flush()
+            return playlist.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
     def DELETE(self, playlist_id, track_id=None):
         user_id = int(cherrypy.request.user["sub"])
         with get_session() as session:

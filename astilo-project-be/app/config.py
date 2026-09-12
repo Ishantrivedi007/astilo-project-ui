@@ -21,5 +21,11 @@ class Config:
     TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
     GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN", "")
 
+    # Absolute override for where downloaded songs are written (and checked
+    # against). Defaults to the sibling astilo-project-ui/public/downloads
+    # next to this backend — set this when the frontend being served lives
+    # somewhere else (e.g. a separate git worktree).
+    MUSIC_DOWNLOADS_DIR = os.getenv("MUSIC_DOWNLOADS_DIR", "")
+
 
 config = Config()
