@@ -8,27 +8,30 @@ import App from "./App";
 import { queryClient } from "./lib/queryClient";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { PreferencesProvider } from "./theme/PreferencesProvider";
+import { AuthProvider } from "./auth/AuthProvider";
 import "./styles/index.scss";
 
 function Providers({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   return (
-    <HeroUIProvider navigate={navigate} useHref={useHref}>
+    <HeroUIProvider navigate={navigate} useHref={useHref} validationBehavior="aria">
       <ThemeProvider>
         <PreferencesProvider>
-          <QueryClientProvider client={queryClient}>
-            {children}
-            <Toaster
-              position="bottom-right"
-              toastOptions={{
-                style: {
-                  background: "rgb(var(--surface-rgb))",
-                  color: "rgb(var(--ink-rgb))",
-                  border: "1px solid rgb(var(--hair-rgb) / 0.2)",
-                },
-              }}
-            />
-          </QueryClientProvider>
+          <AuthProvider>
+            <QueryClientProvider client={queryClient}>
+              {children}
+              <Toaster
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: "rgb(var(--surface-rgb))",
+                    color: "rgb(var(--ink-rgb))",
+                    border: "1px solid rgb(var(--hair-rgb) / 0.2)",
+                  },
+                }}
+              />
+            </QueryClientProvider>
+          </AuthProvider>
         </PreferencesProvider>
       </ThemeProvider>
     </HeroUIProvider>

@@ -15,6 +15,7 @@ dist-ssr
 
 # Local-only media, keep off the remote
 public/*.mp3
+public/downloads/
 
 # Editor directories and files
 .vscode/*

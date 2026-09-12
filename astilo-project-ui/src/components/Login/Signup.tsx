@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Input, Link } from "@heroui/react";
 import { GradientButton } from "../shared";
@@ -7,29 +7,33 @@ import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { authErrorMessage } from "../../auth/authApi";
 
-const Login = () => {
+const Signup = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login } = useAuth();
+  const { register } = useAuth();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const from = (location.state as { from?: string } | null)?.from || AppRoute.home;
+  const passwordTooShort = password.length > 0 && password.length < 6;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password) {
-      toast.error("Email and password are required.");
+    if (!name.trim() || !email.trim()) {
+      toast.error("Name and email are required.");
+      return;
+    }
+    if (password.length < 6) {
+      toast.error("Password needs to be at least 6 characters.");
       return;
     }
     setSubmitting(true);
     try {
-      await login(email, password);
-      toast.success("Signed in — welcome back! 👋");
-      navigate(from, { replace: true });
+      await register(name, email, password);
+      toast.success("Account created — welcome to Astilo's! 🎉");
+      navigate(AppRoute.home, { replace: true });
     } catch (err) {
-      toast.error(authErrorMessage(err, "Couldn't sign you in."));
+      toast.error(authErrorMessage(err, "Couldn't create your account."));
     } finally {
       setSubmitting(false);
     }
@@ -43,15 +47,23 @@ const Login = () => {
         </Link>
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 text-2xl shadow-glow animate-float">
-            👋
+            ✨
           </div>
           <h1 className="font-display text-2xl font-extrabold gradient-text">
-            wb, superstar
+            join the party
           </h1>
-          <p className="text-sm text-ink/50">log in and let&apos;s vibe</p>
+          <p className="text-sm text-ink/50">movies, music, anime & more — one account</p>
         </div>
 
         <div className="flex flex-col gap-4">
+          <Input
+            label="Name"
+            variant="bordered"
+            value={name}
+            onValueChange={setName}
+            isRequired
+            classNames={{ inputWrapper: "border-hair/40" }}
+          />
           <Input
             type="email"
             label="Email"
@@ -68,15 +80,17 @@ const Login = () => {
             value={password}
             onValueChange={setPassword}
             isRequired
+            isInvalid={passwordTooShort}
+            errorMessage={passwordTooShort ? "At least 6 characters" : undefined}
             classNames={{ inputWrapper: "border-hair/40" }}
           />
           <GradientButton type="submit" fullWidth className="mt-2" isDisabled={submitting}>
-            {submitting ? "Signing in…" : "Let me in ✨"}
+            {submitting ? "Creating account…" : "Create account 🎉"}
           </GradientButton>
           <p className="text-center text-sm text-ink/50">
-            new here?{" "}
-            <Link href={AppRoute.signup} size="sm" className="text-accent-2">
-              make an account
+            already have an account?{" "}
+            <Link href={AppRoute.login} size="sm" className="text-accent-2">
+              log in
             </Link>
           </p>
         </div>
@@ -85,4 +99,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Signup;

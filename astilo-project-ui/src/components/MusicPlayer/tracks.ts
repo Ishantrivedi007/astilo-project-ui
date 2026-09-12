@@ -46,3 +46,11 @@ export const lengthToSeconds = (length: string): number => {
   const [m, s] = length.split(":").map(Number);
   return (m || 0) * 60 + (s || 0);
 };
+
+/** 216 -> "3:36" */
+export const secondsToLength = (totalSeconds: number | null | undefined): string => {
+  const safe = Math.max(0, Math.round(totalSeconds || 0));
+  const m = Math.floor(safe / 60);
+  const s = safe % 60;
+  return `${m}:${s < 10 ? "0" : ""}${s}`;
+};

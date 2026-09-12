@@ -14,8 +14,9 @@ import {
 } from "@heroui/react";
 
 import { AppRoute } from "../../app/AppRoute";
+import { useAuth } from "../../auth/AuthProvider";
 
-const links = [
+const BASE_LINKS = [
   { label: "Home", href: AppRoute.home },
   { label: "Music", href: AppRoute.music },
   { label: "Movies", href: AppRoute.movies },
@@ -43,9 +44,17 @@ const NavBar = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const scrolled = useScrolled();
+  const { user, isAdmin, logout } = useAuth();
+
+  const links = isAdmin ? [...BASE_LINKS, { label: "Admin", href: AppRoute.admin }] : BASE_LINKS;
 
   const isActive = (href: string) =>
     href === AppRoute.home ? pathname === href : pathname.startsWith(href);
+
+  const handleLogout = () => {
+    logout();
+    navigate(AppRoute.landing);
+  };
 
   return (
     <div
@@ -72,22 +81,12 @@ const NavBar = () => {
           <NavbarBrand>
             <Link
               href={AppRoute.home}
-              className="group flex items-baseline gap-1 text-ink"
+              className="flex items-baseline gap-1 text-ink"
             >
-              <motion.span
-                whileHover={{ letterSpacing: "0.22em" }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className="font-display text-lg font-bold uppercase tracking-[0.16em]"
-              >
+              <span className="font-display text-lg font-bold uppercase tracking-[0.16em]">
                 Astilo&apos;s
-              </motion.span>
-              <motion.span
-                className="text-accent"
-                animate={{ opacity: [1, 0.35, 1] }}
-                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-              >
-                .
-              </motion.span>
+              </span>
+              <span className="text-accent">.</span>
             </Link>
           </NavbarBrand>
         </NavbarContent>
@@ -134,6 +133,9 @@ const NavBar = () => {
               </Button>
             </motion.div>
           </NavbarItem>
+          <NavbarItem className="hidden text-sm font-medium text-ink/60 sm:block">
+            {user?.name.split(" ")[0]}
+          </NavbarItem>
           <NavbarItem>
             <motion.div whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.04 }}>
               <Button
@@ -141,9 +143,9 @@ const NavBar = () => {
                 radius="full"
                 variant="bordered"
                 className="border-hair/40 font-medium text-ink hover:bg-ink/5"
-                onPress={() => navigate(AppRoute.login)}
+                onPress={handleLogout}
               >
-                Log in
+                Log out
               </Button>
             </motion.div>
           </NavbarItem>

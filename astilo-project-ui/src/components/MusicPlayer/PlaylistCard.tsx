@@ -1,11 +1,12 @@
-import { tracks } from "./tracks";
+import type { Track } from "./tracks";
 
 interface PlaylistCardProps {
+  tracks: Track[];
   active: number;
   onSelect: (index: number) => void;
 }
 
-const PlaylistCard = ({ active, onSelect }: PlaylistCardProps) => {
+const PlaylistCard = ({ tracks, active, onSelect }: PlaylistCardProps) => {
   return (
     <div className="glass-card flex h-full flex-col p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -17,7 +18,7 @@ const PlaylistCard = ({ active, onSelect }: PlaylistCardProps) => {
 
       <ul className="flex-1 space-y-1.5 overflow-y-auto hide-scrollbar">
         {tracks.map((track, i) => (
-          <li key={track.name}>
+          <li key={`${track.name}-${i}`}>
             <button
               type="button"
               onClick={() => onSelect(i)}

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 import NavBar from "../components/SharedComponents/NavBar";
+import { useAuth } from "../auth/AuthProvider";
 import { AppRoute } from "./AppRoute";
 
 interface AuthorizedRouteProps {
@@ -9,11 +10,11 @@ interface AuthorizedRouteProps {
 }
 
 const AuthorizedRoute = ({ children }: AuthorizedRouteProps) => {
-  // const token = localStorage.getItem("token");
-  const token = "testToken";
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
-  if (!token) {
-    return <Navigate to={AppRoute.home} />;
+  if (!isAuthenticated) {
+    return <Navigate to={AppRoute.login} state={{ from: location.pathname }} replace />;
   }
 
   return (
