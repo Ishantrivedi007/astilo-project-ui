@@ -1,0 +1,174 @@
+.landing {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem clamp(1rem, 4vw, 3rem);
+}
+
+.landing-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.15rem;
+}
+
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  padding: clamp(2.5rem, 8vw, 6rem) 1.25rem clamp(3rem, 6vw, 5rem);
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.landing-eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--accent-2-rgb));
+}
+
+.landing-title {
+  font-family: "Syne", "Space Grotesk", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: clamp(2.25rem, 6vw, 4rem);
+  line-height: 1.08;
+  color: rgb(var(--ink-rgb));
+}
+
+.landing-sub {
+  max-width: 560px;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgb(var(--ink-rgb) / 0.6);
+}
+
+.landing-cta {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.landing-cta-secondary {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(var(--ink-rgb) / 0.55);
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: rgb(var(--ink-rgb));
+  }
+}
+
+.landing-features {
+  padding: 2rem clamp(1rem, 5vw, 4rem) 4rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.landing-card {
+  position: relative;
+  border-radius: 1.5rem;
+  padding: 1.75rem;
+  background: rgb(var(--surface-rgb) / 0.6);
+  border: 1px solid rgb(var(--hair-rgb) / 0.14);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -20px rgb(var(--accent-rgb) / 0.4);
+  }
+}
+
+.landing-card-emoji {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, rgb(var(--accent-rgb)), rgb(var(--accent-2-rgb)));
+  box-shadow: 0 8px 20px -8px rgb(var(--accent-rgb) / 0.6);
+}
+
+/* quirky per-card hue rotation on the icon badge only — keeps every card tied
+   to the active theme's accent pair while still reading as "five distinct worlds" */
+.landing-card--a .landing-card-emoji {
+  filter: hue-rotate(0deg);
+}
+.landing-card--b .landing-card-emoji {
+  filter: hue-rotate(35deg) saturate(1.05);
+}
+.landing-card--c .landing-card-emoji {
+  filter: hue-rotate(-35deg) saturate(1.05);
+}
+.landing-card--d .landing-card-emoji {
+  filter: hue-rotate(70deg) saturate(0.95);
+}
+.landing-card--e .landing-card-emoji {
+  filter: hue-rotate(-70deg) saturate(0.95);
+}
+
+.landing-card-title {
+  font-family: "Syne", "Space Grotesk", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.125rem;
+  color: rgb(var(--ink-rgb));
+  margin-bottom: 0.4rem;
+}
+
+.landing-card-desc {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: rgb(var(--ink-rgb) / 0.6);
+}
+
+.landing-footer-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 1.25rem 4rem;
+}
+
+.landing-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  font-size: 0.8125rem;
+  color: rgb(var(--ink-rgb) / 0.45);
+  border-top: 1px solid rgb(var(--hair-rgb) / 0.12);
+}

@@ -1,67 +1,82 @@
-# Astilo's UI
+# Astilo's
 
-React + TypeScript + Vite app using [HeroUI](https://heroui.com/) (the successor to NextUI) for components.
+A personal hub app — Movies/TV, Anime, Music, and a small Store — built as a
+React + TypeScript frontend backed by a CherryPy API.
 
-## Stack
+```
+astilo-project-ui/   Frontend — React, TypeScript, Vite, HeroUI, Tailwind
+astilo-project-be/   Backend  — Python, CherryPy, SQLAlchemy
+```
 
-- **Vite** (dev server / bundler) — replaces Create React App
-- **TypeScript** + React 18
-- **HeroUI** (`@heroui/react`) + Tailwind CSS v3
-- **Theme system** — 10 curated palettes (5 light / 5 dark) switchable at runtime
-  from the navbar 🎨 menu. Tokens live in `src/styles/themes.scss` as
-  `[data-theme]` blocks (RGB channel triples); registry + provider in `src/theme/`.
-  Choice persists to `localStorage`; a tiny inline script in `index.html` applies
-  it before first paint (no flash). Default: **Cosmic**.
-- **SCSS** (`sass`) for component styles + the global design system (`src/styles/`)
-- **TanStack Query** (`@tanstack/react-query`) — data fetching (lyrics, store, TMDB)
-- **ApexCharts** (`react-apexcharts`) — animated, theme-aware dashboard charts
-- **TanStack Table** (`@tanstack/react-table`) — sortable/filterable users table
-- **sonner** — toasts · **react-countup** — animated stats · **framer-motion** —
-  scroll reveals · **@formkit/auto-animate** — list transitions
-- Route-level code splitting (`React.lazy`) so ApexCharts/Swiper load per page
-- Shared UI kit in `src/components/shared/` (`PageHeading`, `GlassPanel`,
-  `GradientButton`, `StatCard`, `Reveal`, `Chart`, `Sparkline`, `BarList`) —
-  reused across every page
-- React Router v6, MUI (loader), Swiper, axios
+Each half is developed on its own branch (`frontend`, `backend`) and merged
+here into `main`. If you're working on this repo day-to-day, check out those
+branches directly (or as git worktrees, so both are on disk side by side —
+see **Development model** below); `main` is the combined snapshot.
 
-## Getting started
+## Quick start
+
+**Backend** (`astilo-project-be/`):
 
 ```bash
+cd astilo-project-be
+python -m venv .venv && .venv/Scripts/activate   # or source .venv/bin/activate on macOS/Linux
+pip install -r requirements.txt
+cp .env.example .env   # fill in TMDB/Genius credentials, JWT secret, etc.
+python main.py         # serves on http://localhost:8080
+```
+
+**Frontend** (`astilo-project-ui/`):
+
+```bash
+cd astilo-project-ui
 npm install
-npm run dev      # start dev server on http://localhost:3000
-npm run build    # type-check + production build to dist/
-npm run preview  # preview the production build
+cp .env.example .env   # see below
+npm run dev             # serves on http://localhost:3000
 ```
 
-## Environment
+## Environment variables
 
-`.env` is **git-ignored** (holds secrets). Copy the template and fill it in:
+Neither `.env` file is committed — copy each `.env.example` and fill in your
+own values locally.
+
+**Backend** (`astilo-project-be/.env`): database URL, JWT secret, TMDB
+token/API key, Genius access token. The backend proxies TMDB so the browser
+never sees that key.
+
+**Frontend** (`astilo-project-ui/.env`):
+- `VITE_BASE_URL` — the backend API's base URL (defaults to
+  `http://localhost:8080/api`).
+- `VITE_PROVIDER_*` — base URLs for the Movies/TV/Anime watch page's
+  streaming-server switcher (VidSrc, VidLink, 2Embed, SuperEmbed, etc.). Each
+  is optional; a provider whose var is unset is simply left out of the
+  switcher instead of rendering a broken player. See `src/lib/streams.ts`.
+
+## What's inside
+
+- **Movies & TV** — browse via TMDB, a dedicated watch page (season/episode
+  browser, multiple streaming-server options, subtitle/dub language
+  selection), reviews & ratings, recommendations.
+- **Anime** — same watch experience, sourced from TMDB filtered to
+  Japanese-language animation.
+- **Music** — player, playlists, lyrics search.
+- **Store** — product catalog, cart/checkout, admin management.
+- **Auth** — accounts, JWT sessions, an admin role for store/user management.
+- **Theming** — 30 curated palettes (15 light / 15 dark), switchable at runtime.
+
+## Development model
+
+This repo is normally worked on as two git worktrees sharing one `.git`,
+checked out side by side:
 
 ```bash
-cp .env.example .env
+git clone <repo-url> astilo
+cd astilo
+git checkout frontend                       # this worktree
+git worktree add ../astilo/astilo-project-be backend
 ```
 
-| Var | Purpose |
-| --- | --- |
-| `VITE_BASE_URL` | base URL for the shared API request helper (optional) |
-| `VITE_TMDB_TOKEN` | TMDB v4 read access token → live Movies catalogue |
-| `VITE_TMDB_API_KEY` | TMDB v3 API key (alternative to the token) |
-
-Get a free TMDB credential at <https://www.themoviedb.org/settings/api>. With
-neither set, the Movies page renders a built-in demo catalogue. Only
-`VITE_`-prefixed vars are exposed to the client, via `import.meta.env`.
-
-## Structure
-
-```
-src/
-  app/                Routing (AppRoute, AppRoutes, AuthorizedRoute)
-  components/
-    DashBoard/        Tremor dashboard + chart data
-    Login/
-    Movies/           Swiper coverflow gallery
-    MusicPlayer/      Player, playlist, lyrics
-    Navbar/           AcmeLogo
-    SharedComponents/ NavBar, SharedButton, Loader, config, SharedApiRequest
-    Store/            Product grid
-```
+That gives you `astilo-project-ui/` on the `frontend` branch and
+`astilo-project-be/` on the `backend` branch, in the same folder, each
+independently committable — which is also why they're separate branches
+rather than one shared history. `main` is periodically updated to a snapshot
+combining both (this checkout).

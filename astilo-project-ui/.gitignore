@@ -1,0 +1,39 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+node_modules
+dist
+dist-ssr
+.vite
+*.local
+*.tsbuildinfo
+
+# Local-only media, keep off the remote
+public/*.mp3
+public/downloads/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Local env (secrets) — never commit
+.env
+.env.*.local

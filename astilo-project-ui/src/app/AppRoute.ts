@@ -1,0 +1,16 @@
+export const AppRoute = {
+  // Public — no auth, no app navbar
+  landing: "/",
+  login: "/login",
+  signup: "/signup",
+  // Authenticated app
+  home: "/home",
+  store: "/store",
+  music: "/music",
+  movies: "/movies",
+  moviesWatch: "/movies/watch",
+  anime: "/anime",
+  animeWatch: "/anime/watch",
+  customize: "/customize",
+  admin: "/admin",
+} as const;
