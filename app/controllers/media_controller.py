@@ -3,6 +3,8 @@ import re
 
 import cherrypy
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from app.config import config
 from app.db import get_session
@@ -10,6 +12,22 @@ from app.models import LyricsCache
 
 TMDB_BASE = "https://api.themoviedb.org/3"
 GENIUS_BASE = "https://api.genius.com"
+
+# TMDB's CloudFront front-end intermittently resets the connection mid TLS
+# handshake/renegotiation; retry those (and other transient network errors)
+# a few times with backoff instead of surfacing a 500 to the client.
+_tmdb_session = requests.Session()
+_tmdb_retry = Retry(
+    total=3,
+    connect=3,
+    read=3,
+    backoff_factor=0.5,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=("GET",),
+)
+_tmdb_adapter = HTTPAdapter(max_retries=_tmdb_retry)
+_tmdb_session.mount("https://", _tmdb_adapter)
+_tmdb_session.mount("http://", _tmdb_adapter)
 
 
 class TmdbController:
@@ -31,7 +49,12 @@ class TmdbController:
         else:
             params["api_key"] = config.TMDB_API_KEY
 
-        resp = requests.get(f"{TMDB_BASE}/{path}", params=params, headers=headers, timeout=10)
+        try:
+            resp = _tmdb_session.get(
+                f"{TMDB_BASE}/{path}", params=params, headers=headers, timeout=10
+            )
+        except requests.exceptions.RequestException as exc:
+            raise cherrypy.HTTPError(502, f"TMDB request failed: {exc}")
         if resp.status_code >= 400:
             raise cherrypy.HTTPError(resp.status_code, "TMDB request failed")
         return resp.json()

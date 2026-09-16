@@ -1,1 +1,7 @@
-astilo-project-ui-backup/
+.env
+*.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+tools/
