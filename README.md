@@ -49,7 +49,6 @@ never sees that key.
 - `VITE_PROVIDER_*` — base URLs for the Movies/TV/Anime watch page's
   streaming-server switcher. Each is optional; a provider whose var is unset
   is simply left out of the switcher instead of rendering a broken player.
-  See `src/lib/streams.ts` for the full list of vars.
 
 ## What's inside
 
