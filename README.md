@@ -47,9 +47,9 @@ never sees that key.
 - `VITE_BASE_URL` — the backend API's base URL (defaults to
   `http://localhost:8080/api`).
 - `VITE_PROVIDER_*` — base URLs for the Movies/TV/Anime watch page's
-  streaming-server switcher (VidSrc, VidLink, 2Embed, SuperEmbed, etc.). Each
-  is optional; a provider whose var is unset is simply left out of the
-  switcher instead of rendering a broken player. See `src/lib/streams.ts`.
+  streaming-server switcher. Each is optional; a provider whose var is unset
+  is simply left out of the switcher instead of rendering a broken player.
+  See `src/lib/streams.ts` for the full list of vars.
 
 ## What's inside
 
