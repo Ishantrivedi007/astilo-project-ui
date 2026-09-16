@@ -1,54 +1,86 @@
-import type { AnimeEndpoint } from "../../lib/anime";
-import { buildMockAnimeRow as _buildMockAnimeRow } from "../../lib/anime";
+import type { TmdbEndpoint } from "../../lib/tmdb";
+import { buildMockRow } from "../Movies/catalog";
 
 export interface AnimeRowDef {
   id: string;
   label: string;
   emoji: string;
-  endpoint: AnimeEndpoint;
+  endpoint: TmdbEndpoint;
 }
 
-const SEASONS = ["WINTER", "SPRING", "SUMMER", "FALL"] as const;
-const seasonForMonth = (month: number) => SEASONS[Math.floor(((month + 1) % 12) / 3)];
-
-const now = new Date();
-const currentSeason = seasonForMonth(now.getMonth());
-const currentYear = now.getFullYear();
-const nextSeasonIdx = (SEASONS.indexOf(currentSeason) + 1) % 4;
-const nextSeason = SEASONS[nextSeasonIdx];
-const nextSeasonYear = nextSeasonIdx === 0 ? currentYear + 1 : currentYear;
-
+// Anime on TMDB = Japanese-language animation (genre 16). Same data source
+// and streaming servers as Movies/TV — no separate metadata API.
 export const ANIME_ROWS: AnimeRowDef[] = [
   {
     id: "anime-trending",
     label: "Trending anime",
     emoji: "🔥",
-    endpoint: { sort: "TRENDING_DESC" },
+    endpoint: {
+      path: "/discover/tv",
+      kind: "tv",
+      params: { with_genres: 16, with_original_language: "ja", sort_by: "popularity.desc" },
+    },
   },
   {
     id: "anime-top",
     label: "All-time top rated",
     emoji: "🏆",
-    endpoint: { sort: "SCORE_DESC" },
+    endpoint: {
+      path: "/discover/tv",
+      kind: "tv",
+      params: {
+        with_genres: 16,
+        with_original_language: "ja",
+        sort_by: "vote_average.desc",
+        "vote_count.gte": 200,
+      },
+    },
   },
   {
     id: "anime-airing",
-    label: "Airing this season",
+    label: "Airing now",
     emoji: "📡",
-    endpoint: { sort: "POPULARITY_DESC", season: currentSeason, seasonYear: currentYear },
+    endpoint: {
+      path: "/discover/tv",
+      kind: "tv",
+      params: {
+        with_genres: 16,
+        with_original_language: "ja",
+        sort_by: "first_air_date.desc",
+        "air_date.lte": new Date().toISOString().slice(0, 10),
+      },
+    },
   },
   {
     id: "anime-movies",
     label: "Anime movies",
     emoji: "🎬",
-    endpoint: { sort: "POPULARITY_DESC", format: "MOVIE" },
+    endpoint: {
+      path: "/discover/movie",
+      kind: "movie",
+      params: {
+        with_genres: 16,
+        with_original_language: "ja",
+        sort_by: "popularity.desc",
+        "vote_count.gte": 100,
+      },
+    },
   },
   {
     id: "anime-hidden",
-    label: "Upcoming next season",
+    label: "Upcoming",
     emoji: "💎",
-    endpoint: { sort: "POPULARITY_DESC", season: nextSeason, seasonYear: nextSeasonYear },
+    endpoint: {
+      path: "/discover/tv",
+      kind: "tv",
+      params: {
+        with_genres: 16,
+        with_original_language: "ja",
+        sort_by: "popularity.desc",
+        "first_air_date.gte": new Date().toISOString().slice(0, 10),
+      },
+    },
   },
 ];
 
-export const buildMockAnimeRow = _buildMockAnimeRow;
+export const buildMockAnimeRow = buildMockRow;

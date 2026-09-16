@@ -230,6 +230,24 @@
   );
 }
 
+[data-theme="pearl"],
+[data-theme="aurora"],
+[data-theme="champagne"],
+[data-theme="sunset"],
+[data-theme="pistachio"],
+[data-theme="vanilla-gold"],
+[data-theme="apricot-cream"],
+[data-theme="lemon-sorbet"],
+[data-theme="blush-gold"],
+[data-theme="matcha-silk"],
+[data-theme="sky-champagne"],
+[data-theme="cool-sky"],
+[data-theme="mint-breeze"],
+[data-theme="coral-ivory"],
+[data-theme="iris-mist"] {
+  color-scheme: light;
+}
+
 // ------------------------------- DARK ---------------------------------------
 
 [data-theme="midnight-gold"] {
@@ -412,6 +430,28 @@
     139 108 255,
     linear-gradient(135deg, #05040f 0%, #150e3a 50%, #21125a 100%)
   );
+}
+
+// Native controls (select/option popups, scrollbars) are UA-rendered and
+// mostly unstylable via CSS — `color-scheme` is the one lever that switches
+// their chrome (background/text/highlight) to match a dark theme instead of
+// defaulting to the OS's light popup regardless of our custom colors.
+[data-theme="midnight-gold"],
+[data-theme="cosmic"],
+[data-theme="noir-teal"],
+[data-theme="royal"],
+[data-theme="ember"],
+[data-theme="obsidian-gold"],
+[data-theme="onyx-copper"],
+[data-theme="rose-noir"],
+[data-theme="carbon-amber"],
+[data-theme="champagne-plum"],
+[data-theme="midnight-navy-gold"],
+[data-theme="emerald-teal"],
+[data-theme="burgundy-coral"],
+[data-theme="indigo-violet"],
+[data-theme="charcoal-electric"] {
+  color-scheme: dark;
 }
 
 [data-theme="charcoal-electric"] {

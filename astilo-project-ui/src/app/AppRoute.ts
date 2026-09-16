@@ -8,6 +8,7 @@ export const AppRoute = {
   store: "/store",
   music: "/music",
   movies: "/movies",
+  moviesWatch: "/movies/watch",
   anime: "/anime",
   animeWatch: "/anime/watch",
   customize: "/customize",

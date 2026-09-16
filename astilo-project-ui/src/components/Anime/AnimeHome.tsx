@@ -10,8 +10,7 @@ import "swiper/css/effect-coverflow";
 import "swiper/css/pagination";
 import "./Anime.scss";
 
-import type { MediaItem } from "../../lib/tmdb";
-import { fetchAnimeRow } from "../../lib/anime";
+import { fetchRow, hasTmdb, type MediaItem } from "../../lib/tmdb";
 import { ANIME_ROWS, buildMockAnimeRow } from "./catalog";
 import MovieRow from "../Movies/MovieRow";
 import { useMovieStore } from "../Movies/useMovieStore";
@@ -26,11 +25,12 @@ const AnimeHome = () => {
 
   const results = useQueries({
     queries: ANIME_ROWS.map((row) => ({
-      queryKey: ["jikan-anime", row.id],
+      queryKey: ["tmdb-anime", row.id, hasTmdb],
       staleTime: 1000 * 60 * 10,
       queryFn: async (): Promise<MediaItem[]> => {
+        if (!hasTmdb) return buildMockAnimeRow(row.id);
         try {
-          const data = await fetchAnimeRow(row.endpoint);
+          const data = await fetchRow(row.endpoint);
           return data.length ? data : buildMockAnimeRow(row.id);
         } catch {
           return buildMockAnimeRow(row.id);
@@ -53,8 +53,7 @@ const AnimeHome = () => {
 
   const visibleRows = ANIME_ROWS.filter((row) => {
     if (filter === "all") return true;
-    const rowKind = row.endpoint.format === "MOVIE" ? "movie" : "tv";
-    return rowKind === filter;
+    return (row.endpoint.kind ?? "tv") === filter;
   });
 
   return (

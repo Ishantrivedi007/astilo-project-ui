@@ -21,6 +21,12 @@ export interface CastMember {
   photo: string;
 }
 
+export interface SeasonSummary {
+  seasonNumber: number;
+  episodeCount: number;
+  name: string;
+}
+
 export interface MediaDetail extends MediaItem {
   tagline: string;
   runtime: number;
@@ -31,6 +37,19 @@ export interface MediaDetail extends MediaItem {
   recommendations: MediaItem[];
   voteCount: number;
   status: string;
+  seasons: SeasonSummary[];
+}
+
+export interface Episode {
+  id: number;
+  number: number;
+  seasonNumber: number;
+  title: string;
+  overview: string;
+  still: string;
+  airDate: string;
+  runtime: number;
+  rating: number;
 }
 
 interface RawDetail extends TmdbRaw {
@@ -46,6 +65,19 @@ interface RawDetail extends TmdbRaw {
   images?: {
     backdrops: { file_path: string; width: number; height: number; aspect_ratio: number }[];
   };
+  seasons?: { season_number: number; episode_count: number; name: string }[];
+}
+
+interface RawEpisode {
+  id: number;
+  episode_number: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  still_path: string | null;
+  air_date: string;
+  runtime: number | null;
+  vote_average: number;
 }
 
 /** Prefer a wide, high-res backdrop over the default (often tightly-cropped) one. */
@@ -99,6 +131,13 @@ export async function fetchDetail(
     runtime: data.runtime || data.episode_run_time?.[0] || 0,
     releaseDate: data.release_date || data.first_air_date || "",
     status: data.status ?? "",
+    seasons: (data.seasons ?? [])
+      .filter((s) => s.season_number > 0)
+      .map((s) => ({
+        seasonNumber: s.season_number,
+        episodeCount: s.episode_count,
+        name: s.name,
+      })),
     voteCount: data.vote_count ?? 0,
     genres: (data.genres ?? []).map((g) => g.name),
     trailerKey: pickTrailer(data),
@@ -113,6 +152,46 @@ export async function fetchDetail(
       .map((r) => normalize(r, kind))
       .slice(0, 12),
   };
+}
+
+export async function fetchSeasonEpisodes(
+  tvId: number | string,
+  seasonNumber: number
+): Promise<Episode[]> {
+  if (!hasTmdb) return buildMockEpisodes(seasonNumber);
+  try {
+    const { data } = await client.get<{ episodes?: RawEpisode[] }>(
+      `/tv/${tvId}/season/${seasonNumber}`
+    );
+    return (data.episodes ?? []).map((e) => ({
+      id: e.id,
+      number: e.episode_number,
+      seasonNumber: e.season_number,
+      title: e.name || `Episode ${e.episode_number}`,
+      overview: e.overview || "",
+      still: posterUrl(e.still_path, "w500"),
+      airDate: e.air_date || "",
+      runtime: e.runtime || 0,
+      rating: Math.round((e.vote_average || 0) * 10) / 10,
+    }));
+  } catch {
+    return buildMockEpisodes(seasonNumber);
+  }
+}
+
+function buildMockEpisodes(seasonNumber: number): Episode[] {
+  return Array.from({ length: 8 }, (_, i) => ({
+    id: seasonNumber * 100 + i + 1,
+    number: i + 1,
+    seasonNumber,
+    title: `Episode ${i + 1}`,
+    overview:
+      "Demo data — add a TMDB token in .env to load real episode details.",
+    still: "",
+    airDate: "",
+    runtime: 42,
+    rating: 0,
+  }));
 }
 
 // --- keyless fallback ---
@@ -146,6 +225,13 @@ export function buildMockDetail(
     runtime: kind === "tv" ? 48 : 118,
     releaseDate: "2023-09-15",
     status: "Released",
+    seasons:
+      kind === "tv"
+        ? [
+            { seasonNumber: 1, episodeCount: 8, name: "Season 1" },
+            { seasonNumber: 2, episodeCount: 6, name: "Season 2" },
+          ]
+        : [],
     voteCount: 1284,
     genres: MOCK_GENRES.slice(0, 3 + (n % 2)),
     trailerKey: "aqz-KE-bpKQ",

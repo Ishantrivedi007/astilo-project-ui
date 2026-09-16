@@ -15,6 +15,7 @@ import {
 import { useMovieStore, mediaKey } from "./useMovieStore";
 import ReviewSection from "./ReviewSection";
 import type { MediaItem } from "../../lib/tmdb";
+import { AppRoute } from "../../app/AppRoute";
 
 const fmtDate = (iso: string) =>
   iso
@@ -100,10 +101,15 @@ const RecCard = ({ item, basePath }: { item: MediaItem; basePath: string }) => (
 
 interface MovieDetailProps {
   basePath?: string;
+  watchBasePath?: string;
   backLabel?: string;
 }
 
-const MovieDetail = ({ basePath = "/movies", backLabel = "All movies" }: MovieDetailProps) => {
+const MovieDetail = ({
+  basePath = "/movies",
+  watchBasePath = AppRoute.moviesWatch,
+  backLabel = "All movies",
+}: MovieDetailProps) => {
   const { kind = "movie", id = "" } = useParams<{ kind: string; id: string }>();
   const mediaType = kind === "tv" ? "tv" : "movie";
   const key = mediaKey(mediaType, id);
@@ -238,6 +244,14 @@ const MovieDetail = ({ basePath = "/movies", backLabel = "All movies" }: MovieDe
             </dl>
 
             <div className="mt-6 flex flex-wrap gap-2">
+              <Button
+                as={Link}
+                to={`${watchBasePath}/${mediaType}/${id}`}
+                radius="full"
+                className="bg-accent-2 font-bold text-white transition-transform hover:scale-105"
+              >
+                ▶ Watch now
+              </Button>
               <Button
                 radius="full"
                 isDisabled={!data.trailerKey}
