@@ -9,11 +9,11 @@ import { hasTmdb } from "../../lib/tmdb";
 import {
   fetchDetail,
   youtubeEmbedUrl,
-  youtubeWatchUrl,
   type MediaDetail,
 } from "../../lib/tmdbDetail";
 import { useMovieStore, mediaKey } from "./useMovieStore";
 import ReviewSection from "./ReviewSection";
+import AddToPlaylistButton from "./AddToPlaylistButton";
 import type { MediaItem } from "../../lib/tmdb";
 import { AppRoute } from "../../app/AppRoute";
 
@@ -269,23 +269,12 @@ const MovieDetail = ({
                     added ? "Added to watchlist" : "Removed from watchlist"
                   );
                 }}
+                title={saved ? "Remove from watchlist" : "Add to watchlist"}
                 className="border-white/40 font-semibold text-white"
               >
                 {saved ? "✓ In watchlist" : "+ Add to watchlist"}
               </Button>
-              {data.trailerKey && (
-                <Button
-                  as="a"
-                  href={youtubeWatchUrl(data.trailerKey)}
-                  target="_blank"
-                  rel="noreferrer"
-                  radius="full"
-                  variant="bordered"
-                  className="border-white/40 font-semibold text-white"
-                >
-                  ↗ YouTube
-                </Button>
-              )}
+              <AddToPlaylistButton item={data} variant="label" dark />
               <Button
                 radius="full"
                 variant="bordered"

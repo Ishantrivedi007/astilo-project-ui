@@ -1,26 +1,20 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button, Chip } from "@heroui/react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { EffectCoverflow, Pagination, Autoplay } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/effect-coverflow";
-import "swiper/css/pagination";
 import "./Anime.scss";
 
 import { fetchRow, hasTmdb, type MediaItem } from "../../lib/tmdb";
 import { ANIME_ROWS, buildMockAnimeRow } from "./catalog";
 import MovieRow from "../Movies/MovieRow";
+import MovieSearchBar from "../Movies/MovieSearchBar";
 import { useMovieStore } from "../Movies/useMovieStore";
-import { PageHeading } from "../shared";
+import { PageHeading, HeroCarousel } from "../shared";
 
 type Filter = "all" | "tv" | "movie";
 
 const AnimeHome = () => {
-  const { toggleWatchlist } = useMovieStore();
-  const navigate = useNavigate();
+  const { toggleWatchlist, isInWatchlist } = useMovieStore();
   const [filter, setFilter] = useState<Filter>("all");
 
   const results = useQueries({
@@ -62,80 +56,37 @@ const AnimeHome = () => {
         The <span className="gradient-text">anime</span> corner
       </PageHeading>
 
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <MovieSearchBar basePath="/anime" searchPath="/anime/search" />
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/anime/watchlist"
+            className="rounded-full border border-hair/20 px-4 py-2 text-sm font-semibold text-ink hover:border-accent"
+          >
+            🔖 My watchlist & history
+          </Link>
+          <Link
+            to="/anime/playlists"
+            className="rounded-full border border-hair/20 px-4 py-2 text-sm font-semibold text-ink hover:border-accent"
+          >
+            🎞️ My playlists
+          </Link>
+        </div>
+      </div>
+
       {/* Hero */}
-      <Swiper
-        effect="coverflow"
-        grabCursor
-        centeredSlides
-        loop={hero.length > 3}
-        slidesPerView="auto"
-        spaceBetween={24}
-        autoplay={{ delay: 4800, disableOnInteraction: true }}
-        coverflowEffect={{ rotate: 22, stretch: 0, depth: 140, modifier: 1, slideShadows: false }}
-        pagination={{ clickable: true }}
-        modules={[EffectCoverflow, Pagination, Autoplay]}
-        className="anime-hero-swiper"
-      >
-        {hero.map((item) => (
-          <SwiperSlide key={`${item.kind}-${item.id}`}>
-            <div className="relative h-full overflow-hidden rounded-3xl ring-1 ring-white/10">
-              <img
-                src={item.backdrop || item.poster}
-                alt={item.title}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="relative flex h-full flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-white">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Chip className="bg-white/20 text-xs text-white">
-                    {item.kind === "movie" ? "Anime Movie" : "Anime Series"}
-                  </Chip>
-                  {item.year && (
-                    <Chip className="bg-white/20 text-xs text-white">{item.year}</Chip>
-                  )}
-                  {item.rating > 0 && (
-                    <Chip className="bg-amber-400/30 text-xs text-white">
-                      ★ {item.rating.toFixed(1)}
-                    </Chip>
-                  )}
-                </div>
-                <Link
-                  to={`/anime/${item.kind}/${item.id}`}
-                  className="font-display text-3xl font-extrabold drop-shadow hover:underline"
-                >
-                  {item.title}
-                </Link>
-                {item.overview && (
-                  <p className="mt-2 line-clamp-2 max-w-xl text-sm text-white/80">
-                    {item.overview}
-                  </p>
-                )}
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    onPress={() => navigate(`/anime/${item.kind}/${item.id}`)}
-                    radius="full"
-                    className="bg-white font-bold text-black transition-transform hover:scale-105"
-                  >
-                    ▶ Details
-                  </Button>
-                  <Button
-                    radius="full"
-                    variant="bordered"
-                    onPress={() => {
-                      const added = toggleWatchlist(item);
-                      toast[added ? "success" : "message"](
-                        added ? "Added to watchlist" : "Removed from watchlist"
-                      );
-                    }}
-                    className="border-white/40 font-semibold text-white"
-                  >
-                    + Watchlist
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </SwiperSlide>
-        ))}
-      </Swiper>
+      <HeroCarousel
+        items={hero}
+        basePath="/anime"
+        typeLabel={(item) => (item.kind === "movie" ? "Anime Movie" : "Anime Series")}
+        onWatchlist={(item) => {
+          const added = toggleWatchlist(item);
+          toast[added ? "success" : "message"](
+            added ? "Added to watchlist" : "Removed from watchlist"
+          );
+        }}
+        autoplayDelay={4800}
+      />
 
       {/* Filter pills */}
       <div className="mt-8 flex flex-wrap gap-2">
@@ -159,7 +110,7 @@ const AnimeHome = () => {
         </button>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[1fr_320px]">
+      <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Main rows */}
         <div>
           {visibleRows.map((row) => {
@@ -167,18 +118,27 @@ const AnimeHome = () => {
             return (
               <MovieRow
                 key={row.id}
+                id={row.id}
                 label={row.label}
                 emoji={row.emoji}
                 items={results[idx]?.data}
                 isLoading={results[idx]?.isLoading}
                 basePath="/anime"
+                categoryPath="/anime/category"
+                isInWatchlist={isInWatchlist}
+                onToggleWatchlist={(item) => {
+                  const added = toggleWatchlist(item);
+                  toast[added ? "success" : "message"](
+                    added ? "Added to watchlist" : "Removed from watchlist"
+                  );
+                }}
               />
             );
           })}
         </div>
 
         {/* Top 10 ranked sidebar — anikoto-style */}
-        <aside className="glass-card sticky top-24 h-fit p-4">
+        <aside className="glass-card h-fit p-4">
           <h2 className="mb-1 font-display text-lg font-bold text-ink">
             🔟 Top 10 this week
           </h2>

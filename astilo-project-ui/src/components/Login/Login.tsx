@@ -2,10 +2,19 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Link } from "@heroui/react";
+import { Clapperboard, Music, Sparkles, Palette } from "lucide-react";
 import { AppInput, GradientButton } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { authErrorMessage } from "../../auth/authApi";
+import "./Auth.scss";
+
+const FEATURES = [
+  { icon: Clapperboard, title: "Pick up where you left off", desc: "Continue watching, right on your home screen." },
+  { icon: Music, title: "Your queue, everywhere", desc: "Playlists and lyrics follow you across the app." },
+  { icon: Sparkles, title: "Anime, movies & more", desc: "One account for your whole entertainment world." },
+  { icon: Palette, title: "Make it feel like yours", desc: "30 themes and backgrounds, applied instantly." },
+];
 
 const Login = () => {
   const navigate = useNavigate();
@@ -36,49 +45,81 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <form onSubmit={submit} className="glass-card gradient-border w-full max-w-sm p-8">
-        <Link href={AppRoute.landing} className="mb-6 block text-center text-xs font-bold uppercase tracking-widest text-ink/40 hover:text-ink/70">
-          ← Astilo&apos;s
-        </Link>
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-accent to-accent-2 text-2xl shadow-glow animate-float">
-            👋
+    <div className="auth-page">
+      <div className="auth-shell glass-card gradient-border">
+        <div className="auth-brand">
+          <img src="/astilo-mark.png" alt="" className="auth-brand-mark" aria-hidden />
+          <div className="auth-brand-top">
+            <Link href={AppRoute.landing} className="auth-brand-link">
+              ← Astilo&apos;s
+            </Link>
+            <h2 className="auth-brand-title">
+              Everything you watch, listen to, and shop for.
+            </h2>
+            <p className="auth-brand-sub">
+              Log back in to pick up your queue, your watchlist, and your vibe — right
+              where you left it.
+            </p>
           </div>
-          <h1 className="font-display text-2xl font-extrabold gradient-text">
-            wb, superstar
-          </h1>
-          <p className="text-sm text-ink/50">log in and let&apos;s vibe</p>
+
+          <div className="auth-brand-features">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="auth-brand-feature">
+                <span className="auth-brand-feature-icon">
+                  <f.icon size={18} strokeWidth={2.25} />
+                </span>
+                <div>
+                  <p className="auth-brand-feature-title">{f.title}</p>
+                  <p className="auth-brand-feature-desc">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="auth-brand-foot">✦ your digital world, one place</p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <AppInput
-            type="email"
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onValueChange={setEmail}
-            isRequired
-          />
-          <AppInput
-            type="password"
-            label="Password"
-            placeholder="••••••••"
-            value={password}
-            onValueChange={setPassword}
-            isRequired
-          />
-          <GradientButton type="submit" fullWidth className="mt-2" isDisabled={submitting}>
-            {submitting ? "Signing in…" : "Let me in ✨"}
-          </GradientButton>
-          <p className="text-center text-sm text-ink/50">
-            new here?{" "}
-            <Link href={AppRoute.signup} size="sm" className="text-accent-2">
-              make an account
-            </Link>
-          </p>
+        <div className="auth-form-panel">
+          <Link href={AppRoute.landing} className="auth-form-back">
+            ← Astilo&apos;s
+          </Link>
+          <div className="auth-form-head">
+            <div className="auth-form-badge">👋</div>
+            <h1 className="auth-form-title gradient-text">wb, superstar</h1>
+            <p className="auth-form-sub">log in and let&apos;s vibe</p>
+          </div>
+
+          <form onSubmit={submit} className="auth-form-fields">
+            <AppInput
+              type="email"
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onValueChange={setEmail}
+              isRequired
+              autoComplete="email"
+            />
+            <AppInput
+              type="password"
+              label="Password"
+              placeholder="••••••••"
+              value={password}
+              onValueChange={setPassword}
+              isRequired
+              autoComplete="current-password"
+            />
+            <GradientButton type="submit" fullWidth className="mt-1" isDisabled={submitting}>
+              {submitting ? "Signing in…" : "Let me in ✨"}
+            </GradientButton>
+            <p className="auth-form-footline">
+              new here?{" "}
+              <Link href={AppRoute.signup} size="sm" className="text-accent-2">
+                make an account
+              </Link>
+            </p>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

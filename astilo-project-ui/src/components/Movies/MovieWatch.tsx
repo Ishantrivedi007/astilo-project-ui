@@ -16,7 +16,7 @@ import {
   DEFAULT_STREAM_PROVIDER,
   getStreamUrl,
 } from "../../lib/streams";
-import { mediaKey } from "./useMovieStore";
+import { mediaKey, useMovieStore } from "./useMovieStore";
 import ReviewSection from "./ReviewSection";
 import { AppRoute } from "../../app/AppRoute";
 
@@ -95,6 +95,7 @@ const MovieWatch = ({
   const navigate = useNavigate();
   const mediaType = kind === "tv" ? "tv" : "movie";
   const key = mediaKey(mediaType, id);
+  const { recordWatch } = useMovieStore();
 
   const season = Math.max(1, Number(seasonParam) || 1);
   const episode = Math.max(1, Number(episodeParam) || 1);
@@ -122,6 +123,22 @@ const MovieWatch = ({
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [id, kind, season, episode]);
+
+  useEffect(() => {
+    if (!data) return;
+    recordWatch(
+      {
+        id: Number(id),
+        title: data.title,
+        poster: data.poster,
+        backdrop: data.backdrop,
+        kind: mediaType,
+      },
+      mediaType === "tv" ? season : undefined,
+      mediaType === "tv" ? episode : undefined
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, mediaType, id, season, episode]);
 
   const src = useMemo(
     () => getStreamUrl(provider, mediaType, id, season, episode, { audio, sub, hindiDub }),

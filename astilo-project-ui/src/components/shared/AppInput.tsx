@@ -1,27 +1,92 @@
-import { Input, type InputProps } from "@heroui/react";
+import { forwardRef, useId } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
+
+export interface AppInputProps
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "value"> {
+  label?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  isRequired?: boolean;
+  isInvalid?: boolean;
+  isDisabled?: boolean;
+  errorMessage?: ReactNode;
+  size?: "sm" | "md";
+  startContent?: ReactNode;
+  endContent?: ReactNode;
+  wrapperClassName?: string;
+}
 
 /**
- * The single Input styling used across the app — consistent label placement,
- * border, and (critically) matching font-size/line-height between the typed
- * value and the placeholder so neither looks mis-aligned against the other.
+ * Hand-rolled input (label always sits in normal flow above the field) —
+ * replaces a HeroUI <Input labelPlacement="outside"> that rendered the
+ * floating label on top of the typed/placeholder text in every theme.
  */
-const AppInput = ({ classNames, labelPlacement = "outside", variant = "bordered", ...props }: InputProps) => (
-  <Input
-    variant={variant}
-    labelPlacement={labelPlacement}
-    classNames={{
-      label: "text-ink/60 font-semibold !text-[13px] pb-1",
-      inputWrapper: [
-        "border-hair/40 bg-ink/5 rounded-2xl transition-colors",
-        "data-[hover=true]:border-hair/70",
-        "group-data-[focus=true]:border-accent/70 group-data-[focus=true]:bg-ink/[0.07]",
-      ].join(" "),
-      input: "text-sm text-ink placeholder:text-sm placeholder:text-ink/35",
-      innerWrapper: "gap-2",
-      ...classNames,
-    }}
-    {...props}
-  />
+const AppInput = forwardRef<HTMLInputElement, AppInputProps>(
+  (
+    {
+      label,
+      value,
+      onValueChange,
+      isRequired,
+      isInvalid,
+      isDisabled,
+      errorMessage,
+      size = "md",
+      className = "",
+      wrapperClassName = "",
+      id,
+      startContent,
+      endContent,
+      onChange,
+      ...rest
+    },
+    ref
+  ) => {
+    const autoId = useId();
+    const inputId = id ?? autoId;
+
+    return (
+      <div className={`app-input ${className}`}>
+        {label && (
+          <label htmlFor={inputId} className="app-input-label">
+            {label}
+            {isRequired && <span className="app-input-required">*</span>}
+          </label>
+        )}
+        <div
+          className={[
+            "app-input-wrapper",
+            size === "sm" ? "app-input-wrapper--sm" : "",
+            isInvalid ? "app-input-wrapper--invalid" : "",
+            isDisabled ? "app-input-wrapper--disabled" : "",
+            wrapperClassName,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {startContent}
+          <input
+            ref={ref}
+            id={inputId}
+            value={value}
+            disabled={isDisabled}
+            required={isRequired}
+            aria-invalid={isInvalid || undefined}
+            onChange={(e) => {
+              onChange?.(e);
+              onValueChange?.(e.target.value);
+            }}
+            className="app-input-field"
+            {...rest}
+          />
+          {endContent}
+        </div>
+        {isInvalid && errorMessage && <p className="app-input-error">{errorMessage}</p>}
+      </div>
+    );
+  }
 );
+
+AppInput.displayName = "AppInput";
 
 export default AppInput;

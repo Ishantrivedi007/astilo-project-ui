@@ -81,7 +81,7 @@ const LibrarySection = () => {
     isError: playlistsError,
   } = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
-    queryFn: fetchPlaylists,
+    queryFn: () => fetchPlaylists("music"),
     retry: false,
   });
 
@@ -254,7 +254,7 @@ const LibrarySection = () => {
                               + Playlist
                             </button>
                             {menuOpenFor === song.id && (
-                              <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-2xl border border-hair/20 bg-bg p-1.5 shadow-xl">
+                              <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-2xl border border-hair/20 bg-surface p-1.5 shadow-xl">
                                 {playlists.length === 0 && (
                                   <p className="px-2 py-1.5 text-xs text-ink/50">No playlists yet.</p>
                                 )}
@@ -313,7 +313,7 @@ const LibrarySection = () => {
                                 type="button"
                                 onClick={saveEdit}
                                 disabled={updateMutation.isPending || !editTitle.trim()}
-                                className="rounded-full bg-ink px-3 py-2 text-[11px] font-bold text-bg disabled:opacity-50"
+                                className="rounded-full bg-ink px-3 py-2 text-[11px] font-bold text-app disabled:opacity-50"
                               >
                                 {updateMutation.isPending ? "Saving…" : "Save"}
                               </button>
@@ -351,7 +351,7 @@ const PlaylistsSection = () => {
 
   const { data: playlists = [], isLoading, isError: playlistsError } = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
-    queryFn: fetchPlaylists,
+    queryFn: () => fetchPlaylists("music"),
     retry: false,
   });
 
@@ -460,7 +460,7 @@ const PlaylistsSection = () => {
                   <button
                     type="button"
                     onClick={() => renameValue.trim() && renameMutation.mutate({ id: p.id, name: renameValue.trim() })}
-                    className="rounded-full bg-ink px-3 py-1 text-[11px] font-bold text-bg"
+                    className="rounded-full bg-ink px-3 py-1 text-[11px] font-bold text-app"
                   >
                     Save
                   </button>
@@ -540,7 +540,7 @@ const DashboardSection = () => {
   const { data: songs = [] } = useQuery({ queryKey: SONGS_QUERY_KEY, queryFn: fetchSongs, staleTime: 30_000 });
   const { data: playlists = [] } = useQuery({
     queryKey: PLAYLISTS_QUERY_KEY,
-    queryFn: fetchPlaylists,
+    queryFn: () => fetchPlaylists("music"),
     retry: false,
   });
   const { data: favorites = [] } = useQuery({

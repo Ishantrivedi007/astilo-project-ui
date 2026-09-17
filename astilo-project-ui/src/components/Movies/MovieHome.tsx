@@ -1,24 +1,19 @@
 import { useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Button, Chip } from "@heroui/react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { EffectCoverflow, Pagination, Autoplay } from "swiper/modules";
-import "swiper/css";
-import "swiper/css/effect-coverflow";
-import "swiper/css/pagination";
+import { Chip } from "@heroui/react";
 import "./Movies.scss";
 
+import { Link } from "react-router-dom";
 import { fetchRow, hasTmdb, type MediaItem } from "../../lib/tmdb";
 import { MOVIE_ROWS, buildMockRow } from "./catalog";
 import MovieRow from "./MovieRow";
+import MovieSearchBar from "./MovieSearchBar";
 import { useMovieStore } from "./useMovieStore";
-import { PageHeading } from "../shared";
+import { PageHeading, HeroCarousel } from "../shared";
 
 const MovieHome = () => {
-  const { toggleWatchlist } = useMovieStore();
-  const navigate = useNavigate();
+  const { toggleWatchlist, isInWatchlist } = useMovieStore();
   const results = useQueries({
     queries: MOVIE_ROWS.map((row) => ({
       queryKey: ["tmdb", row.id, hasTmdb],
@@ -56,99 +51,53 @@ const MovieHome = () => {
         Big <span className="gradient-text">screen</span> energy
       </PageHeading>
 
-      <Swiper
-        effect="coverflow"
-        grabCursor
-        centeredSlides
-        loop={hero.length > 3}
-        slidesPerView="auto"
-        spaceBetween={24}
-        autoplay={{ delay: 4500, disableOnInteraction: true }}
-        coverflowEffect={{
-          rotate: 22,
-          stretch: 0,
-          depth: 130,
-          modifier: 1,
-          slideShadows: false,
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <MovieSearchBar />
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/movies/watchlist"
+            className="rounded-full border border-hair/20 px-4 py-2 text-sm font-semibold text-ink hover:border-accent"
+          >
+            🔖 My watchlist & history
+          </Link>
+          <Link
+            to="/movies/playlists"
+            className="rounded-full border border-hair/20 px-4 py-2 text-sm font-semibold text-ink hover:border-accent"
+          >
+            🎞️ My playlists
+          </Link>
+        </div>
+      </div>
+
+      <HeroCarousel
+        items={hero}
+        basePath="/movies"
+        typeLabel={(movie) => (movie.kind === "tv" ? "Series" : "Film")}
+        onWatchlist={(movie) => {
+          const added = toggleWatchlist(movie);
+          toast[added ? "success" : "message"](
+            added ? "Added to watchlist" : "Removed from watchlist"
+          );
         }}
-        pagination={{ clickable: true }}
-        modules={[EffectCoverflow, Pagination, Autoplay]}
-        className="featured-swiper"
-      >
-        {hero.map((movie) => (
-          <SwiperSlide key={`${movie.kind}-${movie.id}`} className="featured-slide">
-            <div className="relative h-full overflow-hidden rounded-3xl ring-1 ring-white/10">
-              <img
-                src={movie.backdrop || movie.poster}
-                alt={movie.title}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <div className="relative flex h-full flex-col justify-end bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-white">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <Chip className="bg-white/20 text-xs text-white">
-                    {movie.kind === "tv" ? "Series" : "Film"}
-                  </Chip>
-                  {movie.year && (
-                    <Chip className="bg-white/20 text-xs text-white">
-                      {movie.year}
-                    </Chip>
-                  )}
-                  {movie.rating > 0 && (
-                    <Chip className="bg-amber-400/30 text-xs text-white">
-                      ★ {movie.rating.toFixed(1)}
-                    </Chip>
-                  )}
-                </div>
-                <Link
-                  to={`/movies/${movie.kind}/${movie.id}`}
-                  className="font-display text-3xl font-extrabold drop-shadow hover:underline"
-                >
-                  {movie.title}
-                </Link>
-                {movie.overview && (
-                  <p className="mt-2 line-clamp-2 max-w-xl text-sm text-white/80">
-                    {movie.overview}
-                  </p>
-                )}
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    onPress={() =>
-                      navigate(`/movies/${movie.kind}/${movie.id}`)
-                    }
-                    radius="full"
-                    className="bg-white font-bold text-black transition-transform hover:scale-105"
-                  >
-                    ▶ Details
-                  </Button>
-                  <Button
-                    radius="full"
-                    variant="bordered"
-                    onPress={() => {
-                      const added = toggleWatchlist(movie);
-                      toast[added ? "success" : "message"](
-                        added
-                          ? "Added to watchlist"
-                          : "Removed from watchlist"
-                      );
-                    }}
-                    className="border-white/40 font-semibold text-white"
-                  >
-                    + Watchlist
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </SwiperSlide>
-        ))}
-      </Swiper>
+        autoplayDelay={4500}
+      />
 
       {MOVIE_ROWS.map((row, i) => (
         <MovieRow
           key={row.id}
+          id={row.id}
           label={row.label}
           emoji={row.emoji}
           items={results[i]?.data}
           isLoading={results[i]?.isLoading}
+          categoryPath="/movies/category"
+          isInWatchlist={isInWatchlist}
+          onToggleWatchlist={(movie) => {
+            const added = toggleWatchlist(movie);
+            toast[added ? "success" : "message"](
+              added ? "Added to watchlist" : "Removed from watchlist"
+            );
+          }}
         />
       ))}
     </div>

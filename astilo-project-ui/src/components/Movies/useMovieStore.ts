@@ -39,13 +39,22 @@ interface WatchItem extends Pick<MediaItem, "id" | "title" | "poster" | "year" |
   addedAt: number;
 }
 
+export interface WatchingEntry
+  extends Pick<MediaItem, "id" | "title" | "poster" | "backdrop" | "kind"> {
+  season?: number;
+  episode?: number;
+  updatedAt: number;
+}
+
 interface StoreShape {
   watchlist: WatchItem[];
   reviews: Review[];
+  watching: WatchingEntry[];
 }
 
 const KEY = "astilo.movies.v1";
-const empty: StoreShape = { watchlist: [], reviews: [] };
+const empty: StoreShape = { watchlist: [], reviews: [], watching: [] };
+const MAX_WATCHING = 12;
 
 const read = (): StoreShape => {
   try {
@@ -147,13 +156,30 @@ export function useMovieStore() {
     [state.reviews]
   );
 
+  const recordWatch = useCallback(
+    (item: Pick<MediaItem, "id" | "title" | "poster" | "backdrop" | "kind">, season?: number, episode?: number) => {
+      const key = mediaKey(item.kind, item.id);
+      const rest = cache.watching.filter((w) => mediaKey(w.kind, w.id) !== key);
+      write({
+        ...cache,
+        watching: [
+          { ...item, season, episode, updatedAt: Date.now() },
+          ...rest,
+        ].slice(0, MAX_WATCHING),
+      });
+    },
+    []
+  );
+
   return {
     watchlist: state.watchlist,
     reviews: state.reviews,
+    watching: state.watching,
     toggleWatchlist,
     isInWatchlist,
     addReview,
     deleteReview,
     reviewsFor,
+    recordWatch,
   };
 }

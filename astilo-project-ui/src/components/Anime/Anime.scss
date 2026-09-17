@@ -1,35 +1,3 @@
-.anime-hero {
-  &-swiper {
-    padding-bottom: 3rem;
-    overflow: visible;
-
-    .swiper-slide {
-      width: min(820px, 92vw);
-      height: 420px;
-      opacity: 0.4;
-      transition: opacity 0.4s ease;
-
-      @media (max-width: 640px) {
-        height: 320px;
-      }
-
-      &.swiper-slide-active {
-        opacity: 1;
-      }
-    }
-
-    .swiper-pagination-bullet {
-      background: rgb(var(--ink-rgb) / 0.35);
-      opacity: 1;
-    }
-    .swiper-pagination-bullet-active {
-      background: linear-gradient(90deg, rgb(var(--accent-rgb)), rgb(var(--accent-2-rgb)));
-      width: 22px;
-      border-radius: 999px;
-    }
-  }
-}
-
 /* genre / kind filter pills */
 .pill-filter {
   display: inline-flex;

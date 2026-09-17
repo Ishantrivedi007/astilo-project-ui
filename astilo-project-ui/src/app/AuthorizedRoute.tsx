@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 
-import NavBar from "../components/SharedComponents/NavBar";
+import Sidebar from "../components/SharedComponents/Sidebar";
 import { useAuth } from "../auth/AuthProvider";
 import { AppRoute } from "./AppRoute";
 
@@ -19,8 +19,8 @@ const AuthorizedRoute = ({ children }: AuthorizedRouteProps) => {
 
   return (
     <>
-      <NavBar />
-      <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-6">
+      <Sidebar />
+      <main className="app-content w-full px-4 pb-16 pt-6 sm:px-6 xl:px-10">
         {children}
       </main>
     </>

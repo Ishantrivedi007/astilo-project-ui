@@ -342,7 +342,7 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                           onClick={() => setFormat(f)}
                           className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
                             format === f
-                              ? "bg-ink text-bg"
+                              ? "bg-ink text-app"
                               : "bg-ink/10 text-ink/70 hover:bg-ink/15"
                           }`}
                         >
@@ -363,7 +363,7 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                               onClick={() => setBitrate(b)}
                               className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
                                 bitrate === b
-                                  ? "bg-ink text-bg"
+                                  ? "bg-ink text-app"
                                   : "bg-ink/10 text-ink/70 hover:bg-ink/15"
                               }`}
                             >
@@ -377,7 +377,7 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                               onClick={() => setQuality(q)}
                               className={`rounded-full px-3 py-1 text-xs font-bold transition-colors ${
                                 quality === q
-                                  ? "bg-ink text-bg"
+                                  ? "bg-ink text-app"
                                   : "bg-ink/10 text-ink/70 hover:bg-ink/15"
                               }`}
                             >
@@ -544,7 +544,7 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                       type="button"
                       onClick={saveEdit}
                       disabled={updateMutation.isPending || !editTitle.trim()}
-                      className="rounded-full bg-ink text-bg px-3 py-1 text-[11px] font-bold disabled:opacity-50"
+                      className="rounded-full bg-ink text-app px-3 py-1 text-[11px] font-bold disabled:opacity-50"
                     >
                       {updateMutation.isPending ? "Saving…" : "Save"}
                     </button>

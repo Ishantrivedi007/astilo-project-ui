@@ -1,8 +1,12 @@
 import { apiClient } from "./apiClient";
 
+export type PlaylistType = "music" | "movie";
+export type PlaylistItemType = "track" | "movie" | "tv";
+
 export interface PlaylistTrack {
   id: number;
   trackId: string;
+  mediaType: PlaylistItemType;
   title: string | null;
   artist: string | null;
   artworkUrl: string | null;
@@ -12,17 +16,19 @@ export interface PlaylistTrack {
 export interface Playlist {
   id: number;
   name: string;
+  type: PlaylistType;
   createdAt: string | null;
   tracks?: PlaylistTrack[];
 }
 
-export const fetchPlaylists = () => apiClient.get<Playlist[]>("/playlists").then((r) => r.data);
+export const fetchPlaylists = (type?: PlaylistType) =>
+  apiClient.get<Playlist[]>("/playlists", { params: type ? { type } : undefined }).then((r) => r.data);
 
 export const fetchPlaylist = (id: number) =>
   apiClient.get<Playlist>(`/playlists/${id}`).then((r) => r.data);
 
-export const createPlaylist = (name: string) =>
-  apiClient.post<Playlist>("/playlists", { name }).then((r) => r.data);
+export const createPlaylist = (name: string, type: PlaylistType = "music") =>
+  apiClient.post<Playlist>("/playlists", { name, type }).then((r) => r.data);
 
 export const renamePlaylist = (id: number, name: string) =>
   apiClient.put<Playlist>(`/playlists/${id}`, { name }).then((r) => r.data);
@@ -31,6 +37,7 @@ export const deletePlaylist = (id: number) => apiClient.delete(`/playlists/${id}
 
 export interface AddTrackInput {
   trackId: string;
+  mediaType?: PlaylistItemType;
   title?: string;
   artist?: string;
   artworkUrl?: string;
