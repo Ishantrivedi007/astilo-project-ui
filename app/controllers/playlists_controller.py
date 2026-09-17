@@ -9,12 +9,14 @@ class PlaylistsController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self, playlist_id=None):
+    def GET(self, playlist_id=None, type=None):
         user_id = int(cherrypy.request.user["sub"])
         with get_session() as session:
             if playlist_id is None:
-                playlists = session.query(Playlist).filter_by(user_id=user_id).all()
-                return [p.to_dict() for p in playlists]
+                query = session.query(Playlist).filter_by(user_id=user_id)
+                if type:
+                    query = query.filter_by(type=type)
+                return [p.to_dict() for p in query.all()]
 
             playlist = session.query(Playlist).filter_by(id=int(playlist_id), user_id=user_id).first()
             if not playlist:
@@ -33,7 +35,10 @@ class PlaylistsController:
                 name = (body.get("name") or "").strip()
                 if not name:
                     raise cherrypy.HTTPError(400, "name is required")
-                playlist = Playlist(user_id=user_id, name=name)
+                playlist_type = body.get("type") or "music"
+                if playlist_type not in ("music", "movie"):
+                    raise cherrypy.HTTPError(400, "type must be music or movie")
+                playlist = Playlist(user_id=user_id, name=name, type=playlist_type)
                 session.add(playlist)
                 session.flush()
                 return playlist.to_dict()
@@ -46,9 +51,16 @@ class PlaylistsController:
                 track_id = str(body.get("trackId", ""))
                 if not track_id:
                     raise cherrypy.HTTPError(400, "trackId is required")
+                media_type = body.get("mediaType") or "track"
+                existing = session.query(PlaylistTrack).filter_by(
+                    playlist_id=playlist.id, track_id=track_id, media_type=media_type
+                ).first()
+                if existing:
+                    return existing.to_dict()
                 track = PlaylistTrack(
                     playlist_id=playlist.id,
                     track_id=track_id,
+                    media_type=media_type,
                     title=body.get("title"),
                     artist=body.get("artist"),
                     artwork_url=body.get("artworkUrl"),

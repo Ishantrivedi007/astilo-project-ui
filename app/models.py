@@ -76,6 +76,7 @@ class Playlist(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(120), nullable=False)
+    type = Column(String(20), nullable=False, default="music")  # music | movie
     created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="playlists")
@@ -85,6 +86,7 @@ class Playlist(Base):
         data = {
             "id": self.id,
             "name": self.name,
+            "type": self.type or "music",
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
         if include_tracks:
@@ -93,11 +95,15 @@ class Playlist(Base):
 
 
 class PlaylistTrack(Base):
+    """An item in a playlist — a music track, or (when the parent playlist's
+    `type` is "movie") a movie/TV title keyed by its TMDB id."""
+
     __tablename__ = "playlist_tracks"
 
     id = Column(Integer, primary_key=True)
     playlist_id = Column(Integer, ForeignKey("playlists.id"), nullable=False)
-    track_id = Column(String(64), nullable=False)  # external id (e.g. from a music provider)
+    track_id = Column(String(64), nullable=False)  # external id (music provider or TMDB id)
+    media_type = Column(String(10), nullable=False, default="track")  # track | movie | tv
     title = Column(String(255))
     artist = Column(String(255))
     artwork_url = Column(String(500))
@@ -109,6 +115,7 @@ class PlaylistTrack(Base):
         return {
             "id": self.id,
             "trackId": self.track_id,
+            "mediaType": self.media_type or "track",
             "title": self.title,
             "artist": self.artist,
             "artworkUrl": self.artwork_url,
