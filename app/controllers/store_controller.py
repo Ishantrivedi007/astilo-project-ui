@@ -1,7 +1,15 @@
+import random
+
 import cherrypy
 
 from app.db import get_session
-from app.models import Order, OrderItem, Product
+from app.models import Order, OrderItem, Product, utcnow
+
+SHIP_TRANSITIONS = {
+    "pending": {"cancelled"},
+    "paid": {"shipped", "cancelled"},
+    "shipped": {"delivered"},
+}
 
 
 class ProductsController:
@@ -40,6 +48,7 @@ class ProductsController:
                 image_url=body.get("imageUrl"),
                 category=body.get("category"),
                 stock=int(body.get("stock", 0)),
+                specs=body.get("specs"),
             )
             session.add(product)
             session.flush()
@@ -68,6 +77,8 @@ class ProductsController:
                 product.category = body["category"]
             if "stock" in body:
                 product.stock = int(body["stock"])
+            if "specs" in body:
+                product.specs = body["specs"]
 
             session.flush()
             return product.to_dict()
@@ -148,6 +159,75 @@ class OrdersController:
                 ))
 
             order.total = total
-            order.status = "paid"
             session.flush()
             return order.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, order_id):
+        """Owner: {action: "pay", ...card fields} or {action: "cancel"}.
+        Admin: {status: "shipped" | "delivered" | "cancelled"}."""
+        claims = cherrypy.request.user
+        user_id = int(claims["sub"])
+        is_admin = claims.get("role") == "admin"
+        body = cherrypy.request.json or {}
+
+        with get_session() as session:
+            order = session.get(Order, int(order_id))
+            if not order or (not is_admin and order.user_id != user_id):
+                raise cherrypy.HTTPError(404, "Order not found")
+
+            action = body.get("action")
+            if action == "pay":
+                if order.user_id != user_id:
+                    raise cherrypy.HTTPError(403, "Not your order")
+                if order.status != "pending":
+                    raise cherrypy.HTTPError(409, f"Order is {order.status}, not pending")
+                card_number = (body.get("cardNumber") or "").replace(" ", "")
+                expiry = (body.get("expiry") or "").strip()
+                cvv = (body.get("cvv") or "").strip()
+                name = (body.get("name") or "").strip()
+                if not (card_number.isdigit() and len(card_number) >= 12 and expiry and cvv.isdigit() and name):
+                    raise cherrypy.HTTPError(400, "Invalid card details")
+                if random.random() < 0.1:
+                    raise cherrypy.HTTPError(402, "Payment declined, please try again")
+                order.status = "paid"
+                order.paid_at = utcnow()
+                session.flush()
+                return order.to_dict()
+
+            if action == "cancel":
+                if order.user_id != user_id and not is_admin:
+                    raise cherrypy.HTTPError(403, "Not your order")
+                if order.status not in ("pending", "paid"):
+                    raise cherrypy.HTTPError(409, f"Order is {order.status} and can't be cancelled")
+                for item in order.items:
+                    product = session.get(Product, item.product_id)
+                    if product:
+                        product.stock += item.quantity
+                order.status = "cancelled"
+                session.flush()
+                return order.to_dict()
+
+            status = body.get("status")
+            if status:
+                if not is_admin:
+                    raise cherrypy.HTTPError(403, "Admin only")
+                allowed = SHIP_TRANSITIONS.get(order.status, set())
+                if status not in allowed:
+                    raise cherrypy.HTTPError(409, f"Can't move order from {order.status} to {status}")
+                order.status = status
+                if status == "shipped":
+                    order.shipped_at = utcnow()
+                elif status == "delivered":
+                    order.delivered_at = utcnow()
+                elif status == "cancelled":
+                    for item in order.items:
+                        product = session.get(Product, item.product_id)
+                        if product:
+                            product.stock += item.quantity
+                session.flush()
+                return order.to_dict()
+
+            raise cherrypy.HTTPError(400, "action or status is required")

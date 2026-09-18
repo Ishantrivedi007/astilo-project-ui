@@ -2,7 +2,24 @@ import cherrypy
 
 from app.auth import create_token, hash_password, verify_password
 from app.db import get_session
-from app.models import User
+from app.models import LoginEvent, User
+
+
+def _client_ip() -> str:
+    forwarded = cherrypy.request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return cherrypy.request.remote.ip
+
+
+def _log_login_event(session, user_id: int):
+    session.add(
+        LoginEvent(
+            user_id=user_id,
+            ip_address=_client_ip(),
+            user_agent=(cherrypy.request.headers.get("User-Agent") or "")[:500],
+        )
+    )
 
 
 class AuthController:
@@ -37,6 +54,7 @@ class AuthController:
             user = User(name=name, email=email, password_hash=hash_password(password), role=role)
             session.add(user)
             session.flush()
+            _log_login_event(session, user.id)
             token = create_token(user)
             return {"token": token, "user": user.to_dict()}
 
@@ -50,5 +68,6 @@ class AuthController:
             if not user or not verify_password(password, user.password_hash):
                 raise cherrypy.HTTPError(401, "Invalid email or password")
 
+            _log_login_event(session, user.id)
             token = create_token(user)
             return {"token": token, "user": user.to_dict()}

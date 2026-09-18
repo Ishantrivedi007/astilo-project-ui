@@ -7,6 +7,7 @@ from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.playlists_controller import PlaylistsController
+from app.controllers.sessions_controller import SessionsController
 from app.controllers.songs_controller import SongPreviewController, SongSearchController, SongsController
 from app.controllers.store_controller import OrdersController, ProductsController
 from app.controllers.users_controller import UsersController
@@ -43,6 +44,7 @@ def build_app():
     root = cherrypy.tree.mount(HealthController(), "/api/health", conf)
     cherrypy.tree.mount(AuthController(), "/api/auth", conf)
     cherrypy.tree.mount(UsersController(), "/api/users", conf)
+    cherrypy.tree.mount(SessionsController(), "/api/sessions", conf)
     cherrypy.tree.mount(FavoritesController(), "/api/favorites", conf)
     cherrypy.tree.mount(PlaylistsController(), "/api/playlists", conf)
     cherrypy.tree.mount(ProductsController(), "/api/store/products", conf)

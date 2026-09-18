@@ -1,6 +1,7 @@
 import datetime
 
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Float,
@@ -29,9 +30,20 @@ class User(Base):
     role = Column(String(20), nullable=False, default="user")  # user | admin
     created_at = Column(DateTime, default=utcnow)
 
+    # Profile details — all optional, editable by the user themselves via
+    # PUT /api/users/me.
+    avatar = Column(Text, nullable=True)  # base64 data URL
+    bio = Column(Text, nullable=True)
+    phone = Column(String(30), nullable=True)
+    location = Column(String(120), nullable=True)
+    date_of_birth = Column(String(10), nullable=True)  # plain "YYYY-MM-DD"
+    gender = Column(String(20), nullable=True)
+    website = Column(String(255), nullable=True)
+
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
+    login_events = relationship("LoginEvent", back_populates="user", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -40,6 +52,13 @@ class User(Base):
             "email": self.email,
             "role": self.role,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "avatar": self.avatar,
+            "bio": self.bio,
+            "phone": self.phone,
+            "location": self.location,
+            "dateOfBirth": self.date_of_birth,
+            "gender": self.gender,
+            "website": self.website,
         }
 
 
@@ -136,6 +155,10 @@ class Product(Base):
     category = Column(String(100))
     stock = Column(Integer, default=0)
     created_at = Column(DateTime, default=utcnow)
+    # Amazon-style categorized spec sheet: [{"group": "Display", "items":
+    # [{"label": "Screen size", "value": "6.7 in"}, ...]}, ...]. Optional —
+    # a product with no specs just skips that section on the detail page.
+    specs = Column(JSON, nullable=True)
 
     def to_dict(self):
         return {
@@ -146,6 +169,7 @@ class Product(Base):
             "imageUrl": self.image_url,
             "category": self.category,
             "stock": self.stock,
+            "specs": self.specs,
         }
 
 
@@ -154,9 +178,12 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    status = Column(String(20), nullable=False, default="pending")  # pending | paid | shipped | cancelled
+    status = Column(String(20), nullable=False, default="pending")  # pending | paid | shipped | delivered | cancelled
     total = Column(Float, nullable=False, default=0)
     created_at = Column(DateTime, default=utcnow)
+    paid_at = Column(DateTime, nullable=True)
+    shipped_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
@@ -167,6 +194,9 @@ class Order(Base):
             "status": self.status,
             "total": self.total,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "paidAt": self.paid_at.isoformat() if self.paid_at else None,
+            "shippedAt": self.shipped_at.isoformat() if self.shipped_at else None,
+            "deliveredAt": self.delivered_at.isoformat() if self.delivered_at else None,
             "items": [i.to_dict() for i in self.items],
         }
 
@@ -256,4 +286,29 @@ class LyricsCache(Base):
             "source": self.source,
             "fetchedAt": self.fetched_at.isoformat() if self.fetched_at else None,
             "hitCount": self.hit_count,
+        }
+
+
+class LoginEvent(Base):
+    """One row per successful login/register — powers the profile's
+    sign-in history. Auth is stateless JWT (no server-side session table),
+    so "active" is only ever inferred from the token's expiry window, not
+    tracked/revocable server-side."""
+
+    __tablename__ = "login_events"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    ip_address = Column(String(64))
+    user_agent = Column(String(500))
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User", back_populates="login_events")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ipAddress": self.ip_address,
+            "userAgent": self.user_agent,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
