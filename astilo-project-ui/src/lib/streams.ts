@@ -140,6 +140,102 @@ const DEFS: StreamProviderDef[] = [
     movie: (id) => `${env.VITE_PROVIDER_12}/embed/movie/${id}`,
     tv: (id, s, e) => `${env.VITE_PROVIDER_12}/embed/tv/${id}/${s}/${e}`,
   },
+  // More mirrors of the same TMDb-id embed path shape as servers 1/3/4 above.
+  {
+    id: "server13",
+    name: name(13, "Server 13"),
+    base: env.VITE_PROVIDER_13,
+    movie: (id) => `${env.VITE_PROVIDER_13}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_13}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server14",
+    name: name(14, "Server 14"),
+    base: env.VITE_PROVIDER_14,
+    movie: (id) => `${env.VITE_PROVIDER_14}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_14}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server15",
+    name: name(15, "Server 15"),
+    base: env.VITE_PROVIDER_15,
+    movie: (id) => `${env.VITE_PROVIDER_15}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_15}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server16",
+    name: name(16, "Server 16"),
+    base: env.VITE_PROVIDER_16,
+    movie: (id) => `${env.VITE_PROVIDER_16}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_16}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server17",
+    name: name(17, "Server 17"),
+    base: env.VITE_PROVIDER_17,
+    movie: (id) => `${env.VITE_PROVIDER_17}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_17}/embed/tv/${id}/${s}/${e}`,
+  },
+  // Mirrors using movie/{id} + direct tv/{id}?s=&e= episode routing, with
+  // an optional subLang query param for the default subtitle track.
+  {
+    id: "server18",
+    name: name(18, "Server 18"),
+    base: env.VITE_PROVIDER_18,
+    supportsSubLang: true,
+    movie: (id) => `${env.VITE_PROVIDER_18}/movie/${id}`,
+    tv: (id, s, e, { sub }) =>
+      `${env.VITE_PROVIDER_18}/tv/${id}?s=${s}&e=${e}${sub ? `&subLang=${sub}` : ""}`,
+  },
+  {
+    id: "server19",
+    name: name(19, "Server 19"),
+    base: env.VITE_PROVIDER_19,
+    supportsSubLang: true,
+    movie: (id) => `${env.VITE_PROVIDER_19}/movie/${id}`,
+    tv: (id, s, e, { sub }) =>
+      `${env.VITE_PROVIDER_19}/tv/${id}?s=${s}&e=${e}${sub ? `&subLang=${sub}` : ""}`,
+  },
+  {
+    id: "server20",
+    name: name(20, "Server 20"),
+    base: env.VITE_PROVIDER_20,
+    supportsSubLang: true,
+    movie: (id) => `${env.VITE_PROVIDER_20}/movie/${id}`,
+    tv: (id, s, e, { sub }) =>
+      `${env.VITE_PROVIDER_20}/tv/${id}?s=${s}&e=${e}${sub ? `&subLang=${sub}` : ""}`,
+  },
+  // Regional-focused mirror, same TMDb-id embed path shape as servers 2/9
+  // above.
+  {
+    id: "server21",
+    name: name(21, "Server 21"),
+    base: env.VITE_PROVIDER_21,
+    movie: (id) => `${env.VITE_PROVIDER_21}/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_21}/${id}/${s}/${e}`,
+  },
+  // More mirrors of the same embed path shape as servers 13-17 above.
+  {
+    id: "server22",
+    name: name(22, "Server 22"),
+    base: env.VITE_PROVIDER_22,
+    movie: (id) => `${env.VITE_PROVIDER_22}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_22}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server23",
+    name: name(23, "Server 23"),
+    base: env.VITE_PROVIDER_23,
+    movie: (id) => `${env.VITE_PROVIDER_23}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_23}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server24",
+    name: name(24, "Server 24"),
+    base: env.VITE_PROVIDER_24,
+    movie: (id) => `${env.VITE_PROVIDER_24}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_24}/embed/tv/${id}/${s}/${e}`,
+  },
 ];
 
 export const STREAM_PROVIDERS: StreamProvider[] = DEFS.filter((p) => p.base);

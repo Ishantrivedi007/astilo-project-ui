@@ -7,6 +7,13 @@ export interface AuthUser {
   email: string;
   role: "user" | "admin";
   createdAt: string | null;
+  avatar?: string | null;
+  bio?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  website?: string | null;
 }
 
 export interface AuthResponse {

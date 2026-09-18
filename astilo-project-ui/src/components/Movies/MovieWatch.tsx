@@ -15,6 +15,7 @@ import {
   STREAM_LANGUAGES,
   DEFAULT_STREAM_PROVIDER,
   getStreamUrl,
+  type StreamProvider,
 } from "../../lib/streams";
 import { mediaKey, useMovieStore } from "./useMovieStore";
 import ReviewSection from "./ReviewSection";
@@ -28,6 +29,23 @@ const fmtDate = (iso: string) =>
         day: "numeric",
       })
     : "";
+
+/** Bucket the (potentially long) provider list into labelled families so the
+ * server picker reads as a grouped panel instead of one giant pill wall. */
+const groupProviders = (providers: StreamProvider[]) => {
+  const groups: { label: string; icon: string; items: StreamProvider[] }[] = [
+    { label: "VidSrc network", icon: "🎬", items: [] },
+    { label: "SmashyStream network", icon: "🍿", items: [] },
+    { label: "More servers", icon: "✨", items: [] },
+  ];
+  for (const p of providers) {
+    const n = p.name.toLowerCase();
+    if (n.includes("vidsrc")) groups[0].items.push(p);
+    else if (n.includes("smashy")) groups[1].items.push(p);
+    else groups[2].items.push(p);
+  }
+  return groups.filter((g) => g.items.length > 0);
+};
 
 const EpisodeCard = ({
   episode,
@@ -119,6 +137,7 @@ const MovieWatch = ({
   const [hindiDub, setHindiDub] = useState(false);
 
   const activeProvider = STREAM_PROVIDERS.find((p) => p.id === provider);
+  const providerGroups = useMemo(() => groupProviders(STREAM_PROVIDERS), []);
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -208,62 +227,88 @@ const MovieWatch = ({
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {STREAM_PROVIDERS.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setProvider(p.id)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                  provider === p.id
-                    ? "bg-ink text-surface"
-                    : "bg-ink/10 text-ink hover:bg-ink/20"
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-            {activeProvider?.supportsHindiDub && (
-              <button
-                onClick={() => setHindiDub((v) => !v)}
-                title="Nudge this provider toward its Hindi/Asian multi-audio mirror, if the title has one"
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
-                  hindiDub
-                    ? "bg-amber-400 text-black"
-                    : "bg-ink/10 text-ink hover:bg-ink/20"
-                }`}
-              >
-                🇮🇳 Hindi audio
-              </button>
-            )}
-            {activeProvider?.supportsAudioLang && (
-              <select
-                value={audio}
-                onChange={(e) => setAudio(e.target.value)}
-                className="rounded-full bg-ink/10 px-3 py-1 text-xs text-ink outline-none"
-                aria-label="Audio language"
-                title="Audio dub"
-              >
-                {STREAM_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code} className="bg-surface text-ink">
-                    🔊 {l.label}
-                  </option>
-                ))}
-              </select>
-            )}
-            {activeProvider?.supportsSubLang && (
-              <select
-                value={sub}
-                onChange={(e) => setSub(e.target.value)}
-                className="rounded-full bg-ink/10 px-3 py-1 text-xs text-ink outline-none"
-                aria-label="Subtitle language"
-                title="Subtitles"
-              >
-                {STREAM_LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code} className="bg-surface text-ink">
-                    💬 {l.label}
-                  </option>
-                ))}
-              </select>
+          <div className="glass-card mt-4 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-ink/50">
+                ✦ Servers
+              </span>
+              <span className="text-xs text-ink/40">{STREAM_PROVIDERS.length} available</span>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {providerGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink/40">
+                    <span aria-hidden>{group.icon}</span>
+                    {group.label}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {group.items.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setProvider(p.id)}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${
+                          provider === p.id
+                            ? "bg-gradient-to-r from-accent to-accent-2 text-[#17131f] shadow-glow"
+                            : "bg-ink/10 text-ink hover:bg-ink/20"
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {(activeProvider?.supportsHindiDub ||
+              activeProvider?.supportsAudioLang ||
+              activeProvider?.supportsSubLang) && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hair/15 pt-3">
+                {activeProvider?.supportsHindiDub && (
+                  <button
+                    onClick={() => setHindiDub((v) => !v)}
+                    title="Nudge this provider toward its Hindi/Asian multi-audio mirror, if the title has one"
+                    className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                      hindiDub
+                        ? "bg-amber-400 text-black"
+                        : "bg-ink/10 text-ink hover:bg-ink/20"
+                    }`}
+                  >
+                    🇮🇳 Hindi audio
+                  </button>
+                )}
+                {activeProvider?.supportsAudioLang && (
+                  <select
+                    value={audio}
+                    onChange={(e) => setAudio(e.target.value)}
+                    className="rounded-full bg-ink/10 px-3 py-1 text-xs text-ink outline-none"
+                    aria-label="Audio language"
+                    title="Audio dub"
+                  >
+                    {STREAM_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code} className="bg-surface text-ink">
+                        🔊 {l.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {activeProvider?.supportsSubLang && (
+                  <select
+                    value={sub}
+                    onChange={(e) => setSub(e.target.value)}
+                    className="rounded-full bg-ink/10 px-3 py-1 text-xs text-ink outline-none"
+                    aria-label="Subtitle language"
+                    title="Subtitles"
+                  >
+                    {STREAM_LANGUAGES.map((l) => (
+                      <option key={l.code} value={l.code} className="bg-surface text-ink">
+                        💬 {l.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             )}
           </div>
 

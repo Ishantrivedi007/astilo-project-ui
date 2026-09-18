@@ -80,29 +80,3 @@ export const SIGNUPS = [
   { month: "Nov", Free: 1890, Pro: 585, Team: 166 },
 ];
 
-export interface UserRow {
-  id: number;
-  name: string;
-  email: string;
-  avatar: string;
-  role: "Admin" | "Editor" | "Viewer";
-  status: "active" | "invited" | "suspended";
-  plan: "Free" | "Pro" | "Team";
-  spend: string;
-  joined: string;
-}
-
-// randomuser.me serves stable sample portrait photos from a static CDN
-const face = (g: "men" | "women", n: number) =>
-  `https://randomuser.me/api/portraits/${g}/${n}.jpg`;
-
-export const USERS: UserRow[] = [
-  { id: 1, name: "Ishan Trivedi", email: "ishan@astilo.io", avatar: face("men", 32), role: "Admin", status: "active", plan: "Team", spend: "$1,240", joined: "Jan 2024" },
-  { id: 2, name: "Aya Nakamura", email: "aya@astilo.io", avatar: face("women", 44), role: "Editor", status: "active", plan: "Pro", spend: "$420", joined: "Mar 2024" },
-  { id: 3, name: "John Legend", email: "john.l@astilo.io", avatar: face("men", 75), role: "Viewer", status: "invited", plan: "Free", spend: "$0", joined: "Apr 2024" },
-  { id: 4, name: "Adele Adkins", email: "adele@astilo.io", avatar: face("women", 68), role: "Editor", status: "active", plan: "Pro", spend: "$685", joined: "May 2024" },
-  { id: 5, name: "Louis Armstrong", email: "satchmo@astilo.io", avatar: face("men", 11), role: "Viewer", status: "suspended", plan: "Free", spend: "$35", joined: "Jun 2024" },
-  { id: 6, name: "Stephen Bishop", email: "s.bishop@astilo.io", avatar: face("men", 54), role: "Editor", status: "active", plan: "Team", spend: "$980", joined: "Jul 2024" },
-  { id: 7, name: "Nadia Rowe", email: "nadia@astilo.io", avatar: face("women", 21), role: "Viewer", status: "active", plan: "Pro", spend: "$210", joined: "Aug 2024" },
-  { id: 8, name: "Marcus Feld", email: "marcus@astilo.io", avatar: face("men", 91), role: "Admin", status: "active", plan: "Team", spend: "$2,050", joined: "Sep 2024" },
-];

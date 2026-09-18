@@ -132,9 +132,20 @@ const Sidebar = () => {
             <LogOut size={20} strokeWidth={2} />
             <span className="sidebar-item-label">Log out</span>
           </button>
-          <div className="sidebar-avatar" title={user?.name}>
-            {user?.name ? initials(user.name) : "?"}
-          </div>
+          <button
+            onClick={() => navigate(AppRoute.profile)}
+            title={user?.name ? `${user.name} — profile` : "Profile"}
+            aria-label="Profile"
+            className={`sidebar-avatar ${isActive(AppRoute.profile) ? "sidebar-avatar--active" : ""}`}
+          >
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" className="sidebar-avatar-img" />
+            ) : user?.name ? (
+              initials(user.name)
+            ) : (
+              "?"
+            )}
+          </button>
         </div>
       </aside>
 
@@ -196,6 +207,22 @@ const Sidebar = () => {
                   </div>
                 );
               })}
+              <button
+                onClick={() => {
+                  navigate(AppRoute.profile);
+                  setMobileOpen(false);
+                }}
+                className={`sidebar-item ${isActive(AppRoute.profile) ? "sidebar-item--active" : ""}`}
+              >
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="" className="sidebar-avatar-img sidebar-avatar-img--sm" />
+                ) : (
+                  <div className="sidebar-avatar sidebar-avatar--sm">
+                    {user?.name ? initials(user.name) : "?"}
+                  </div>
+                )}
+                <span className="sidebar-item-label">Profile</span>
+              </button>
               <button onClick={handleLogout} className="sidebar-item">
                 <LogOut size={20} />
                 <span className="sidebar-item-label">Log out</span>

@@ -10,6 +10,12 @@ import { ANIME_ROWS, buildMockAnimeRow } from "../components/Anime/catalog";
 // Route-level code splitting — heavy deps (tremor, swiper) load per page.
 const CentralisedStore = lazy(() => import("../components/Store"));
 const ProductDetail = lazy(() => import("../components/Store/ProductDetail"));
+const Cart = lazy(() => import("../components/Store/Cart"));
+const Checkout = lazy(() => import("../components/Store/Checkout"));
+const Payment = lazy(() => import("../components/Store/Payment"));
+const OrderConfirmation = lazy(() => import("../components/Store/OrderConfirmation"));
+const OrderHistory = lazy(() => import("../components/Store/OrderHistory"));
+const OrderTracking = lazy(() => import("../components/Store/OrderTracking"));
 const MusicPlayerIndex = lazy(() => import("../components/MusicPlayer"));
 const MovieHome = lazy(() => import("../components/Movies/MovieHome"));
 const MovieDetail = lazy(() => import("../components/Movies/MovieDetail"));
@@ -25,6 +31,7 @@ const Login = lazy(() => import("../components/Login/Login"));
 const Signup = lazy(() => import("../components/Login/Signup"));
 const Landing = lazy(() => import("../components/Landing/Landing"));
 const AdminPanel = lazy(() => import("../components/Admin/AdminPanel"));
+const Profile = lazy(() => import("../components/Profile/Profile"));
 
 const getAuthRoute = (content: ReactNode) => (
   <AuthorizedRoute>{content}</AuthorizedRoute>
@@ -44,6 +51,18 @@ const AppRoutes = () => (
       <Route path={AppRoute.signup} element={<Signup />} />
 
       <Route path={AppRoute.store} element={getAuthRoute(<CentralisedStore />)} />
+      <Route path={AppRoute.storeCart} element={getAuthRoute(<Cart />)} />
+      <Route path={AppRoute.storeCheckout} element={getAuthRoute(<Checkout />)} />
+      <Route path={`${AppRoute.storePayment}/:orderId`} element={getAuthRoute(<Payment />)} />
+      <Route path={AppRoute.storeOrders} element={getAuthRoute(<OrderHistory />)} />
+      <Route
+        path={`${AppRoute.storeOrders}/:orderId/confirmed`}
+        element={getAuthRoute(<OrderConfirmation />)}
+      />
+      <Route
+        path={`${AppRoute.storeOrders}/:orderId/track`}
+        element={getAuthRoute(<OrderTracking />)}
+      />
       <Route path={`${AppRoute.store}/:id`} element={getAuthRoute(<ProductDetail />)} />
       <Route path={AppRoute.home} element={getAuthRoute(<Home />)} />
       <Route path={AppRoute.music} element={getAuthRoute(<MusicPlayerIndex />)} />
@@ -116,6 +135,7 @@ const AppRoutes = () => (
         )}
       />
       <Route path={AppRoute.customize} element={getAuthRoute(<Customize />)} />
+      <Route path={AppRoute.profile} element={getAuthRoute(<Profile />)} />
       <Route
         path={AppRoute.admin}
         element={getAuthRoute(

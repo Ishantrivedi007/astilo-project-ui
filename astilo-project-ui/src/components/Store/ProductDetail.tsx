@@ -6,19 +6,61 @@ import { Button, Chip } from "@heroui/react";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { AppInput, AppTextarea } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
-import { fetchProduct, fetchProducts, type StoreProduct } from "../../lib/store";
+import { fetchProduct, fetchProducts, type Product, type SpecGroup } from "../../lib/storeApi";
 import { useProductStore, type ProductReview } from "./useProductStore";
+
+const PLACEHOLDER_IMAGE = "https://placehold.co/500x500?text=%F0%9F%9B%8D%EF%B8%8F";
 
 const emojiFor = (category: string) => {
   const c = category.toLowerCase();
   if (c.includes("cloth") || c.includes("shirt")) return "👕";
   if (c.includes("shoe")) return "👟";
   if (c.includes("jewel")) return "💍";
+  if (c.includes("mobile") || c.includes("phone")) return "📱";
+  if (c.includes("laptop") || c.includes("computer")) return "💻";
+  if (c.includes("wearable") || c.includes("watch")) return "⌚";
+  if (c.includes("audio") || c.includes("sound") || c.includes("headphone") || c.includes("speaker")) return "🎧";
   if (c.includes("elec")) return "🔌";
   if (c.includes("furni")) return "🛋️";
   if (c.includes("bag")) return "🎒";
   return "🛍️";
 };
+
+const iconForGroup = (group: string) => {
+  const g = group.toLowerCase();
+  if (g.includes("display") || g.includes("screen")) return "🖥️";
+  if (g.includes("camera")) return "📷";
+  if (g.includes("battery") || g.includes("charg")) return "🔋";
+  if (g.includes("performance") || g.includes("processor") || g.includes("chip")) return "⚡";
+  if (g.includes("connect") || g.includes("port") || g.includes("network")) return "🔌";
+  if (g.includes("audio") || g.includes("sound")) return "🔊";
+  if (g.includes("health") || g.includes("fitness")) return "❤️";
+  if (g.includes("build") || g.includes("material") || g.includes("design")) return "🏗️";
+  if (g.includes("capacity") || g.includes("fit")) return "📦";
+  if (g.includes("ergonom")) return "🧭";
+  return "📋";
+};
+
+const SpecTable = ({ groups }: { groups: SpecGroup[] }) => (
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    {groups.map((group) => (
+      <div key={group.group} className="glass-card p-4">
+        <h3 className="mb-2 flex items-center gap-2 font-display text-sm font-bold text-ink">
+          <span aria-hidden>{iconForGroup(group.group)}</span>
+          {group.group}
+        </h3>
+        <dl className="divide-y divide-hair/10">
+          {group.items.map((item) => (
+            <div key={item.label} className="flex justify-between gap-4 py-1.5 text-sm">
+              <dt className="text-ink/50">{item.label}</dt>
+              <dd className="text-right font-medium text-ink/85">{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    ))}
+  </div>
+);
 
 const StarRating = ({
   value,
@@ -88,24 +130,22 @@ const ReviewCard = ({ review, onDelete }: { review: ProductReview; onDelete: (id
 const ProductDetail = () => {
   const { id = "" } = useParams<{ id: string }>();
   const { addToCart, reviewsFor, addReview, deleteReview } = useProductStore();
-  const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
-  const { data: product, isLoading, isError } = useQuery<StoreProduct>({
+  const { data: product, isLoading, isError } = useQuery<Product>({
     queryKey: ["store-product", id],
     queryFn: () => fetchProduct(id),
     staleTime: 1000 * 60 * 5,
   });
 
   const { data: related } = useQuery({
-    queryKey: ["store-related", product?.category.id],
-    queryFn: () => fetchProducts({ limit: 8, categoryId: product?.category.id }),
-    enabled: Boolean(product?.category.id),
+    queryKey: ["store-related", product?.category],
+    queryFn: () => fetchProducts(product?.category ?? undefined),
+    enabled: Boolean(product?.category),
   });
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
-    setActiveImage(0);
     setQuantity(1);
   }, [id]);
 
@@ -162,35 +202,22 @@ const ProductDetail = () => {
         <div>
           <div className="glass-card grid aspect-square place-items-center overflow-hidden bg-white p-8">
             <img
-              src={product.images[activeImage] ?? product.images[0]}
-              alt={product.title}
+              src={product.imageUrl || PLACEHOLDER_IMAGE}
+              alt={product.name}
               className="max-h-full max-w-full object-contain"
             />
           </div>
-          {product.images.length > 1 && (
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
-              {product.images.map((src, i) => (
-                <button
-                  key={src + i}
-                  onClick={() => setActiveImage(i)}
-                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-white ring-2 transition-all ${
-                    activeImage === i ? "ring-accent" : "ring-transparent opacity-70 hover:opacity-100"
-                  }`}
-                >
-                  <img src={src} alt="" className="h-full w-full object-contain p-1" />
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Info */}
         <div>
-          <Chip className="bg-ink/10 text-xs text-ink/70">
-            {emojiFor(product.category.name)} {product.category.name}
-          </Chip>
+          {product.category && (
+            <Chip className="bg-ink/10 text-xs text-ink/70">
+              {emojiFor(product.category)} {product.category}
+            </Chip>
+          )}
           <h1 className="mt-3 font-display text-3xl font-extrabold text-ink sm:text-4xl">
-            {product.title}
+            {product.name}
           </h1>
 
           <div className="mt-2 flex items-center gap-2">
@@ -206,6 +233,10 @@ const ProductDetail = () => {
             ${product.price.toFixed(2)}
           </p>
 
+          <p className="mt-2 text-xs font-semibold text-ink/50">
+            {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+          </p>
+
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink/70">{product.description}</p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -219,20 +250,21 @@ const ProductDetail = () => {
               <span className="w-8 text-center text-sm font-semibold text-ink">{quantity}</span>
               <button
                 className="px-3 py-2 text-ink/60 hover:text-ink"
-                onClick={() => setQuantity((q) => q + 1)}
+                onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
               >
                 +
               </button>
             </div>
             <Button
               radius="full"
+              isDisabled={product.stock <= 0}
               className="bg-gradient-to-r from-accent to-accent-2 font-bold text-[#17131f] shadow-glow transition-transform hover:scale-105"
               onPress={() => {
                 addToCart(
-                  { productId: product.id, title: product.title, image: product.images[0], price: product.price },
+                  { productId: product.id, title: product.name, image: product.imageUrl ?? "", price: product.price },
                   quantity
                 );
-                toast.success(`Added ${quantity} × "${product.title}" to cart 🛒`);
+                toast.success(`Added ${quantity} × "${product.name}" to cart 🛒`);
               }}
             >
               🛒 Add to cart
@@ -243,6 +275,14 @@ const ProductDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Specifications */}
+      {product.specs && product.specs.length > 0 && (
+        <section className="mt-14">
+          <h2 className="mb-4 font-display text-2xl font-bold text-ink">Specifications</h2>
+          <SpecTable groups={product.specs} />
+        </section>
+      )}
 
       {/* Reviews */}
       <section className="mt-14">
@@ -297,13 +337,13 @@ const ProductDetail = () => {
               >
                 <div className="glass-card grid aspect-square place-items-center overflow-hidden bg-white p-3 transition-transform duration-300 group-hover:-translate-y-1.5">
                   <img
-                    src={r.images[0]}
-                    alt={r.title}
+                    src={r.imageUrl || PLACEHOLDER_IMAGE}
+                    alt={r.name}
                     loading="lazy"
                     className="max-h-full max-w-full object-contain"
                   />
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs font-semibold text-ink">{r.title}</p>
+                <p className="mt-2 line-clamp-2 text-xs font-semibold text-ink">{r.name}</p>
                 <p className="text-xs text-ink/50">${r.price.toFixed(2)}</p>
               </Link>
             ))}

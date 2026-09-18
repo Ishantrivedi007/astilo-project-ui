@@ -6,6 +6,7 @@ export interface AdminUser {
   email: string;
   role: "user" | "admin";
   createdAt: string | null;
+  avatar?: string | null;
 }
 
 export interface AdminProduct {
@@ -62,3 +63,6 @@ export const deleteProduct = (id: number) => apiClient.delete(`/store/products/$
 
 export const fetchAllOrders = () =>
   apiClient.get<AdminOrder[]>("/store/orders", { params: { show_all: 1 } }).then((r) => r.data);
+
+export const updateOrderStatus = (id: number, status: "shipped" | "delivered" | "cancelled") =>
+  apiClient.put<AdminOrder>(`/store/orders/${id}`, { status }).then((r) => r.data);

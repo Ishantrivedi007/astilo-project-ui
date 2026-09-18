@@ -15,6 +15,7 @@ import {
   updateProduct,
   deleteProduct,
   fetchAllOrders,
+  updateOrderStatus,
   type AdminUser,
   type AdminProduct,
   type AdminOrder,
@@ -351,8 +352,28 @@ const ProductsTab = () => {
 
 // ---------------------------------------------------------------------------
 
+const NEXT_STATUS: Record<string, { status: "shipped" | "delivered" | "cancelled"; label: string }[]> = {
+  pending: [{ status: "cancelled", label: "Cancel" }],
+  paid: [
+    { status: "shipped", label: "Mark shipped" },
+    { status: "cancelled", label: "Cancel" },
+  ],
+  shipped: [{ status: "delivered", label: "Mark delivered" }],
+};
+
 const OrdersTab = () => {
+  const queryClient = useQueryClient();
   const { data: orders, isLoading } = useQuery({ queryKey: ["admin-orders"], queryFn: fetchAllOrders });
+
+  const updateStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: "shipped" | "delivered" | "cancelled" }) =>
+      updateOrderStatus(id, status),
+    onSuccess: () => {
+      toast.success("Order updated.");
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+    },
+    onError: () => toast.error("Couldn't update that order."),
+  });
 
   return (
     <GlassPanel title="Orders" subtitle={orders ? `${orders.length} placed` : undefined}>
@@ -366,6 +387,7 @@ const OrdersTab = () => {
               <th className="py-2 pr-4">Total</th>
               <th className="py-2 pr-4">Status</th>
               <th className="py-2 pr-4">Date</th>
+              <th className="py-2 pr-4">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -381,13 +403,29 @@ const OrdersTab = () => {
                   </Chip>
                 </td>
                 <td className="py-3 pr-4 text-ink/60">{fmtDate(o.createdAt)}</td>
+                <td className="py-3 pr-4">
+                  <div className="flex flex-wrap gap-2">
+                    {(NEXT_STATUS[o.status] ?? []).map((action) => (
+                      <Button
+                        key={action.status}
+                        size="sm"
+                        radius="full"
+                        variant="bordered"
+                        className="border-hair/40 text-xs font-semibold text-ink"
+                        isDisabled={updateStatus.isPending}
+                        onPress={() => updateStatus.mutate({ id: o.id, status: action.status })}
+                      >
+                        {action.label}
+                      </Button>
+                    ))}
+                  </div>
+                </td>
               </tr>
             ))}
             {!isLoading && (orders ?? []).length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-ink/50">
-                  No orders yet — remember, checkout only persists here for orders placed against your
-                  own product catalogue, not the public demo Store.
+                <td colSpan={7} className="py-8 text-center text-ink/50">
+                  No orders yet.
                 </td>
               </tr>
             )}
@@ -404,6 +442,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending: "#f59e0b",
   paid: "#22c55e",
   shipped: "#3b82f6",
+  delivered: "#8b5cf6",
   cancelled: "#ef4444",
 };
 

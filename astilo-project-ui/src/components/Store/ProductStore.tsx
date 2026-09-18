@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { toast } from "sonner";
-import { Card, CardBody, CardFooter, Chip, Button, Badge } from "@heroui/react";
+import { Card, CardBody, CardFooter, Chip, Button } from "@heroui/react";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { PageHeading, Reveal } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
-import { fetchProducts, fetchCategories, FALLBACK_PRODUCTS, type StoreProduct } from "../../lib/store";
+import { fetchProducts, type Product } from "../../lib/storeApi";
 import { useProductStore } from "./useProductStore";
 
 const emojiFor = (category: string) => {
@@ -15,6 +15,10 @@ const emojiFor = (category: string) => {
   if (c.includes("cloth") || c.includes("shirt")) return "👕";
   if (c.includes("shoe")) return "👟";
   if (c.includes("jewel")) return "💍";
+  if (c.includes("mobile") || c.includes("phone")) return "📱";
+  if (c.includes("laptop") || c.includes("computer")) return "💻";
+  if (c.includes("wearable") || c.includes("watch")) return "⌚";
+  if (c.includes("audio") || c.includes("sound") || c.includes("headphone") || c.includes("speaker")) return "🎧";
   if (c.includes("elec")) return "🔌";
   if (c.includes("furni")) return "🛋️";
   if (c.includes("bag")) return "🎒";
@@ -23,58 +27,64 @@ const emojiFor = (category: string) => {
 
 const ProductStore = () => {
   const [gridRef] = useAutoAnimate<HTMLDivElement>();
-  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [category, setCategory] = useState<string | null>(null);
+  const navigate = useNavigate();
   const { addToCart, cartCount } = useProductStore();
 
-  const { data: categories } = useQuery({
-    queryKey: ["store-categories"],
-    queryFn: fetchCategories,
-    staleTime: 1000 * 60 * 30,
-  });
-
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["store-products", categoryId],
-    queryFn: () => fetchProducts({ limit: 24, categoryId: categoryId ?? undefined }),
+    queryKey: ["store-products"],
+    queryFn: () => fetchProducts(),
     staleTime: 1000 * 60 * 5,
   });
 
-  const products: StoreProduct[] = isError || !data?.length ? FALLBACK_PRODUCTS : data;
+  const allProducts: Product[] = useMemo(() => (isError || !data ? [] : data), [isError, data]);
+  const categories = useMemo(
+    () => Array.from(new Set(allProducts.map((p) => p.category).filter((c): c is string => Boolean(c)))),
+    [allProducts]
+  );
+  const products = category ? allProducts.filter((p) => p.category === category) : allProducts;
 
   return (
     <section>
       <PageHeading
         eyebrow="✦ treat yourself"
         action={
-          <Badge content={cartCount || undefined} color="danger" isInvisible={!cartCount}>
+          <div className="relative inline-flex self-center">
             <Button
               radius="full"
               variant="bordered"
-              className="border-hair/40 font-semibold text-ink"
-              onPress={() => toast.message("Cart drawer coming soon — items are saved though!")}
+              className="gap-2 border-hair/40 font-semibold text-ink"
+              onPress={() => navigate(AppRoute.storeCart)}
             >
-              🛒 Cart
+              <span aria-hidden>🛒</span>
+              <span>Cart</span>
             </Button>
-          </Badge>
+            {cartCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full border-2 border-[rgb(var(--surface-rgb))] bg-danger px-1 text-[11px] font-bold leading-none text-white">
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
+          </div>
         }
       >
         The <span className="gradient-text">drip</span> shop
       </PageHeading>
 
-      {categories && categories.length > 0 && (
+      {categories.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           <button
-            className={`pill-filter ${categoryId === null ? "is-active" : ""}`}
-            onClick={() => setCategoryId(null)}
+            className={`pill-filter ${category === null ? "is-active" : ""}`}
+            onClick={() => setCategory(null)}
           >
             ✦ All
           </button>
           {categories.slice(0, 8).map((c) => (
             <button
-              key={c.id}
-              className={`pill-filter ${categoryId === c.id ? "is-active" : ""}`}
-              onClick={() => setCategoryId(c.id)}
+              key={c}
+              className={`pill-filter ${category === c ? "is-active" : ""}`}
+              onClick={() => setCategory(c)}
             >
-              {emojiFor(c.name)} {c.name}
+              {emojiFor(c)} {c}
             </button>
           ))}
         </div>
@@ -84,6 +94,10 @@ const ProductStore = () => {
         <div className="flex justify-center py-24">
           <AppLoader label="loading the goods…" />
         </div>
+      ) : products.length === 0 ? (
+        <p className="glass-card p-8 text-center text-sm text-ink/50">
+          No products yet — check back soon.
+        </p>
       ) : (
         <div
           ref={gridRef}
@@ -99,21 +113,23 @@ const ProductStore = () => {
                   <CardBody className="relative overflow-visible p-0">
                     <div className="flex h-44 items-center justify-center bg-white p-4">
                       <img
-                        src={p.images[0]}
-                        alt={p.title}
+                        src={p.imageUrl || "https://placehold.co/300x300?text=%F0%9F%9B%8D%EF%B8%8F"}
+                        alt={p.name}
                         loading="lazy"
                         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-2"
                       />
                     </div>
-                    <Chip
-                      size="sm"
-                      className="absolute left-2 top-2 bg-black/60 text-[10px] text-white backdrop-blur"
-                    >
-                      {emojiFor(p.category.name)} {p.category.name}
-                    </Chip>
+                    {p.category && (
+                      <Chip
+                        size="sm"
+                        className="absolute left-2 top-2 bg-black/60 text-[10px] text-white backdrop-blur"
+                      >
+                        {emojiFor(p.category)} {p.category}
+                      </Chip>
+                    )}
                   </CardBody>
                   <p className="line-clamp-2 min-h-[2.5rem] px-3 pt-3 text-sm font-semibold text-ink">
-                    {p.title}
+                    {p.name}
                   </p>
                 </Link>
                 <CardFooter className="flex w-full items-center justify-between p-3 pt-2">
@@ -126,9 +142,10 @@ const ProductStore = () => {
                     radius="full"
                     className="bg-ink/10 text-sm transition-transform hover:scale-110"
                     aria-label="Add to cart"
+                    isDisabled={p.stock <= 0}
                     onPress={() => {
-                      addToCart({ productId: p.id, title: p.title, image: p.images[0], price: p.price });
-                      toast.success(`Added "${p.title}" to cart 🛒`);
+                      addToCart({ productId: p.id, title: p.name, image: p.imageUrl ?? "", price: p.price });
+                      toast.success(`Added "${p.name}" to cart 🛒`);
                     }}
                   >
                     🛒

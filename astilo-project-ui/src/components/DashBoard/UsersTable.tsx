@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   createColumnHelper,
   flexRender,
@@ -9,23 +9,62 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
 import { Chip, Pagination } from "@heroui/react";
-import { USERS, type UserRow } from "./dashboardData";
+import { fetchUsers, type AdminUser } from "../../lib/adminApi";
+import { avatarUrl } from "../../lib/avatar";
 import { AppInput, GlassPanel } from "../shared";
+import AppLoader from "../SharedComponents/Loader/AppLoader";
 
-const statusColor: Record<UserRow["status"], "success" | "warning" | "danger"> = {
+/** Real accounts, decorated with a few deterministic display-only fields
+ * (status/plan/spend) that the backend doesn't model — stable per user id
+ * rather than random, so the table doesn't reshuffle on every render. */
+interface DisplayRow {
+  id: number;
+  name: string;
+  email: string;
+  avatar: string;
+  role: "Admin" | "User";
+  status: "active" | "invited" | "suspended";
+  plan: "Free" | "Pro" | "Team";
+  spend: string;
+  joined: string;
+}
+
+const STATUSES: DisplayRow["status"][] = ["active", "active", "active", "invited", "suspended"];
+const PLANS: DisplayRow["plan"][] = ["Free", "Pro", "Team"];
+
+const toDisplayRow = (u: AdminUser): DisplayRow => {
+  const status = STATUSES[u.id % STATUSES.length];
+  const plan = u.role === "admin" ? "Team" : PLANS[u.id % PLANS.length];
+  const spend = status === "suspended" ? 35 : plan === "Team" ? 800 + (u.id * 137) % 1400 : plan === "Pro" ? 150 + (u.id * 53) % 700 : 0;
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    avatar: u.avatar || avatarUrl(u.email, 96),
+    role: u.role === "admin" ? "Admin" : "User",
+    status,
+    plan,
+    spend: `$${spend.toLocaleString()}`,
+    joined: u.createdAt
+      ? new Date(u.createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+      : "—",
+  };
+};
+
+const statusColor: Record<DisplayRow["status"], "success" | "warning" | "danger"> = {
   active: "success",
   invited: "warning",
   suspended: "danger",
 };
 
-const roleColor: Record<UserRow["role"], "secondary" | "primary" | "default"> = {
+const roleColor: Record<DisplayRow["role"], "secondary" | "default"> = {
   Admin: "secondary",
-  Editor: "primary",
-  Viewer: "default",
+  User: "default",
 };
 
-const col = createColumnHelper<UserRow>();
+const col = createColumnHelper<DisplayRow>();
 
 const columns = [
   col.accessor("name", {
@@ -86,8 +125,11 @@ const UsersTable = () => {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  const { data: users, isLoading } = useQuery({ queryKey: ["dashboard-users"], queryFn: fetchUsers });
+  const data = useMemo(() => (users ?? []).map(toDisplayRow), [users]);
+
   const table = useReactTable({
-    data: USERS,
+    data,
     columns,
     state: { globalFilter, sorting },
     onGlobalFilterChange: setGlobalFilter,
@@ -153,7 +195,14 @@ const UsersTable = () => {
                 ))}
               </tr>
             ))}
-            {table.getRowModel().rows.length === 0 && (
+            {isLoading && (
+              <tr>
+                <td colSpan={columns.length} className="py-8 text-center">
+                  <AppLoader label="loading members…" />
+                </td>
+              </tr>
+            )}
+            {!isLoading && table.getRowModel().rows.length === 0 && (
               <tr>
                 <td colSpan={columns.length} className="py-8 text-center text-ink/50">
                   No members match your search.

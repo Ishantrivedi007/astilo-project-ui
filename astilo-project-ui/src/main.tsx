@@ -21,12 +21,36 @@ function Providers({ children }: { children: React.ReactNode }) {
             <QueryClientProvider client={queryClient}>
               {children}
               <Toaster
-                position="bottom-right"
+                position="top-right"
+                closeButton
+                icons={{
+                  success: (
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-500 text-white">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  ),
+                  error: (
+                    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-danger text-white">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </span>
+                  ),
+                }}
                 toastOptions={{
                   style: {
                     background: "rgb(var(--surface-rgb))",
                     color: "rgb(var(--ink-rgb))",
                     border: "1px solid rgb(var(--hair-rgb) / 0.2)",
+                  },
+                  classNames: {
+                    error: "!border-danger !bg-danger !text-white",
+                    success: "!border-emerald-500/40",
+                    closeButton:
+                      "!bg-transparent !border-current !text-current hover:!opacity-70",
                   },
                 }}
               />

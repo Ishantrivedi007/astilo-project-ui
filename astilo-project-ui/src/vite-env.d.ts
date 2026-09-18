@@ -33,6 +33,30 @@ interface ImportMetaEnv {
   readonly VITE_PROVIDER_11_NAME?: string;
   readonly VITE_PROVIDER_12?: string;
   readonly VITE_PROVIDER_12_NAME?: string;
+  readonly VITE_PROVIDER_13?: string;
+  readonly VITE_PROVIDER_13_NAME?: string;
+  readonly VITE_PROVIDER_14?: string;
+  readonly VITE_PROVIDER_14_NAME?: string;
+  readonly VITE_PROVIDER_15?: string;
+  readonly VITE_PROVIDER_15_NAME?: string;
+  readonly VITE_PROVIDER_16?: string;
+  readonly VITE_PROVIDER_16_NAME?: string;
+  readonly VITE_PROVIDER_17?: string;
+  readonly VITE_PROVIDER_17_NAME?: string;
+  readonly VITE_PROVIDER_18?: string;
+  readonly VITE_PROVIDER_18_NAME?: string;
+  readonly VITE_PROVIDER_19?: string;
+  readonly VITE_PROVIDER_19_NAME?: string;
+  readonly VITE_PROVIDER_20?: string;
+  readonly VITE_PROVIDER_20_NAME?: string;
+  readonly VITE_PROVIDER_21?: string;
+  readonly VITE_PROVIDER_21_NAME?: string;
+  readonly VITE_PROVIDER_22?: string;
+  readonly VITE_PROVIDER_22_NAME?: string;
+  readonly VITE_PROVIDER_23?: string;
+  readonly VITE_PROVIDER_23_NAME?: string;
+  readonly VITE_PROVIDER_24?: string;
+  readonly VITE_PROVIDER_24_NAME?: string;
 }
 
 interface ImportMeta {

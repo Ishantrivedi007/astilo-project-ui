@@ -74,6 +74,14 @@ const ECOSYSTEM_NODES: EcosystemNode[] = [
   { icon: "🎨", label: "Customize", angle: 198 },
 ];
 
+// Distance (in the orbit SVG's own units) from the hub to each node card's
+// centre, and the card's own half-width/half-height in those same units —
+// used to work out exactly where a spoke line should stop at the card's
+// edge instead of its centre.
+const NODE_RADIUS = 130;
+const CARD_HALF_W = 36;
+const CARD_HALF_H = 26;
+
 const COMING_SOON = [
   { icon: "🗓️", title: "Nimrose Desk", description: "Calendar, tasks, notes and focus tools." },
   { icon: "🌐", title: "Browser", description: "Browse the web without leaving Astilo's." },
@@ -163,7 +171,11 @@ const Landing = () => {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="landing-cta"
           >
-            <GradientButton onPress={() => navigate(AppRoute.signup)} size="lg">
+            <GradientButton
+              onPress={() => navigate(AppRoute.signup)}
+              size="lg"
+              className="!h-auto !px-9 !py-4 !text-lg"
+            >
               Get started — it&apos;s free ✨
             </GradientButton>
             <Link href={AppRoute.login} className="landing-cta-secondary">
@@ -241,29 +253,50 @@ const Landing = () => {
         <svg className="landing-orbit-lines" viewBox="-160 -160 320 320" aria-hidden="true">
           {ECOSYSTEM_NODES.map((node) => {
             const rad = (node.angle * Math.PI) / 180;
-            const x = Math.cos(rad) * 130;
-            const y = Math.sin(rad) * 130;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            // Node cards sit on this same ray at radius NODE_RADIUS. Rather
+            // than drawing to the card's centre (pokes into whatever corner
+            // the ray crosses) or stopping arbitrarily short (leaves a gap,
+            // as before), find exactly where the ray exits the card's
+            // rectangle and end the line — and its connector dot — there.
+            const dx = cos !== 0 ? CARD_HALF_W / Math.abs(cos) : Infinity;
+            const dy = sin !== 0 ? CARD_HALF_H / Math.abs(sin) : Infinity;
+            const edgeRadius = NODE_RADIUS - Math.min(dx, dy);
+            const x = cos * edgeRadius;
+            const y = sin * edgeRadius;
             return (
-              <motion.line
-                key={node.label}
-                x1={0}
-                y1={0}
-                x2={x}
-                y2={y}
-                initial={{ pathLength: 0, opacity: 0 }}
-                whileInView={{ pathLength: 1, opacity: 0.5 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                stroke="rgb(var(--accent-rgb))"
-                strokeWidth={1}
-              />
+              <g key={node.label}>
+                <motion.line
+                  x1={0}
+                  y1={0}
+                  x2={x}
+                  y2={y}
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  whileInView={{ pathLength: 1, opacity: 0.5 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  stroke="rgb(var(--accent-rgb))"
+                  strokeWidth={1}
+                />
+                <motion.circle
+                  cx={x}
+                  cy={y}
+                  r={3.5}
+                  fill="rgb(var(--accent-rgb))"
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 0.9 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: 0.9 }}
+                />
+              </g>
             );
           })}
         </svg>
         {ECOSYSTEM_NODES.map((node, i) => {
           const rad = (node.angle * Math.PI) / 180;
-          const x = 50 + (Math.cos(rad) * 130) / 3.2;
-          const y = 50 + (Math.sin(rad) * 130) / 3.2;
+          const x = 50 + (Math.cos(rad) * NODE_RADIUS) / 3.2;
+          const y = 50 + (Math.sin(rad) * NODE_RADIUS) / 3.2;
           return (
             <motion.div
               key={node.label}
@@ -328,15 +361,21 @@ const Landing = () => {
 
     {/* Bottom CTA */}
     <section className="landing-footer-cta">
-      <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
-        Ready to make it <span className="gradient-text">yours</span>?
-      </h2>
-      <p className="mt-2 max-w-md text-sm text-ink/60">
-        Create an account in a few seconds — no credit card, no spam, just your stuff.
-      </p>
-      <GradientButton onPress={() => navigate(AppRoute.signup)} size="lg" className="mt-6">
-        Create my account
-      </GradientButton>
+      <div className="landing-footer-cta-inner">
+        <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
+          Ready to make it <span className="gradient-text">yours</span>?
+        </h2>
+        <p className="mt-2 text-sm text-ink/60">
+          Create an account in a few seconds — no credit card, no spam, just your stuff.
+        </p>
+        <GradientButton
+          onPress={() => navigate(AppRoute.signup)}
+          size="lg"
+          className="!h-auto !px-9 !py-4 !text-lg mt-6"
+        >
+          Create my account
+        </GradientButton>
+      </div>
     </section>
 
     <footer className="landing-foot">

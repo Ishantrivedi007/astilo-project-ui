@@ -6,6 +6,10 @@ export const AppRoute = {
   // Authenticated app
   home: "/home",
   store: "/store",
+  storeCart: "/store/cart",
+  storeCheckout: "/store/checkout",
+  storePayment: "/store/payment",
+  storeOrders: "/store/orders",
   music: "/music",
   movies: "/movies",
   moviesWatch: "/movies/watch",
@@ -20,5 +24,6 @@ export const AppRoute = {
   animePlaylists: "/anime/playlists",
   animeCategory: "/anime/category",
   customize: "/customize",
+  profile: "/profile",
   admin: "/admin",
 } as const;
