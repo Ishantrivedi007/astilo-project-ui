@@ -90,6 +90,21 @@ const cosmos = axios.create({ baseURL: `${API_BASE}/cosmos`, timeout: 20000 });
 
 // -- Keyless (JPL, NASA Exoplanet Archive, MAST, NASA image library) --
 
+export interface ResearchSummaryData {
+  title: string | null;
+  extract: string | null;
+  description: string | null;
+  thumbnailUrl: string | null;
+  pageUrl: string | null;
+}
+
+/** Real Wikipedia-sourced background summary for an object — free, keyless,
+ * used to give Research notes actual understandable prose. */
+export async function fetchResearchSummary(query: string): Promise<CosmosEnvelope<ResearchSummaryData>> {
+  const { data } = await cosmos.get(`/research-summary`, { params: { q: query } });
+  return data;
+}
+
 export async function fetchAsteroid(designation: string): Promise<CosmosEnvelope<AsteroidData>> {
   const { data } = await cosmos.get(`/asteroids`, { params: { designation } });
   return data;
