@@ -26,6 +26,7 @@ import {
   type SupernovaRemnantRow,
 } from "../../lib/cosmosApi";
 import CosmosField from "./CosmosField";
+import CosmosImagePreview from "./CosmosImagePreview";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
 
@@ -50,6 +51,16 @@ const TYPE_LABELS: Record<ResultGroup, string> = {
   supernova: "Supernova remnants",
 };
 
+export const COLLECTIONS = [
+  { value: "favorites", label: "Favorites" },
+  { value: "research", label: "Research" },
+  { value: "discoveries", label: "My Discoveries" },
+  { value: "planets", label: "Planets" },
+  { value: "exoplanets", label: "Exoplanets" },
+  { value: "asteroids", label: "Asteroids" },
+  { value: "telescope-images", label: "Telescope Images" },
+] as const;
+
 const SaveButton = ({
   objectType,
   externalId,
@@ -68,29 +79,57 @@ const SaveButton = ({
   const { isAuthenticated } = useAuth();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [collection, setCollection] = useState<string>("favorites");
+  const [open, setOpen] = useState(false);
 
   if (!isAuthenticated) return null;
 
-  return (
-    <button
-      type="button"
-      className="cosmos-chip"
-      disabled={saving || saved}
-      onClick={async () => {
-        setSaving(true);
-        try {
-          await saveCosmosItem({ objectType, externalId, title, source, sourceDataset, data });
-          setSaved(true);
-        } finally {
-          setSaving(false);
-        }
-      }}
-    >
-      <span className="inline-flex items-center gap-1">
-        <BookmarkPlus size={12} />
-        {saved ? "Saved" : saving ? "Saving…" : "Save"}
+  const save = async (targetCollection: string) => {
+    setCollection(targetCollection);
+    setSaving(true);
+    setOpen(false);
+    try {
+      await saveCosmosItem({ objectType, externalId, title, source, sourceDataset, data, collection: targetCollection });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (saved) {
+    return (
+      <span className="cosmos-chip">
+        <span className="inline-flex items-center gap-1">
+          <BookmarkPlus size={12} />
+          Saved to {COLLECTIONS.find((c) => c.value === collection)?.label ?? collection}
+        </span>
       </span>
-    </button>
+    );
+  }
+
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        className="cosmos-chip"
+        disabled={saving}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="inline-flex items-center gap-1">
+          <BookmarkPlus size={12} />
+          {saving ? "Saving…" : "Save"}
+        </span>
+      </button>
+      {open && (
+        <div className="cosmos-save-menu">
+          {COLLECTIONS.map((c) => (
+            <button key={c.value} type="button" onClick={() => save(c.value)}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
   );
 };
 
@@ -390,6 +429,7 @@ const AsteroidCard = ({ data, source }: { data: AsteroidData; source: string }) 
       <CosmosField label="Rotation period" value={data.rotationPeriodHours} unit="hr" />
       <CosmosField label="Albedo" value={data.albedo} />
     </dl>
+    <CosmosImagePreview name={data.name} />
   </div>
 );
 
@@ -420,6 +460,7 @@ const ExoplanetCard = ({ data }: { data: ExoplanetData }) => (
       <CosmosField label="Host star Teff" value={data.hostStarTeffK} unit="K" />
       <CosmosField label="Distance" value={data.distanceParsecs} unit="pc" />
     </dl>
+    <CosmosImagePreview name={data.hostStar} />
   </div>
 );
 
@@ -446,6 +487,7 @@ const StarCard = ({ data, source }: { data: StarData; source: string }) => (
       <CosmosField label="BP–RP color" value={data.bpRpColor} />
       <CosmosField label="Effective temperature" value={data.effectiveTempK} unit="K" />
     </dl>
+    <CosmosImagePreview name={data.queriedName} />
   </div>
 );
 
@@ -508,6 +550,7 @@ const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
       <CosmosField label="RA" value={data.raDeg} unit="°" />
       <CosmosField label="Dec" value={data.decDeg} unit="°" />
     </dl>
+    <CosmosImagePreview name={data.name} />
   </div>
 );
 
@@ -533,6 +576,7 @@ const SupernovaCard = ({ data }: { data: SupernovaRemnantRow }) => (
       <CosmosField label="RA" value={data.ra} unit="°" />
       <CosmosField label="Dec" value={data.dec} unit="°" />
     </dl>
+    <CosmosImagePreview name={data.name} />
   </div>
 );
 
