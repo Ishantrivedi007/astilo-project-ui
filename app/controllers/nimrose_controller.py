@@ -538,6 +538,11 @@ class NimroseTicketsController:
                 if body["status"] not in valid_slugs:
                     raise cherrypy.HTTPError(400, f"status must be one of {', '.join(valid_slugs)}")
                 _log_activity(session, ticket.id, "status_changed", f"{ticket.status} → {body['status']}")
+                notify(
+                    session, _user_id(), "kanban",
+                    f"{ticket.ticket_key} moved to {body['status']}",
+                    body=ticket.title, link="/nimrose?section=kanban",
+                )
                 ticket.status = body["status"]
             if "priority" in body and body["priority"] != ticket.priority:
                 if body["priority"] not in TICKET_PRIORITIES:
@@ -550,6 +555,11 @@ class NimroseTicketsController:
                 ticket.ticket_type = body["type"]
             if "assignee" in body and body["assignee"] != ticket.assignee_name:
                 _log_activity(session, ticket.id, "assigned", body["assignee"] or "Unassigned")
+                notify(
+                    session, _user_id(), "kanban",
+                    f"{ticket.ticket_key} assigned to {body['assignee'] or 'Unassigned'}",
+                    body=ticket.title, link="/nimrose?section=kanban",
+                )
                 ticket.assignee_name = body["assignee"]
             if "sprintId" in body:
                 ticket.sprint_id = body["sprintId"]
