@@ -123,6 +123,62 @@ def parse_chapters(raw_text: str, max_chapters: int = 200) -> list[dict]:
     return chapters
 
 
+ARCHIVE_SEARCH_URL = "https://archive.org/advancedsearch.php"
+ARCHIVE_METADATA_URL = "https://archive.org/metadata/{identifier}"
+
+
+def search_archive_pdfs(query: str, page: int = 1, rows: int = 20):
+    """Internet Archive's free, keyless search — a second real source
+    (archive.org's own public-domain text collection) specifically for
+    PDFs, since Gutenberg/Gutendex essentially never has one."""
+    params = {
+        "q": f"title:({query}) AND mediatype:texts AND format:PDF",
+        "fl[]": ["identifier", "title", "creator", "year"],
+        "rows": rows,
+        "page": page,
+        "output": "json",
+    }
+
+    def fetch():
+        resp = cosmos_get(ARCHIVE_SEARCH_URL, params=params, timeout=15, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("archive_pdf_search", params, fetch, ttl_seconds=6 * 3600)
+    docs = ((raw.get("response") or {}).get("docs")) or []
+    results = [
+        {
+            "identifier": d.get("identifier"),
+            "title": d.get("title"),
+            "creator": d.get("creator"),
+            "year": d.get("year"),
+            "coverUrl": f"https://archive.org/services/img/{d.get('identifier')}",
+        }
+        for d in docs
+        if d.get("identifier")
+    ]
+    return envelope("Internet Archive", "advancedsearch", query, {"count": (raw.get("response") or {}).get("numFound", len(results)), "results": results})
+
+
+def resolve_archive_pdf_url(identifier: str) -> str | None:
+    """Looks up the item's real file list and returns the actual
+    downloadable PDF URL — only an unencrypted "Text PDF" (Internet
+    Archive marks lending-library/DRM copies as "ACS Encrypted PDF",
+    which isn't freely downloadable, so those are skipped rather than
+    handed back as if they worked)."""
+
+    def fetch():
+        resp = cosmos_get(ARCHIVE_METADATA_URL.format(identifier=identifier), timeout=15, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("archive_metadata", {"id": identifier}, fetch, ttl_seconds=7 * 24 * 3600)
+    for f in raw.get("files") or []:
+        if f.get("format") == "Text PDF" and f.get("name", "").lower().endswith(".pdf"):
+            return f"https://archive.org/download/{identifier}/{f['name']}"
+    return None
+
+
 def fetch_book_text(text_url: str) -> str:
     def fetch():
         resp = cosmos_get(text_url, timeout=20, headers=_HEADERS)

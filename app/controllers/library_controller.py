@@ -31,6 +31,32 @@ class LibrarySearchController:
         return _guard(library.search_books, q, topic, int(page))
 
 
+class LibraryPdfSearchController:
+    """Internet Archive search, scoped to real freely-downloadable PDFs —
+    the complement to Gutendex's plain-text books."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, q=None, page=1):
+        if not q:
+            raise cherrypy.HTTPError(400, "q is required")
+        return _guard(library.search_archive_pdfs, q, int(page))
+
+
+class LibraryPdfUrlController:
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, identifier=None):
+        if not identifier:
+            raise cherrypy.HTTPError(400, "identifier is required")
+        url = _guard(library.resolve_archive_pdf_url, identifier)
+        if not url:
+            raise cherrypy.HTTPError(404, "No freely-downloadable PDF found for this item (it may be lending-library only)")
+        return {"pdfUrl": url}
+
+
 class LibraryCategoriesController:
     exposed = True
 
