@@ -28,6 +28,7 @@ import {
 import CosmosField from "./CosmosField";
 import CosmosImagePreview from "./CosmosImagePreview";
 import CosmosSourceBadge from "./CosmosSourceBadge";
+import ResearchButton from "./ResearchButton";
 import "./Cosmos.scss";
 
 type ResultGroup =
@@ -417,6 +418,7 @@ const AsteroidCard = ({ data, source }: { data: AsteroidData; source: string }) 
         sourceDataset="sbdb"
         data={data}
       />
+      <ResearchButton objectType="asteroid" externalId={data.designation} title={data.name} source={source} sourceDataset="sbdb" data={data} />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
     <dl className="cosmos-field-grid">
@@ -438,6 +440,14 @@ const ExoplanetCard = ({ data }: { data: ExoplanetData }) => (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <CosmosSourceBadge source={data._provenance.source} />
       <SaveButton
+        objectType="exoplanet"
+        externalId={data.name}
+        title={data.name}
+        source={data._provenance.source}
+        sourceDataset={data._provenance.sourceDataset}
+        data={data}
+      />
+      <ResearchButton
         objectType="exoplanet"
         externalId={data.name}
         title={data.name}
@@ -469,6 +479,14 @@ const StarCard = ({ data, source }: { data: StarData; source: string }) => (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <CosmosSourceBadge source={source} />
       <SaveButton
+        objectType="star"
+        externalId={String(data.gaiaSourceId)}
+        title={data.queriedName}
+        source={source}
+        sourceDataset="gaiadr3.gaia_source"
+        data={data}
+      />
+      <ResearchButton
         objectType="star"
         externalId={String(data.gaiaSourceId)}
         title={data.queriedName}
@@ -540,6 +558,7 @@ const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
         sourceDataset="basic"
         data={data}
       />
+      <ResearchButton objectType="galaxy" externalId={data.name} title={data.name} source={source} sourceDataset="basic" data={data} />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
     <dl className="cosmos-field-grid">
@@ -559,6 +578,14 @@ const SupernovaCard = ({ data }: { data: SupernovaRemnantRow }) => (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <CosmosSourceBadge source="HEASARC · Green's SNR Catalog" />
       <SaveButton
+        objectType="supernova"
+        externalId={data.name}
+        title={data.name}
+        source="HEASARC"
+        sourceDataset="Green's Supernova Remnant Catalog"
+        data={data}
+      />
+      <ResearchButton
         objectType="supernova"
         externalId={data.name}
         title={data.name}

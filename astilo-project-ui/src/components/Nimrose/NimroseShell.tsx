@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { AppRoute } from "../../app/AppRoute";
 import NimroseSidebar from "./NimroseSidebar";
@@ -81,8 +81,21 @@ const NimroseShellInner = ({
   );
 };
 
+const VALID_SECTIONS = [
+  "home", "tasks", "calendar", "kanban", "projects", "sprints", "backlog",
+  "notes", "focus", "browser", "bookmarks", "saved", "settings",
+];
+
 const NimroseShell = () => {
-  const [active, setActive] = useState("home");
+  // Lets other parts of the app deep-link into a specific Nimrose section,
+  // e.g. Cosmos's "Research this object" opening straight into Notes —
+  // only read once on mount, not kept in sync with the URL afterward,
+  // since section switches are otherwise local UI state (see NimroseSidebar).
+  const [searchParams] = useSearchParams();
+  const initialSection = searchParams.get("section");
+  const [active, setActive] = useState(
+    initialSection && VALID_SECTIONS.includes(initialSection) ? initialSection : "home"
+  );
   const [collapsed, setCollapsed] = useState(readCollapsed);
 
   const toggleCollapsed = () => {
