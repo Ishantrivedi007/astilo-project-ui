@@ -1028,3 +1028,60 @@ class ChatMessage(Base):
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "editedAt": self.edited_at.isoformat() if self.edited_at else None,
         }
+
+
+class Conversation(Base):
+    """A real 1:1 (or group) conversation between actual Astilo accounts —
+    unlike Nimrose Chat (channels within one user's own workspace, plus a
+    bot), Messenger is genuine cross-account messaging using the real
+    Users table."""
+
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True)
+    is_group = Column(Integer, nullable=False, default=0)  # 0/1
+    name = Column(String(120), nullable=True)  # group name; null for 1:1
+    created_at = Column(DateTime, default=utcnow)
+
+    participants = relationship("ConversationParticipant", back_populates="conversation", cascade="all, delete-orphan")
+    messages = relationship("DirectMessage", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class ConversationParticipant(Base):
+    __tablename__ = "conversation_participants"
+    __table_args__ = (UniqueConstraint("conversation_id", "user_id", name="uq_conversation_participant"),)
+
+    id = Column(Integer, primary_key=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    joined_at = Column(DateTime, default=utcnow)
+
+    conversation = relationship("Conversation", back_populates="participants")
+    user = relationship("User")
+
+
+class DirectMessage(Base):
+    __tablename__ = "direct_messages"
+
+    id = Column(Integer, primary_key=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    edited_at = Column(DateTime, nullable=True)
+    read_at = Column(DateTime, nullable=True)  # set when the *other* participant(s) have seen it
+
+    conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "conversationId": self.conversation_id,
+            "senderId": self.sender_id,
+            "senderName": self.sender.name if self.sender else None,
+            "body": self.body,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "editedAt": self.edited_at.isoformat() if self.edited_at else None,
+            "readAt": self.read_at.isoformat() if self.read_at else None,
+        }
