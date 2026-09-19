@@ -195,6 +195,12 @@ const NimroseKanbanView = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nimrose", "board-columns", activeProjectId] }),
   });
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: ({ ticketIds, assignee }: { ticketIds: number[]; assignee: string | null }) =>
+      Promise.all(ticketIds.map((id) => updateTicket(id, { assignee }))),
+    onSuccess: invalidateTickets,
+  });
+
   const allTickets = ticketsQuery.data ?? [];
 
   const visibleTickets = useMemo(() => {
@@ -395,6 +401,37 @@ const NimroseKanbanView = () => {
         <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as "none" | "assignee")} aria-label="Group into swimlanes">
           <option value="none">No swimlanes</option>
           <option value="assignee">Swimlanes: Assignee</option>
+        </select>
+        <select
+          value=""
+          disabled={visibleTickets.length === 0 || bulkAssignMutation.isPending}
+          onChange={async (e) => {
+            const value = e.target.value;
+            e.target.value = "";
+            if (!value) return;
+            const label = value === "__unassign__" ? "Unassigned" : value;
+            const ok = await confirm({
+              title: "Assign all shown tickets?",
+              message: `Assign all ${visibleTickets.length} currently-shown tickets to "${label}"? This can't be bulk-undone.`,
+              confirmLabel: "Assign",
+            });
+            if (!ok) return;
+            const ids = visibleTickets.map((t) => t.id);
+            bulkAssignMutation.mutate({ ticketIds: ids, assignee: value === "__unassign__" ? null : value });
+          }}
+          aria-label={`Assign all ${visibleTickets.length} visible tickets to`}
+          title="Bulk-assign every ticket currently shown by the filters above"
+        >
+          <option value="">
+            {bulkAssignMutation.isPending ? "Assigning…" : `Assign all ${visibleTickets.length} shown to…`}
+          </option>
+          <option value="__unassign__">Unassigned</option>
+          {usersQuery.data?.map((u) => (
+            <option key={u.id} value={u.name}>
+              {u.name}
+              {u.id === user?.id ? " (me)" : ""}
+            </option>
+          ))}
         </select>
       </div>
 
