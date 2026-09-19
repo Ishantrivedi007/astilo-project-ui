@@ -9,6 +9,7 @@ from app.controllers.cosmos_controller import (
     CosmosLibraryController,
     DonkiController,
     ExoplanetController,
+    HighEnergyObservationController,
     HorizonsController,
     NasaImagesController,
     NeoWsController,
@@ -89,6 +90,7 @@ def build_app():
     cherrypy.tree.mount(NeoWsController(), "/api/cosmos/neo", conf)
     cherrypy.tree.mount(DonkiController(), "/api/cosmos/space-weather", conf)
     cherrypy.tree.mount(StarController(), "/api/cosmos/stars", conf)
+    cherrypy.tree.mount(HighEnergyObservationController(), "/api/cosmos/high-energy", conf)
     cherrypy.tree.mount(CosmosLibraryController(), "/api/cosmos/library", conf)
 
     cherrypy.config.update({

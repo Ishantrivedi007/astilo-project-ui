@@ -15,6 +15,13 @@ SIMBAD_TAP_URL = "https://simbad.cds.unistra.fr/simbad/sim-tap/sync"
 COLUMNS = "source_id,ra,dec,parallax,pmra,pmdec,radial_velocity,phot_g_mean_mag,bp_rp,teff_gspphot"
 
 
+def resolve_coordinates(name: str):
+    """Public wrapper — other adapters (e.g. heasarc.py) that need to turn a
+    common object name into coordinates reuse this instead of duplicating
+    the SIMBAD lookup."""
+    return _resolve_coordinates(name)
+
+
 def _resolve_coordinates(name: str):
     adql = f"select ra, dec from basic join ident on oid = ident.oidref where id = '{name.replace(chr(39), '')}'"
     params = {"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "json", "QUERY": adql}

@@ -1,7 +1,7 @@
 import cherrypy
 import requests
 
-from app.cosmos import exoplanets, gaia, jpl, mast, nasa
+from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa
 from app.db import get_session
 from app.models import CosmosSavedItem
 
@@ -137,6 +137,26 @@ class StarController:
         result = _guard(gaia.search_star, name)
         if result is None:
             raise cherrypy.HTTPError(404, f"No star found matching '{name}'")
+        return result
+
+
+class HighEnergyObservationController:
+    """HEASARC (NuSTAR master catalog by default) — no API key required.
+    Useful for X-ray sources like black holes that have no optical
+    counterpart to search by name directly."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name=None, catalog="numaster", radius=0.2, limit=10):
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required (e.g. ?name=Cygnus X-1)")
+        try:
+            result = _guard(heasarc.search_observations, name, catalog, float(radius), int(limit))
+        except ValueError as exc:
+            raise cherrypy.HTTPError(400, str(exc))
+        if result is None:
+            raise cherrypy.HTTPError(404, f"Could not resolve coordinates for '{name}'")
         return result
 
 
