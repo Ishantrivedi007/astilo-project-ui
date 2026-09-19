@@ -18,8 +18,8 @@ _session.mount("https://", _adapter)
 _session.mount("http://", _adapter)
 
 
-def cosmos_get(url: str, params: dict | None = None, timeout: int = 15):
-    return _session.get(url, params=params or {}, timeout=timeout)
+def cosmos_get(url: str, params: dict | None = None, timeout: int = 15, headers: dict | None = None):
+    return _session.get(url, params=params or {}, timeout=timeout, headers=headers)
 
 
 def envelope(source: str, source_dataset: str, external_id: str, data: dict, raw: dict | None = None):

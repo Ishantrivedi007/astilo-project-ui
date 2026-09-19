@@ -14,6 +14,7 @@ from app.controllers.cosmos_controller import (
     HorizonsController,
     NasaImagesController,
     NeoWsController,
+    ResearchSummaryController,
     StarController,
     SupernovaController,
     TelescopeObservationController,
@@ -126,6 +127,7 @@ def build_app():
     cherrypy.tree.mount(GalaxyController(), "/api/cosmos/galaxies", conf)
     cherrypy.tree.mount(SupernovaController(), "/api/cosmos/supernovae", conf)
     cherrypy.tree.mount(CosmosLibraryController(), "/api/cosmos/library", conf)
+    cherrypy.tree.mount(ResearchSummaryController(), "/api/cosmos/research-summary", conf)
 
     cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)

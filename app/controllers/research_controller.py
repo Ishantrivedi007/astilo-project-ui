@@ -8,6 +8,7 @@ rather than making the user assemble all of that by hand.
 
 import cherrypy
 
+from app.cosmos import wikipedia
 from app.db import get_session
 from app.models import (
     CosmosSavedItem,
@@ -25,13 +26,22 @@ def _user_id():
     return int(cherrypy.request.user["sub"])
 
 
-def _note_body(title: str, source: str | None, source_dataset: str | None, data: dict | None) -> str:
+def _note_body(title: str, source: str | None, source_dataset: str | None, data: dict | None, wiki: dict | None) -> str:
     lines = [f"# {title}", ""]
     if source:
         provenance = f"**Source:** {source}"
         if source_dataset:
             provenance += f" ({source_dataset})"
         lines += [provenance, ""]
+    if wiki and wiki.get("data", {}).get("extract"):
+        w = wiki["data"]
+        lines.append("## Summary")
+        lines.append("")
+        lines.append(w["extract"])
+        lines.append("")
+        if w.get("pageUrl"):
+            lines.append(f"_Source: [Wikipedia — {w.get('title')}]({w['pageUrl']})_")
+            lines.append("")
     if data:
         lines.append("## Data snapshot")
         lines.append("")
@@ -102,10 +112,15 @@ class ResearchController:
             # "Research this object" doesn't stomp on notes already written).
             note = None
             if created_project:
+                try:
+                    wiki = wikipedia.research_summary(title)
+                except Exception:
+                    wiki = None
+
                 note = NimroseNote(
                     user_id=user_id,
                     title=project_name,
-                    content=_note_body(title, source, source_dataset, data),
+                    content=_note_body(title, source, source_dataset, data, wiki),
                     folder=project_name,
                     tags=["cosmos", "research"],
                 )

@@ -1,7 +1,7 @@
 import cherrypy
 import requests
 
-from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa, simbad
+from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa, simbad, wikipedia
 from app.db import get_session
 from app.models import CosmosSavedItem
 
@@ -190,6 +190,21 @@ class SupernovaController:
         if result is None:
             raise cherrypy.HTTPError(404, f"Could not resolve coordinates for '{name}'")
         return result
+
+
+class ResearchSummaryController:
+    """A real, sourced background summary for an object — pulled live from
+    Wikipedia's public API (not scraped HTML, not fabricated). Used to give
+    the Research module actual understandable prose instead of just the raw
+    structured fields Cosmos's other endpoints return."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, q=None):
+        if not q:
+            raise cherrypy.HTTPError(400, "q is required (the object/topic to look up)")
+        return _guard(wikipedia.research_summary, q)
 
 
 class CosmosLibraryController:
