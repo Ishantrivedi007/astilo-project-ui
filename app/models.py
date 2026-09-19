@@ -42,6 +42,9 @@ class User(Base):
 
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
     cosmos_saved_items = relationship("CosmosSavedItem", back_populates="user", cascade="all, delete-orphan")
+    nimrose_projects = relationship("NimroseProject", back_populates="user", cascade="all, delete-orphan")
+    nimrose_tasks = relationship("NimroseTask", back_populates="user", cascade="all, delete-orphan")
+    nimrose_calendar_events = relationship("NimroseCalendarEvent", back_populates="user", cascade="all, delete-orphan")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     login_events = relationship("LoginEvent", back_populates="user", cascade="all, delete-orphan")
@@ -371,5 +374,128 @@ class LoginEvent(Base):
             "id": self.id,
             "ipAddress": self.ip_address,
             "userAgent": self.user_agent,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseProject(Base):
+    """A lightweight project grouping for Nimrose tasks/events. Kept minimal
+    here — Kanban/sprints (a later Nimrose phase) will extend this rather
+    than replace it."""
+
+    __tablename__ = "nimrose_projects"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(150), nullable=False)
+    color = Column(String(20), nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User", back_populates="nimrose_projects")
+    tasks = relationship("NimroseTask", back_populates="project")
+    events = relationship("NimroseCalendarEvent", back_populates="project")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "color": self.color,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+TASK_STATUSES = ("inbox", "planned", "in_progress", "waiting", "completed")
+TASK_PRIORITIES = ("low", "medium", "high", "critical")
+
+
+class NimroseTask(Base):
+    """A Nimrose to-do item. Subtasks/checklist/attachments/comments/
+    dependencies are intentionally deferred to a later phase — this covers
+    the core fields the Tasks view and Calendar linking need now."""
+
+    __tablename__ = "nimrose_tasks"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="inbox")  # inbox | planned | in_progress | waiting | completed
+    priority = Column(String(20), nullable=False, default="medium")  # low | medium | high | critical
+    start_date = Column(String(10), nullable=True)  # "YYYY-MM-DD"
+    due_date = Column(String(10), nullable=True)
+    labels = Column(JSON, nullable=True)  # list[str]
+    estimated_minutes = Column(Integer, nullable=True)
+    actual_minutes = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    user = relationship("User", back_populates="nimrose_tasks")
+    project = relationship("NimroseProject", back_populates="tasks")
+    calendar_events = relationship("NimroseCalendarEvent", back_populates="related_task")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "projectName": self.project.name if self.project else None,
+            "title": self.title,
+            "description": self.description,
+            "status": self.status,
+            "priority": self.priority,
+            "startDate": self.start_date,
+            "dueDate": self.due_date,
+            "labels": self.labels or [],
+            "estimatedMinutes": self.estimated_minutes,
+            "actualMinutes": self.actual_minutes,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class NimroseCalendarEvent(Base):
+    """A Nimrose calendar event — optionally linked to a task/project so the
+    calendar isn't an isolated feature (per the "smart relationship" idea:
+    a meeting can point at the project/task it's about)."""
+
+    __tablename__ = "nimrose_calendar_events"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
+    related_task_id = Column(Integer, ForeignKey("nimrose_tasks.id"), nullable=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    start_at = Column(DateTime, nullable=False)
+    end_at = Column(DateTime, nullable=True)
+    location = Column(String(255), nullable=True)
+    category = Column(String(50), nullable=True)
+    color = Column(String(20), nullable=True)
+    reminder_minutes_before = Column(Integer, nullable=True)
+    recurrence = Column(String(50), nullable=True)  # "none" | "daily" | "weekly" | "monthly" (simple rule, no RRULE yet)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User", back_populates="nimrose_calendar_events")
+    project = relationship("NimroseProject", back_populates="events")
+    related_task = relationship("NimroseTask", back_populates="calendar_events")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "projectName": self.project.name if self.project else None,
+            "relatedTaskId": self.related_task_id,
+            "relatedTaskTitle": self.related_task.title if self.related_task else None,
+            "title": self.title,
+            "description": self.description,
+            "startAt": self.start_at.isoformat() if self.start_at else None,
+            "endAt": self.end_at.isoformat() if self.end_at else None,
+            "location": self.location,
+            "category": self.category,
+            "color": self.color,
+            "reminderMinutesBefore": self.reminder_minutes_before,
+            "recurrence": self.recurrence,
+            "notes": self.notes,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }

@@ -22,6 +22,11 @@ from app.controllers.favorites_controller import FavoritesController
 from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
+from app.controllers.nimrose_controller import (
+    NimroseCalendarController,
+    NimroseProjectsController,
+    NimroseTasksController,
+)
 from app.controllers.playlists_controller import PlaylistsController
 from app.controllers.sessions_controller import SessionsController
 from app.controllers.songs_controller import (
@@ -96,6 +101,10 @@ def build_app():
     cherrypy.tree.mount(GalaxyController(), "/api/cosmos/galaxies", conf)
     cherrypy.tree.mount(SupernovaController(), "/api/cosmos/supernovae", conf)
     cherrypy.tree.mount(CosmosLibraryController(), "/api/cosmos/library", conf)
+
+    cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
+    cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)
+    cherrypy.tree.mount(NimroseCalendarController(), "/api/nimrose/calendar-events", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
