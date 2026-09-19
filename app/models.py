@@ -548,7 +548,7 @@ class NimroseSprint(Base):
         }
 
 
-TICKET_TYPES = ("feature", "bug", "task", "improvement", "research", "design", "documentation")
+TICKET_TYPES = ("feature", "bug", "task", "improvement", "integration", "research", "design", "documentation")
 TICKET_PRIORITIES = ("low", "medium", "high", "critical")
 TICKET_STATUSES = ("backlog", "todo", "in_progress", "review", "done")
 TICKET_LINK_RELATIONS = ("blocks", "blocked_by", "depends_on", "related_to", "duplicate", "parent", "child")
