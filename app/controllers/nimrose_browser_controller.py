@@ -1,5 +1,13 @@
-import cherrypy
+import ipaddress
+import re
+import socket
+from urllib.parse import urlparse
 
+import cherrypy
+import jwt
+import requests
+
+from app.auth import decode_token
 from app.db import get_session
 from app.models import (
     DEFAULT_BROWSER_SPACES,
@@ -291,3 +299,103 @@ class NimroseHistoryController:
             # No id — clear all history for this user.
             session.query(NimroseHistoryEntry).filter_by(user_id=_user_id()).delete()
             return {"cleared": True}
+
+
+PROXY_TIMEOUT_SECONDS = 12
+PROXY_MAX_BYTES = 6 * 1024 * 1024  # 6MB — enough for a typical HTML document
+PROXY_USER_AGENT = "Mozilla/5.0 (compatible; AstiloNimroseBrowser/1.0)"
+
+
+def _is_public_hostname(hostname: str) -> bool:
+    """Blocks the classic SSRF targets — loopback/private/link-local/
+    reserved addresses — so this endpoint can't be pointed at our own
+    infrastructure (localhost, the Docker/host network, cloud metadata
+    endpoints, etc) by supplying a crafted URL."""
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+            return False
+    return True
+
+
+class NimroseBrowserProxyController:
+    """Best-effort proxy so pages that block iframe embedding (via
+    X-Frame-Options / frame-ancestors CSP) can still be viewed inside
+    Nimrose's Browser — we control our own response headers regardless of
+    what the origin site sends, so those headers are simply never
+    forwarded. The proxied HTML gets a <base> tag pointing at the real
+    page, so relative links/images/stylesheets still resolve against the
+    origin site rather than against this endpoint.
+
+    This is NOT a full reverse proxy: only the top-level document is
+    proxied, everything else (scripts, XHR/fetch calls, images) loads
+    directly from the origin site and is subject to that site's own CORS
+    policy as usual. Pages that need cookies/login, or that are heavy
+    client-side SPAs with strict same-origin APIs, will often still fail —
+    that's what the Browser's "open in new tab" fallback is for. Never
+    point this at a page requiring authentication; credentials would pass
+    through this server.
+
+    Auth note: a plain <iframe src> request can't carry an Authorization
+    header, so this endpoint accepts the JWT as a `token` query param
+    instead of the usual header (validated the same way either path).
+    """
+
+    exposed = True
+
+    def GET(self, url=None, token=None):
+        if not token:
+            raise cherrypy.HTTPError(401, "Missing token")
+        try:
+            decode_token(token)
+        except jwt.ExpiredSignatureError:
+            raise cherrypy.HTTPError(401, "Token expired")
+        except jwt.InvalidTokenError:
+            raise cherrypy.HTTPError(401, "Invalid token")
+
+        if not url:
+            raise cherrypy.HTTPError(400, "url is required")
+
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            raise cherrypy.HTTPError(400, "Only http/https URLs are supported")
+        if not _is_public_hostname(parsed.hostname):
+            raise cherrypy.HTTPError(403, "Refusing to proxy a private/internal address")
+
+        try:
+            resp = requests.get(
+                url,
+                timeout=PROXY_TIMEOUT_SECONDS,
+                headers={"User-Agent": PROXY_USER_AGENT},
+                stream=True,
+            )
+        except requests.exceptions.RequestException as exc:
+            raise cherrypy.HTTPError(502, f"Could not load page: {exc}")
+
+        content_type = resp.headers.get("Content-Type", "text/html; charset=utf-8")
+        try:
+            body = resp.raw.read(PROXY_MAX_BYTES + 1, decode_content=True)
+        finally:
+            resp.close()
+        if len(body) > PROXY_MAX_BYTES:
+            raise cherrypy.HTTPError(502, "Page too large to proxy")
+
+        cherrypy.response.headers["Content-Type"] = content_type
+        cherrypy.response.headers["X-Astilo-Proxied-From"] = resp.url
+
+        if "text/html" in content_type.lower():
+            html = body.decode(resp.encoding or "utf-8", errors="replace")
+            if "<base " not in html.lower() and "<base>" not in html.lower():
+                base_tag = f'<base href="{resp.url}">'
+                new_html, count = re.subn(r"(<head[^>]*>)", rf"\1{base_tag}", html, count=1, flags=re.IGNORECASE)
+                html = new_html if count else base_tag + html
+            return html.encode("utf-8")
+
+        return body

@@ -24,6 +24,7 @@ from app.controllers.health_controller import HealthController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.nimrose_browser_controller import (
     NimroseBookmarksController,
+    NimroseBrowserProxyController,
     NimroseBrowserSpacesController,
     NimroseBrowserTabsController,
     NimroseHistoryController,
@@ -127,6 +128,7 @@ def build_app():
     cherrypy.tree.mount(NimroseBrowserTabsController(), "/api/nimrose/browser-tabs", conf)
     cherrypy.tree.mount(NimroseBookmarksController(), "/api/nimrose/bookmarks", conf)
     cherrypy.tree.mount(NimroseHistoryController(), "/api/nimrose/history", conf)
+    cherrypy.tree.mount(NimroseBrowserProxyController(), "/api/nimrose/browser-proxy", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
