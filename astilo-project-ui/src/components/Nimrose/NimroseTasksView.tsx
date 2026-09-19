@@ -13,6 +13,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../../lib/nimroseApi";
+import { useNimrosePrompt } from "./NimrosePromptDialog";
 
 const STATUS_TABS: { value: TaskStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -28,6 +29,7 @@ const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "critical"];
 const NimroseTasksView = () => {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const { prompt } = useNimrosePrompt();
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
@@ -112,9 +114,9 @@ const NimroseTasksView = () => {
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label="Due date" />
         <select
           value={projectId}
-          onChange={(e) => {
+          onChange={async (e) => {
             if (e.target.value === "__new__") {
-              const name = window.prompt("New project name");
+              const name = await prompt({ title: "New project", placeholder: "e.g. Astilo Redesign" });
               if (name?.trim()) createProjectMutation.mutate(name.trim());
               return;
             }

@@ -17,6 +17,7 @@ import {
   type TicketStatus,
 } from "../../lib/kanbanApi";
 import NimroseTicketModal from "./NimroseTicketModal";
+import { useNimrosePrompt } from "./NimrosePromptDialog";
 
 const COLUMNS: { value: TicketStatus; label: string }[] = [
   { value: "backlog", label: "Backlog" },
@@ -41,6 +42,7 @@ type Preset = "all" | "mine" | "unassigned" | "critical";
 const NimroseKanbanView = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { prompt } = useNimrosePrompt();
 
   const [projectId, setProjectId] = useState<number | null>(null);
   const [sprintId, setSprintId] = useState<number | "backlog" | null>(null);
@@ -147,8 +149,8 @@ const NimroseKanbanView = () => {
         <button
           type="button"
           className="nimrose-chip"
-          onClick={() => {
-            const name = window.prompt("New project name");
+          onClick={async () => {
+            const name = await prompt({ title: "New project", placeholder: "e.g. Astilo Redesign" });
             if (name?.trim()) createProjectMutation.mutate(name.trim());
           }}
         >
@@ -185,8 +187,8 @@ const NimroseKanbanView = () => {
         <button
           type="button"
           className="nimrose-chip"
-          onClick={() => {
-            const name = window.prompt("New project name");
+          onClick={async () => {
+            const name = await prompt({ title: "New project", placeholder: "e.g. Astilo Redesign" });
             if (name?.trim()) createProjectMutation.mutate(name.trim());
           }}
         >
@@ -211,8 +213,8 @@ const NimroseKanbanView = () => {
         <button
           type="button"
           className="nimrose-chip"
-          onClick={() => {
-            const name = window.prompt("New sprint name");
+          onClick={async () => {
+            const name = await prompt({ title: "New sprint", placeholder: "e.g. Sprint 1" });
             if (name?.trim()) createSprintMutation.mutate(name.trim());
           }}
         >

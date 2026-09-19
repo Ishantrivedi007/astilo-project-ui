@@ -1634,6 +1634,68 @@
 }
 
 // -------------------------------------------------------------------------
+// Prompt / alert dialog (window.prompt / window.alert replacement)
+// -------------------------------------------------------------------------
+
+.nimrose-prompt-dialog {
+  width: 100%;
+  max-width: 380px;
+  margin-top: 14vh;
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: rgb(var(--surface-rgb) / 0.98);
+}
+
+.nimrose-prompt-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+}
+
+.nimrose-prompt-message {
+  font-size: 0.85rem;
+  color: rgb(var(--ink-muted-rgb));
+  margin: 0 0 0.8rem;
+}
+
+.nimrose-prompt-input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.22);
+  background: rgb(var(--bg-rgb) / 0.4);
+  color: rgb(var(--ink-rgb));
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--accent-rgb) / 0.6);
+  }
+}
+
+.nimrose-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.nimrose-prompt-confirm {
+  padding: 0.45rem 1rem;
+  border-radius: 0.6rem;
+  border: none;
+  background: rgb(var(--accent-rgb) / 0.85);
+  color: rgb(var(--bg-rgb));
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb));
+  }
+}
+
+// -------------------------------------------------------------------------
 // Right context panel
 // -------------------------------------------------------------------------
 

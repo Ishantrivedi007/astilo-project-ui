@@ -10,6 +10,7 @@ import NimroseNotesView from "./NimroseNotesView";
 import NimroseFocusView from "./NimroseFocusView";
 import NimroseCommandPalette from "./NimroseCommandPalette";
 import { NimroseFocusProvider, useNimroseFocus } from "./NimroseFocusContext";
+import { NimrosePromptProvider } from "./NimrosePromptDialog";
 import "./Nimrose.scss";
 
 const COLLAPSE_KEY = "nimrose-sidebar-collapsed";
@@ -90,9 +91,11 @@ const NimroseShell = () => {
   };
 
   return (
-    <NimroseFocusProvider>
-      <NimroseShellInner active={active} setActive={setActive} collapsed={collapsed} toggleCollapsed={toggleCollapsed} />
-    </NimroseFocusProvider>
+    <NimrosePromptProvider>
+      <NimroseFocusProvider>
+        <NimroseShellInner active={active} setActive={setActive} collapsed={collapsed} toggleCollapsed={toggleCollapsed} />
+      </NimroseFocusProvider>
+    </NimrosePromptProvider>
   );
 };
 

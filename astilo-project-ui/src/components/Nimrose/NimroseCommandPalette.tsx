@@ -16,19 +16,21 @@ import { AppRoute } from "../../app/AppRoute";
 import { createNimroseNote, createNimroseTask, fetchNimroseProjects } from "../../lib/nimroseApi";
 import { createTicket } from "../../lib/kanbanApi";
 import { useNimroseFocus } from "./NimroseFocusContext";
+import { useNimrosePrompt } from "./NimrosePromptDialog";
 
 interface Command {
   id: string;
   label: string;
   hint?: string;
   icon: typeof Calendar;
-  run: () => void;
+  run: () => void | Promise<void>;
 }
 
 const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) => void }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toggleRunning, running } = useNimroseFocus();
+  const { prompt, alertInfo } = useNimrosePrompt();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -88,8 +90,8 @@ const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) =
         label: "Create task…",
         hint: "prompts for a title",
         icon: Plus,
-        run: () => {
-          const title = window.prompt("New task title");
+        run: async () => {
+          const title = await prompt({ title: "New task", placeholder: "What needs doing?" });
           if (title?.trim()) {
             createTaskMutation.mutate({ title: title.trim() });
             onNavigate("tasks");
@@ -101,9 +103,9 @@ const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) =
         label: "Create note…",
         hint: "prompts for a title",
         icon: Plus,
-        run: () => {
-          const title = window.prompt("New note title") ?? "Untitled note";
-          createNoteMutation.mutate({ title: title.trim() || "Untitled note" });
+        run: async () => {
+          const title = await prompt({ title: "New note", placeholder: "Untitled note" });
+          createNoteMutation.mutate({ title: title?.trim() || "Untitled note" });
           onNavigate("notes");
         },
       },
@@ -112,13 +114,13 @@ const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) =
         label: "Create ticket…",
         hint: projectsQuery.data?.[0] ? `in ${projectsQuery.data[0].name}` : "needs a project first",
         icon: Plus,
-        run: () => {
+        run: async () => {
           const project = projectsQuery.data?.[0];
           if (!project) {
-            window.alert("Create a project in Kanban first.");
+            await alertInfo("Create a project in Kanban first.", "No project yet");
             return;
           }
-          const title = window.prompt("New ticket title");
+          const title = await prompt({ title: "New ticket", placeholder: "Ticket title" });
           if (title?.trim()) {
             createTicketMutation.mutate({ projectId: project.id, title: title.trim() });
             onNavigate("kanban");
@@ -127,7 +129,18 @@ const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) =
       },
       { id: "change-theme", label: "Change theme", icon: Palette, run: () => navigate(AppRoute.customize) },
     ],
-    [onNavigate, running, toggleRunning, projectsQuery.data, createTaskMutation, createNoteMutation, createTicketMutation, navigate]
+    [
+      onNavigate,
+      running,
+      toggleRunning,
+      projectsQuery.data,
+      createTaskMutation,
+      createNoteMutation,
+      createTicketMutation,
+      navigate,
+      prompt,
+      alertInfo,
+    ]
   );
 
   const filtered = commands.filter((c) => c.label.toLowerCase().includes(query.trim().toLowerCase()));
