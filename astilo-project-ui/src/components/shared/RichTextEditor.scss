@@ -83,6 +83,23 @@
   }
 }
 
+.rte-panel--swatches {
+  gap: 0.5rem;
+}
+
+.rte-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(140, 160, 255, 0.3);
+  padding: 0;
+  cursor: pointer;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+}
+
 .rte-editable {
   min-height: 280px;
   background: rgba(0, 0, 0, 0.2);
@@ -119,6 +136,14 @@
 
   a {
     color: #7fb0ff;
+  }
+
+  blockquote {
+    margin: 0 0 0.6em;
+    padding: 0.4rem 0.9rem;
+    border-left: 3px solid rgba(127, 176, 255, 0.5);
+    color: rgba(232, 236, 255, 0.7);
+    font-style: italic;
   }
 
   img {

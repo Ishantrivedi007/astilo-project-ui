@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Bold,
   ChartColumn,
   Heading1,
   Heading2,
   Heading3,
+  Highlighter,
   Image as ImageIcon,
   Italic,
   Link2,
   List,
   ListOrdered,
+  Palette,
   Pilcrow,
+  Quote,
   Strikethrough,
   Table as TableIcon,
   Underline,
@@ -47,7 +53,7 @@ interface Props {
  * reused in both Notes and the Research page. */
 const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [panel, setPanel] = useState<"image" | "chart" | "link" | null>(null);
+  const [panel, setPanel] = useState<"image" | "chart" | "link" | "color" | "highlight" | null>(null);
   const [imageUrl, setImageUrl] = useState("");
   const [imageCaption, setImageCaption] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -75,6 +81,12 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
 
   const exec = (command: string, arg?: string) => {
     ref.current?.focus();
+    if (command === "foreColor" || command === "hiliteColor") {
+      // Without this, some browsers wrap the selection in a legacy <font>
+      // tag instead of a styled <span> — the sanitizer only allows the
+      // latter, so color/highlight would silently vanish on save.
+      document.execCommand("styleWithCSS", false, "true");
+    }
     document.execCommand(command, false, arg);
     emit();
   };
@@ -116,6 +128,26 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
           <Pilcrow size={14} />
         </button>
         <span className="rte-sep" />
+        <button type="button" onClick={() => exec("justifyLeft")} aria-label="Align left">
+          <AlignLeft size={14} />
+        </button>
+        <button type="button" onClick={() => exec("justifyCenter")} aria-label="Align center">
+          <AlignCenter size={14} />
+        </button>
+        <button type="button" onClick={() => exec("justifyRight")} aria-label="Align right">
+          <AlignRight size={14} />
+        </button>
+        <span className="rte-sep" />
+        <button type="button" onClick={() => setPanel(panel === "color" ? null : "color")} aria-label="Text color">
+          <Palette size={14} />
+        </button>
+        <button type="button" onClick={() => setPanel(panel === "highlight" ? null : "highlight")} aria-label="Highlight">
+          <Highlighter size={14} />
+        </button>
+        <button type="button" onClick={() => exec("formatBlock", "blockquote")} aria-label="Quote">
+          <Quote size={14} />
+        </button>
+        <span className="rte-sep" />
         <button type="button" onClick={() => exec("insertUnorderedList")} aria-label="Bullet list">
           <List size={14} />
         </button>
@@ -150,6 +182,48 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
           >
             Add link
           </button>
+          <button type="button" onClick={closePanel} aria-label="Cancel">
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {panel === "color" && (
+        <div className="rte-panel rte-panel--swatches">
+          {["#e8e6ff", "#f87171", "#facc15", "#4ade80", "#60a5fa", "#a78bfa", "#f472b6", "#94a3b8"].map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="rte-swatch"
+              style={{ background: c }}
+              aria-label={`Text color ${c}`}
+              onClick={() => {
+                exec("foreColor", c);
+                closePanel();
+              }}
+            />
+          ))}
+          <button type="button" onClick={closePanel} aria-label="Cancel">
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {panel === "highlight" && (
+        <div className="rte-panel rte-panel--swatches">
+          {["#fef08a", "#bbf7d0", "#bfdbfe", "#fbcfe8", "#fde68a", "#ddd6fe", "transparent"].map((c) => (
+            <button
+              key={c}
+              type="button"
+              className="rte-swatch"
+              style={{ background: c === "transparent" ? "repeating-conic-gradient(#999 0% 25%, #ccc 0% 50%) 0 0 / 8px 8px" : c }}
+              aria-label={c === "transparent" ? "Remove highlight" : `Highlight ${c}`}
+              onClick={() => {
+                exec("hiliteColor", c);
+                closePanel();
+              }}
+            />
+          ))}
           <button type="button" onClick={closePanel} aria-label="Cancel">
             <X size={12} />
           </button>
