@@ -1,11 +1,19 @@
 import { motion } from "framer-motion";
 
-export type MusicTabId = "player" | "search" | "lyrics" | "manage";
+export type MusicTabId =
+  | "player"
+  | "search"
+  | "lyrics"
+  | "video"
+  | "equalizer"
+  | "manage";
 
 const TABS: { id: MusicTabId; label: string }[] = [
   { id: "player", label: "Music Player" },
   { id: "search", label: "Search Song" },
   { id: "lyrics", label: "Lyrics Search" },
+  { id: "video", label: "Video Library" },
+  { id: "equalizer", label: "Equalizer" },
   { id: "manage", label: "Manage" },
 ];
 

@@ -7,6 +7,7 @@ import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { AppInput, PageHeading } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { fetchOrder, payOrder, storeErrorMessage } from "../../lib/storeApi";
+import { cardCvc, cardExpiry, cardNumber as validateCardNumber, required } from "../../lib/validators";
 
 const formatCardNumber = (v: string) =>
   v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
@@ -116,6 +117,7 @@ const Payment = () => {
   const [cardNumber, setCardNumber] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
+  const [touched, setTouched] = useState(false);
 
   const { data: order, isLoading: isOrderLoading } = useQuery({
     queryKey: ["store-order", orderId],
@@ -136,11 +138,13 @@ const Payment = () => {
 
   const digits = cardNumber.replace(/\s/g, "");
   const brand = detectBrand(digits);
-  const isValid =
-    name.trim().length > 0 &&
-    digits.length >= 12 &&
-    /^\d{2}\/\d{2}$/.test(expiry) &&
-    cvv.length >= 3;
+  const errors = {
+    name: required(name, "Name on card"),
+    cardNumber: validateCardNumber(digits),
+    expiry: cardExpiry(expiry),
+    cvv: cardCvc(cvv),
+  };
+  const isValid = Object.values(errors).every((e) => !e);
 
   if (isOrderLoading)
     return (
@@ -173,6 +177,7 @@ const Payment = () => {
           className="glass-card flex flex-col gap-4 p-6 lg:col-span-2"
           onSubmit={(e) => {
             e.preventDefault();
+            setTouched(true);
             if (!isValid) {
               toast.error("Enter a valid card name, number, expiry (MM/YY), and CVV.");
               return;
@@ -230,7 +235,14 @@ const Payment = () => {
             a real processor.
           </p>
 
-          <AppInput label="Name on card" value={name} onValueChange={setName} isRequired />
+          <AppInput
+            label="Name on card"
+            value={name}
+            onValueChange={setName}
+            isRequired
+            isInvalid={touched && Boolean(errors.name)}
+            errorMessage={errors.name}
+          />
           <AppInput
             label="Card number"
             value={cardNumber}
@@ -238,6 +250,8 @@ const Payment = () => {
             placeholder="1234 5678 9012 3456"
             inputMode="numeric"
             isRequired
+            isInvalid={touched && Boolean(errors.cardNumber)}
+            errorMessage={errors.cardNumber}
           />
           <div className="grid grid-cols-2 gap-4">
             <AppInput
@@ -247,6 +261,8 @@ const Payment = () => {
               placeholder="MM/YY"
               inputMode="numeric"
               isRequired
+              isInvalid={touched && Boolean(errors.expiry)}
+              errorMessage={errors.expiry}
             />
             <AppInput
               label="CVV"
@@ -256,6 +272,8 @@ const Payment = () => {
               type="password"
               inputMode="numeric"
               isRequired
+              isInvalid={touched && Boolean(errors.cvv)}
+              errorMessage={errors.cvv}
             />
           </div>
 

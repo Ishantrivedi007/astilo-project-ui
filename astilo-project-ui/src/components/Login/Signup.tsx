@@ -7,6 +7,7 @@ import { AppInput, GradientButton } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { authErrorMessage } from "../../auth/authApi";
+import { email as validateEmail, passwordStrength, required } from "../../lib/validators";
 import "./Auth.scss";
 
 const FEATURES = [
@@ -23,20 +24,17 @@ const Signup = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const passwordTooShort = password.length > 0 && password.length < 6;
+  const nameError = required(name, "Name");
+  const emailError = validateEmail(email);
+  const passwordError = passwordStrength(password);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      toast.error("Name and email are required.");
-      return;
-    }
-    if (password.length < 6) {
-      toast.error("Password needs to be at least 6 characters.");
-      return;
-    }
+    setTouched(true);
+    if (nameError || emailError || passwordError) return;
     setSubmitting(true);
     try {
       await register(name, email, password);
@@ -99,6 +97,8 @@ const Signup = () => {
               value={name}
               onValueChange={setName}
               isRequired
+              isInvalid={touched && Boolean(nameError)}
+              errorMessage={nameError}
               autoComplete="name"
             />
             <AppInput
@@ -108,6 +108,8 @@ const Signup = () => {
               value={email}
               onValueChange={setEmail}
               isRequired
+              isInvalid={touched && Boolean(emailError)}
+              errorMessage={emailError}
               autoComplete="email"
             />
             <AppInput
@@ -117,8 +119,8 @@ const Signup = () => {
               value={password}
               onValueChange={setPassword}
               isRequired
-              isInvalid={passwordTooShort}
-              errorMessage={passwordTooShort ? "At least 6 characters" : undefined}
+              isInvalid={touched && Boolean(passwordError)}
+              errorMessage={passwordError}
               autoComplete="new-password"
             />
             <GradientButton type="submit" fullWidth className="mt-1" isDisabled={submitting}>

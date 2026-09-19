@@ -117,6 +117,51 @@ code {
   .shadow-glow-2 {
     box-shadow: 0 0 40px -8px rgb(var(--accent-2-rgb) / 0.5);
   }
+
+  .neon-card {
+    position: relative;
+    border-radius: 1.5rem;
+    background: rgb(var(--surface-rgb) / 0.72);
+    border: 1px solid transparent;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    animation: neon-warm-pulse 3.2s ease-in-out infinite;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: linear-gradient(
+        120deg,
+        #ffb347,
+        #ff5f6d,
+        #ffd166,
+        #ff5f6d,
+        #ffb347
+      );
+      background-size: 200% 200%;
+      animation: nav-neon-flow 6s linear infinite;
+      -webkit-mask: linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+  }
+}
+
+@keyframes neon-warm-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px -6px rgb(255 140 66 / 0.55),
+      0 0 45px -14px rgb(255 64 129 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px -4px rgb(255 159 67 / 0.75),
+      0 0 60px -10px rgb(255 64 129 / 0.6);
+  }
 }
 
 @keyframes nav-neon-flow {

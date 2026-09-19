@@ -7,6 +7,7 @@ import { AppInput, PageHeading } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { checkout, storeErrorMessage } from "../../lib/storeApi";
 import { useProductStore } from "./useProductStore";
+import { phone as validatePhone, postalCode, required } from "../../lib/validators";
 
 interface Address {
   fullName: string;
@@ -22,6 +23,7 @@ const EMPTY_ADDRESS: Address = { fullName: "", phone: "", line1: "", city: "", s
 const Checkout = () => {
   const { cart, cartTotal, clearCart } = useProductStore();
   const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
+  const [touched, setTouched] = useState(false);
   const navigate = useNavigate();
   const orderPlaced = useRef(false);
 
@@ -42,7 +44,15 @@ const Checkout = () => {
 
   const set = (key: keyof Address) => (value: string) => setAddress((a) => ({ ...a, [key]: value }));
 
-  const isValid = Object.values(address).every((v) => v.trim().length > 0);
+  const errors = {
+    fullName: required(address.fullName, "Full name"),
+    phone: validatePhone(address.phone) ?? required(address.phone, "Phone number"),
+    line1: required(address.line1, "Address line"),
+    city: required(address.city, "City"),
+    state: required(address.state, "State"),
+    zip: postalCode(address.zip),
+  };
+  const isValid = Object.values(errors).every((e) => !e);
 
   return (
     <section className="pb-16">
@@ -55,6 +65,7 @@ const Checkout = () => {
           className="glass-card flex flex-col gap-4 p-5 lg:col-span-2"
           onSubmit={(e) => {
             e.preventDefault();
+            setTouched(true);
             if (!isValid) {
               toast.error("Fill in every field so we know where to ship this.");
               return;
@@ -63,13 +74,55 @@ const Checkout = () => {
           }}
         >
           <h2 className="font-display text-xl font-bold text-ink">Shipping address</h2>
-          <AppInput label="Full name" value={address.fullName} onValueChange={set("fullName")} isRequired />
-          <AppInput label="Phone number" value={address.phone} onValueChange={set("phone")} isRequired />
-          <AppInput label="Address line" value={address.line1} onValueChange={set("line1")} isRequired />
+          <AppInput
+            label="Full name"
+            value={address.fullName}
+            onValueChange={set("fullName")}
+            isRequired
+            isInvalid={touched && Boolean(errors.fullName)}
+            errorMessage={errors.fullName}
+          />
+          <AppInput
+            label="Phone number"
+            value={address.phone}
+            onValueChange={set("phone")}
+            isRequired
+            isInvalid={touched && Boolean(errors.phone)}
+            errorMessage={errors.phone}
+          />
+          <AppInput
+            label="Address line"
+            value={address.line1}
+            onValueChange={set("line1")}
+            isRequired
+            isInvalid={touched && Boolean(errors.line1)}
+            errorMessage={errors.line1}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <AppInput label="City" value={address.city} onValueChange={set("city")} isRequired />
-            <AppInput label="State" value={address.state} onValueChange={set("state")} isRequired />
-            <AppInput label="ZIP / PIN" value={address.zip} onValueChange={set("zip")} isRequired />
+            <AppInput
+              label="City"
+              value={address.city}
+              onValueChange={set("city")}
+              isRequired
+              isInvalid={touched && Boolean(errors.city)}
+              errorMessage={errors.city}
+            />
+            <AppInput
+              label="State"
+              value={address.state}
+              onValueChange={set("state")}
+              isRequired
+              isInvalid={touched && Boolean(errors.state)}
+              errorMessage={errors.state}
+            />
+            <AppInput
+              label="ZIP / PIN"
+              value={address.zip}
+              onValueChange={set("zip")}
+              isRequired
+              isInvalid={touched && Boolean(errors.zip)}
+              errorMessage={errors.zip}
+            />
           </div>
           <Button
             type="submit"

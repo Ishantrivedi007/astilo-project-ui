@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { GlassPanel, StatCard, Chart, BarList, GradientButton, AppInput } from "../shared";
+import { GlassPanel, StatCard, Chart, BarList, GradientButton, AppInput, useConfirm } from "../shared";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { deleteSong, fetchSongs, updateSong, type DownloadedSong } from "../../lib/musicApi";
 import { SONGS_QUERY_KEY } from "./useMusicLibrary";
@@ -56,6 +56,7 @@ const cumulativeByDay = (dates: (string | null)[]) => {
 
 const LibrarySection = () => {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editArtist, setEditArtist] = useState("");
@@ -282,10 +283,14 @@ const LibrarySection = () => {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm(`Delete "${song.title}"? This removes the downloaded file too.`)) {
-                                deleteMutation.mutate(song.id);
-                              }
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: "Delete song?",
+                                message: `Delete "${song.title}"? This removes the downloaded file too.`,
+                                confirmLabel: "Delete",
+                                danger: true,
+                              });
+                              if (ok) deleteMutation.mutate(song.id);
                             }}
                             disabled={deleteMutation.isPending}
                             className="rounded-full bg-ink/10 px-2 py-1 text-[11px] font-bold text-danger hover:bg-danger/10 disabled:opacity-50"
@@ -344,6 +349,7 @@ const LibrarySection = () => {
 
 const PlaylistsSection = () => {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [newName, setNewName] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [renamingId, setRenamingId] = useState<number | null>(null);
@@ -494,8 +500,14 @@ const PlaylistsSection = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm(`Delete playlist "${p.name}"?`)) deleteMutation.mutate(p.id);
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Delete playlist?",
+                        message: `Delete playlist "${p.name}"?`,
+                        confirmLabel: "Delete",
+                        danger: true,
+                      });
+                      if (ok) deleteMutation.mutate(p.id);
                     }}
                     className="rounded-full bg-ink/10 px-2 py-1 text-[11px] font-bold text-danger hover:bg-danger/10"
                   >

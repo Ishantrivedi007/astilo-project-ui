@@ -9,8 +9,12 @@ export interface Track {
   cover?: string;
   /** Lyrics bundled with the song, used as the fallback for the lyrics lookup. */
   lyrics?: string;
+  /** Time-synced (LRC) lyrics saved to this song's DB record, if the user synced any. */
+  syncedLyrics?: string;
   /** Backend Song id — set only for downloaded tracks, used by the Manage tab. */
   songId?: number;
+  /** Playlist-track row id — set only when this entry came from a specific playlist. */
+  playlistTrackId?: number;
 }
 
 export const DEFAULT_COVER = "/nextuiplayer.jpeg";
@@ -25,6 +29,12 @@ Elle sait qu'elle t'aura pas, mais elle y croit
 J'suis dans le carré VIP avec mes copines
 On fait le show, on fait le show toute la night`;
 
+// The rest of the queue used to be filled out with silent placeholder
+// entries (no real audio file behind them). Those are gone — "Copines" is
+// the only bundled track because it ships with a real mp3 in /public; every
+// other song in the queue now comes from the actual download pipeline
+// (Search Song tab), which saves a real file to /public/downloads and a
+// matching row in the songs table.
 export const tracks: Track[] = [
   {
     name: "Copines",
@@ -35,12 +45,6 @@ export const tracks: Track[] = [
     cover: "/copines-cover.jpg",
     lyrics: COPINES_LYRICS,
   },
-  { name: "La Vie En Rose", artist: "Louis Armstrong", length: "3:27", emoji: "🌹" },
-  { name: "Iris", artist: "Goo Goo Dolls", length: "4:49", emoji: "👁️" },
-  { name: "Hello", artist: "Adele", length: "4:55", emoji: "📞" },
-  { name: "Conversations in the Dark", artist: "John Legend", length: "3:59", emoji: "🌙" },
-  { name: "It Might Be You", artist: "Stephen Bishop", length: "3:52", emoji: "✨" },
-  { name: "Someone Like You", artist: "Adele", length: "4:45", emoji: "💧" },
 ];
 
 /** "3:36" -> 216 */

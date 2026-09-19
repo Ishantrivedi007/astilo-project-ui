@@ -24,6 +24,7 @@ import {
 } from "../../lib/profileApi";
 import { resizeImageToDataUrl } from "../../lib/imageResize";
 import { summarizeUserAgent } from "../../lib/userAgent";
+import { matches, passwordStrength, phone as validatePhone, required, url as validateUrl } from "../../lib/validators";
 
 const initials = (name: string) =>
   name
@@ -114,10 +115,16 @@ const Profile = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<DetailsForm>(toForm(me));
+  const [detailsTouched, setDetailsTouched] = useState(false);
 
   useEffect(() => {
     if (!isEditing) setForm(toForm(me));
   }, [me, isEditing]);
+
+  const nameError = required(form.name, "Full name");
+  const phoneError = validatePhone(form.phone);
+  const websiteError = validateUrl(form.website);
+  const detailsHasErrors = Boolean(nameError || phoneError || websiteError);
 
   const applyResult = (next: AuthUser) => {
     queryClient.setQueryData(["me"], next);
@@ -159,6 +166,11 @@ const Profile = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [securityTouched, setSecurityTouched] = useState(false);
+
+  const currentPasswordError = required(currentPassword, "Current password");
+  const newPasswordError = passwordStrength(newPassword);
+  const confirmPasswordError = matches(confirmPassword, newPassword, "New passwords don't match.");
 
   const savePassword = useMutation({
     mutationFn: () => changePassword(currentPassword, newPassword),
@@ -280,6 +292,7 @@ const Profile = () => {
                 onPress={() => {
                   setForm(toForm(me));
                   setIsEditing(false);
+                  setDetailsTouched(false);
                 }}
               >
                 Cancel
@@ -289,7 +302,11 @@ const Profile = () => {
                 radius="full"
                 isDisabled={saveDetails.isPending}
                 className="bg-gradient-to-r from-accent to-accent-2 font-bold text-[#17131f]"
-                onPress={() => saveDetails.mutate()}
+                onPress={() => {
+                  setDetailsTouched(true);
+                  if (detailsHasErrors) return;
+                  saveDetails.mutate();
+                }}
               >
                 {saveDetails.isPending ? "Saving…" : "Save"}
               </Button>
@@ -309,7 +326,14 @@ const Profile = () => {
       >
         {isEditing ? (
           <div className="flex flex-col gap-4">
-            <AppInput label="Full name" value={form.name} onValueChange={set("name")} isRequired />
+            <AppInput
+              label="Full name"
+              value={form.name}
+              onValueChange={set("name")}
+              isRequired
+              isInvalid={detailsTouched && Boolean(nameError)}
+              errorMessage={nameError}
+            />
             <AppTextarea
               label="Bio"
               value={form.bio}
@@ -318,7 +342,13 @@ const Profile = () => {
               placeholder="A short bio about you…"
             />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <AppInput label="Phone number" value={form.phone} onValueChange={set("phone")} />
+              <AppInput
+                label="Phone number"
+                value={form.phone}
+                onValueChange={set("phone")}
+                isInvalid={detailsTouched && Boolean(phoneError)}
+                errorMessage={phoneError}
+              />
               <AppInput label="Location" value={form.location} onValueChange={set("location")} placeholder="City, Country" />
               <AppInput
                 label="Date of birth"
@@ -341,7 +371,14 @@ const Profile = () => {
                 </select>
               </div>
             </div>
-            <AppInput label="Website" value={form.website} onValueChange={set("website")} placeholder="https://…" />
+            <AppInput
+              label="Website"
+              value={form.website}
+              onValueChange={set("website")}
+              placeholder="https://…"
+              isInvalid={detailsTouched && Boolean(websiteError)}
+              errorMessage={websiteError}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -465,14 +502,8 @@ const Profile = () => {
             className="flex flex-col gap-4"
             onSubmit={(e) => {
               e.preventDefault();
-              if (newPassword.length < 6) {
-                toast.error("New password must be at least 6 characters.");
-                return;
-              }
-              if (newPassword !== confirmPassword) {
-                toast.error("New passwords don't match.");
-                return;
-              }
+              setSecurityTouched(true);
+              if (currentPasswordError || newPasswordError || confirmPasswordError) return;
               savePassword.mutate();
             }}
           >
@@ -482,6 +513,8 @@ const Profile = () => {
               value={currentPassword}
               onValueChange={setCurrentPassword}
               isRequired
+              isInvalid={securityTouched && Boolean(currentPasswordError)}
+              errorMessage={currentPasswordError}
             />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <AppInput
@@ -490,6 +523,8 @@ const Profile = () => {
                 value={newPassword}
                 onValueChange={setNewPassword}
                 isRequired
+                isInvalid={securityTouched && Boolean(newPasswordError)}
+                errorMessage={newPasswordError}
               />
               <AppInput
                 label="Confirm new password"
@@ -497,6 +532,8 @@ const Profile = () => {
                 value={confirmPassword}
                 onValueChange={setConfirmPassword}
                 isRequired
+                isInvalid={securityTouched && Boolean(confirmPasswordError)}
+                errorMessage={confirmPasswordError}
               />
             </div>
             <div className="flex gap-2">
@@ -510,6 +547,7 @@ const Profile = () => {
                   setCurrentPassword("");
                   setNewPassword("");
                   setConfirmPassword("");
+                  setSecurityTouched(false);
                 }}
               >
                 Cancel

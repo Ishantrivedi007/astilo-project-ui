@@ -1,4 +1,6 @@
 import AppRoutes from "./app/AppRoutes";
+import MiniPlayer from "./components/MusicPlayer/MiniPlayer";
+import DownloadTray from "./components/MusicPlayer/DownloadTray";
 import { usePreferences } from "./theme/PreferencesProvider";
 
 export default function App() {
@@ -24,6 +26,8 @@ export default function App() {
       <div className="relative z-10">
         <AppRoutes />
       </div>
+      <MiniPlayer />
+      <DownloadTray />
     </div>
   );
 }

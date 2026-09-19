@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { Slider } from "@heroui/react";
 import { toast } from "sonner";
-import { DEFAULT_COVER, lengthToSeconds, type Track } from "./tracks";
+import { DEFAULT_COVER, lengthToSeconds } from "./tracks";
+import { usePlayer } from "./PlayerContext";
 import "./MusicPlayer.scss";
 
 const svg = {
@@ -92,96 +93,41 @@ const formatTime = (t: number) => {
   return `${m}:${s < 10 ? "0" : ""}${s}`;
 };
 
-interface MusicPlayerProps {
-  track: Track;
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  onPlayingChange: (playing: boolean) => void;
-  onTimeChange: (time: number) => void;
-  onDurationChange: (duration: number) => void;
-}
+const MusicPlayer = () => {
+  const {
+    track,
+    isPlaying,
+    currentTime,
+    duration,
+    volume,
+    muted,
+    togglePlay,
+    next,
+    prev,
+    seek,
+    setVolume,
+    setMuted,
+  } = usePlayer();
 
-const MusicPlayer = ({
-  track,
-  isPlaying,
-  currentTime,
-  duration,
-  onPlayingChange,
-  onTimeChange,
-  onDurationChange,
-}: MusicPlayerProps) => {
-  const isAvailable = Boolean(track.audio);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const fallbackTotal = lengthToSeconds(track.length);
-  const [volume, setVolume] = useState(65);
-  const [muted, setMuted] = useState(false);
   const [volOpen, setVolOpen] = useState(false);
   const [liked, setLiked] = useState(false);
   const [shuffle, setShuffle] = useState(false);
 
-  const effectiveVolume = muted ? 0 : volume;
+  if (!track) {
+    return (
+      <div className="neon-card flex h-full w-full items-center justify-center p-6 text-sm text-ink/50">
+        This queue is empty.
+      </div>
+    );
+  }
 
-  // Seed the timeline for songs without an audio file.
-  useEffect(() => {
-    if (!isAvailable) onDurationChange(lengthToSeconds(track.length));
-  }, [isAvailable, track, onDurationChange]);
-
-  // Real playback for available songs.
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
-    if (isPlaying) {
-      el.play().catch(() => onPlayingChange(false));
-    } else {
-      el.pause();
-    }
-  }, [isPlaying, track, onPlayingChange]);
-
-  useEffect(() => {
-    const el = audioRef.current;
-    if (el) el.volume = effectiveVolume / 100;
-  }, [effectiveVolume, track]);
-
-  // Simulated progress for songs without an audio file.
-  useEffect(() => {
-    if (isAvailable || !isPlaying) return;
-    const id = window.setInterval(() => {
-      onTimeChange(currentTime >= duration ? 0 : currentTime + 1);
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [isAvailable, isPlaying, currentTime, duration, onTimeChange]);
-
+  const isAvailable = Boolean(track.audio);
+  const fallbackTotal = lengthToSeconds(track.length);
   const total = duration || fallbackTotal || 1;
   const cover = track.cover ?? DEFAULT_COVER;
 
-  const setIsPlaying = (updater: boolean | ((p: boolean) => boolean)) =>
-    onPlayingChange(
-      typeof updater === "function" ? updater(isPlaying) : updater
-    );
-
-  const seek = (value: number) => {
-    onTimeChange(value);
-    if (isAvailable && audioRef.current) audioRef.current.currentTime = value;
-  };
-
   return (
-    <div className="glass-card h-full w-full p-6">
-      {isAvailable && (
-        <audio
-          ref={audioRef}
-          src={track.audio}
-          preload="metadata"
-          onLoadedMetadata={(e) => onDurationChange(e.currentTarget.duration)}
-          onTimeUpdate={(e) => onTimeChange(e.currentTarget.currentTime)}
-          onEnded={() => {
-            onPlayingChange(false);
-            onTimeChange(0);
-          }}
-        />
-      )}
-
+    <div className="neon-card h-full w-full p-6">
       <div className="mb-5 flex items-center justify-between">
         <span className="rounded-full bg-ink/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-ink/70">
           {isAvailable ? "Now playing" : "Now vibing"}
@@ -262,14 +208,14 @@ const MusicPlayer = ({
           </button>
 
           <div className="deck-center">
-            <button type="button" className="ctrl-btn" aria-label="Previous">
+            <button type="button" className="ctrl-btn" onClick={prev} aria-label="Previous">
               <Icon d={svg.prev} fill />
             </button>
             <button
               type="button"
               className="play-orb animate-pulse-glow"
               data-playing={isPlaying}
-              onClick={() => setIsPlaying((p) => !p)}
+              onClick={togglePlay}
               aria-label={isPlaying ? "Pause" : "Play"}
             >
               {isPlaying ? (
@@ -281,7 +227,7 @@ const MusicPlayer = ({
                 <Icon d={svg.play} fill size={24} />
               )}
             </button>
-            <button type="button" className="ctrl-btn" aria-label="Next">
+            <button type="button" className="ctrl-btn" onClick={next} aria-label="Next">
               <Icon d={svg.next} fill />
             </button>
           </div>
@@ -293,7 +239,7 @@ const MusicPlayer = ({
           <button
             type="button"
             className={`ctrl-btn vol-mute ${muted ? "is-muted" : ""}`}
-            onClick={() => setMuted((m) => !m)}
+            onClick={() => setMuted(!muted)}
             aria-label={muted ? "Unmute" : "Mute"}
             aria-pressed={muted}
           >

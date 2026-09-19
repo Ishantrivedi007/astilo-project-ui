@@ -7,6 +7,7 @@ import { AppInput, GradientButton } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { authErrorMessage } from "../../auth/authApi";
+import { email as validateEmail, required } from "../../lib/validators";
 import "./Auth.scss";
 
 const FEATURES = [
@@ -22,16 +23,18 @@ const Login = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [touched, setTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const from = (location.state as { from?: string } | null)?.from || AppRoute.home;
 
+  const emailError = validateEmail(email);
+  const passwordError = required(password, "Password");
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password) {
-      toast.error("Email and password are required.");
-      return;
-    }
+    setTouched(true);
+    if (emailError || passwordError) return;
     setSubmitting(true);
     try {
       await login(email, password);
@@ -97,6 +100,8 @@ const Login = () => {
               value={email}
               onValueChange={setEmail}
               isRequired
+              isInvalid={touched && Boolean(emailError)}
+              errorMessage={emailError}
               autoComplete="email"
             />
             <AppInput
@@ -106,6 +111,8 @@ const Login = () => {
               value={password}
               onValueChange={setPassword}
               isRequired
+              isInvalid={touched && Boolean(passwordError)}
+              errorMessage={passwordError}
               autoComplete="current-password"
             />
             <GradientButton type="submit" fullWidth className="mt-1" isDisabled={submitting}>

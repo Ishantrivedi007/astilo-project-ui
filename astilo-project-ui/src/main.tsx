@@ -9,6 +9,10 @@ import { queryClient } from "./lib/queryClient";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { PreferencesProvider } from "./theme/PreferencesProvider";
 import { AuthProvider } from "./auth/AuthProvider";
+import { EqualizerProvider } from "./components/MusicPlayer/EqualizerContext";
+import { PlayerProvider } from "./components/MusicPlayer/PlayerContext";
+import { DownloadsProvider } from "./components/MusicPlayer/DownloadsContext";
+import { ConfirmProvider } from "./components/shared/ConfirmDialog";
 import "./styles/index.scss";
 
 function Providers({ children }: { children: React.ReactNode }) {
@@ -17,9 +21,14 @@ function Providers({ children }: { children: React.ReactNode }) {
     <HeroUIProvider navigate={navigate} useHref={useHref} validationBehavior="aria">
       <ThemeProvider>
         <PreferencesProvider>
+          <ConfirmProvider>
           <AuthProvider>
             <QueryClientProvider client={queryClient}>
-              {children}
+              <EqualizerProvider>
+                <DownloadsProvider>
+                  <PlayerProvider>{children}</PlayerProvider>
+                </DownloadsProvider>
+              </EqualizerProvider>
               <Toaster
                 position="top-right"
                 closeButton
@@ -56,6 +65,7 @@ function Providers({ children }: { children: React.ReactNode }) {
               />
             </QueryClientProvider>
           </AuthProvider>
+          </ConfirmProvider>
         </PreferencesProvider>
       </ThemeProvider>
     </HeroUIProvider>

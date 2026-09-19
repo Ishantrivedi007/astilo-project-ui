@@ -23,6 +23,8 @@ export const useMusicLibrary = () => {
       emoji: "🎧",
       audio: song.audioUrl,
       cover: song.coverUrl || undefined,
+      lyrics: song.lyrics || undefined,
+      syncedLyrics: song.syncedLyrics || undefined,
       songId: song.id,
     }));
 

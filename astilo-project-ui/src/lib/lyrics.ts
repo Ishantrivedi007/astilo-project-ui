@@ -47,7 +47,7 @@ export interface LyricsResult {
 const LRC_LINE = /^((?:\[\d{1,2}:\d{2}(?:\.\d{1,3})?\])+)(.*)$/;
 const LRC_STAMP = /\[(\d{1,2}):(\d{2}(?:\.\d{1,3})?)\]/g;
 
-function parseLrc(lrc: string): LrcLine[] {
+export function parseLrc(lrc: string): LrcLine[] {
   const lines: LrcLine[] = [];
   for (const raw of lrc.split("\n")) {
     const m = raw.match(LRC_LINE);

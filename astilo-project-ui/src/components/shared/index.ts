@@ -9,3 +9,4 @@ export { default as BarList } from "./BarList";
 export { default as AppInput } from "./AppInput";
 export { default as AppTextarea } from "./AppTextarea";
 export { default as HeroCarousel } from "./HeroCarousel";
+export { ConfirmProvider, useConfirm, type ConfirmOptions } from "./ConfirmDialog";

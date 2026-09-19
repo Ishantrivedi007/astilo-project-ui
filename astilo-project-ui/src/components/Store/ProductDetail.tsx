@@ -8,6 +8,7 @@ import { AppInput, AppTextarea } from "../shared";
 import { AppRoute } from "../../app/AppRoute";
 import { fetchProduct, fetchProducts, type Product, type SpecGroup } from "../../lib/storeApi";
 import { useProductStore, type ProductReview } from "./useProductStore";
+import { required } from "../../lib/validators";
 
 const PLACEHOLDER_IMAGE = "https://placehold.co/500x500?text=%F0%9F%9B%8D%EF%B8%8F";
 
@@ -152,6 +153,8 @@ const ProductDetail = () => {
   const [author, setAuthor] = useState("");
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
+  const [reviewTouched, setReviewTouched] = useState(false);
+  const authorError = required(author, "Your name");
 
   if (isLoading)
     return (
@@ -177,12 +180,11 @@ const ProductDetail = () => {
 
   const submitReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!author.trim()) {
-      toast.error("Add your name so people know who left the review.");
-      return;
-    }
+    setReviewTouched(true);
+    if (authorError) return;
     addReview({ productId: product.id, author: author.trim(), rating, body: body.trim() });
     setBody("");
+    setReviewTouched(false);
     toast.success("Review posted!");
   };
 
@@ -297,6 +299,8 @@ const ProductDetail = () => {
               value={author}
               onValueChange={setAuthor}
               className="max-w-[220px]"
+              isInvalid={reviewTouched && Boolean(authorError)}
+              errorMessage={authorError}
             />
             <StarRating value={rating} onChange={setRating} />
           </div>

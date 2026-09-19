@@ -2,21 +2,21 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Slider } from "@heroui/react";
-import { AppInput, GradientButton } from "../shared";
+import { AppInput, GradientButton, useConfirm } from "../shared";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import {
   deleteSong,
-  downloadSong,
   fetchPreviewStream,
   fetchSongs,
+  formatDownloadSpeed,
   searchSongs,
   updateSong,
   type DownloadedSong,
-  type DownloadOptions,
   type SongSearchHit,
 } from "../../lib/musicApi";
 import { DEFAULT_COVER, secondsToLength } from "./tracks";
 import { SONGS_QUERY_KEY } from "./useMusicLibrary";
+import { useDownloads } from "./DownloadsContext";
 
 const previewSliderClassNames = {
   base: "w-full",
@@ -49,12 +49,15 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
   const [messageIdx, setMessageIdx] = useState(0);
   const [activeHit, setActiveHit] = useState<SongSearchHit | null>(null);
   const [format, setFormat] = useState<"mp3" | "video">("mp3");
+  const [downloadTitle, setDownloadTitle] = useState("");
+  const [downloadArtist, setDownloadArtist] = useState("");
   const [bitrate, setBitrate] = useState(192);
   const [quality, setQuality] = useState("720");
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editArtist, setEditArtist] = useState("");
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -128,27 +131,23 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
     staleTime: 60_000,
   });
 
-  const downloadMutation = useMutation({
-    mutationFn: (options: DownloadOptions) => downloadSong(options),
-    onMutate: () => {
-      setMessageIdx(0);
-      const interval = window.setInterval(() => {
-        setMessageIdx((i) => (i + 1) % FUN_MESSAGES.length);
-      }, 3500);
-      return { interval };
-    },
-    onSuccess: (song) => {
-      toast.success(`Downloaded "${song.title}" 🎉`);
-      queryClient.invalidateQueries({ queryKey: SONGS_QUERY_KEY });
+  const { jobs, start } = useDownloads();
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const activeJob = jobs.find((j) => j.id === activeJobId) ?? null;
+  const lastDownloaded = activeJob?.status === "done" ? library.find((s) => s.id === activeJob.songId) : null;
+
+  useEffect(() => {
+    if (!activeJob) return;
+    if (activeJob.status === "done" || activeJob.status === "error") {
       setActiveHit(null);
-    },
-    onError: () => {
-      toast.error("Couldn't download that — try a different pick or option.");
-    },
-    onSettled: (_data, _err, _vars, context) => {
-      if (context?.interval) window.clearInterval(context.interval);
-    },
-  });
+      const id = window.setTimeout(() => setActiveJobId(null), 6000);
+      return () => window.clearTimeout(id);
+    }
+    const interval = window.setInterval(() => {
+      setMessageIdx((i) => (i + 1) % FUN_MESSAGES.length);
+    }, 3500);
+    return () => window.clearInterval(interval);
+  }, [activeJob?.status]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, title, artist }: { id: number; title: string; artist: string }) =>
@@ -192,20 +191,28 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
   const openOptionsFor = (hit: SongSearchHit) => {
     setActiveHit(hit);
     setFormat("mp3");
+    setDownloadTitle(hit.title);
+    setDownloadArtist(hit.channel ?? "");
     setBitrate(192);
     setQuality("720");
   };
 
-  const confirmDownload = () => {
+  const confirmDownload = async () => {
     if (!activeHit) return;
-    downloadMutation.mutate({
-      youtubeId: activeHit.youtubeId,
-      title: activeHit.title,
-      artist: activeHit.channel ?? undefined,
-      format,
-      bitrate: format === "mp3" ? bitrate : undefined,
-      quality: format === "video" ? quality : undefined,
-    });
+    setMessageIdx(0);
+    try {
+      const jobId = await start({
+        youtubeId: activeHit.youtubeId,
+        title: downloadTitle.trim() || activeHit.title,
+        artist: downloadArtist.trim() || activeHit.channel || undefined,
+        format,
+        bitrate: format === "mp3" ? bitrate : undefined,
+        quality: format === "video" ? quality : undefined,
+      });
+      setActiveJobId(jobId);
+    } catch {
+      // useDownloads already toasts on failure to start.
+    }
   };
 
   const results = searchQuery.data?.results ?? [];
@@ -331,7 +338,24 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
 
                 {activeHit?.youtubeId === hit.youtubeId && (
                   <div className="mt-3 rounded-2xl bg-ink/5 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <AppInput
+                        value={downloadTitle}
+                        onValueChange={setDownloadTitle}
+                        label="File / track name"
+                        size="sm"
+                        className="flex-1"
+                      />
+                      <AppInput
+                        value={downloadArtist}
+                        onValueChange={setDownloadArtist}
+                        label="Artist name"
+                        size="sm"
+                        className="flex-1"
+                      />
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs font-bold uppercase tracking-wide text-ink/50">
                         Format
                       </span>
@@ -391,9 +415,11 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                         size="sm"
                         radius="full"
                         onPress={confirmDownload}
-                        isDisabled={downloadMutation.isPending}
+                        isDisabled={Boolean(activeJob) && activeJob?.status !== "done" && activeJob?.status !== "error"}
                       >
-                        {downloadMutation.isPending ? "Downloading…" : "Confirm & download"}
+                        {activeJob && activeJob.status !== "done" && activeJob.status !== "error"
+                          ? `Downloading… ${activeJob.progress}%`
+                          : "Confirm & download"}
                       </GradientButton>
                       <button
                         type="button"
@@ -404,10 +430,29 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                       </button>
                     </div>
 
-                    {downloadMutation.isPending && (
-                      <div className="mt-4 flex flex-col items-center justify-center gap-2 rounded-2xl bg-ink/5 py-6">
+                    {activeJob && activeJob.status !== "done" && activeJob.status !== "error" && (
+                      <div className="mt-4 flex flex-col items-center justify-center gap-3 rounded-2xl bg-ink/5 py-6">
                         <AppLoader label={FUN_MESSAGES[messageIdx]} size="sm" />
+                        <div className="w-full max-w-xs px-4">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink/10">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-all"
+                              style={{ width: `${activeJob.progress}%` }}
+                            />
+                          </div>
+                          <p className="mt-1.5 text-center font-mono text-[11px] text-ink/50">
+                            {activeJob.progress}%
+                            {formatDownloadSpeed(activeJob.speedBytesPerSec) &&
+                              ` · ${formatDownloadSpeed(activeJob.speedBytesPerSec)}`}
+                          </p>
+                        </div>
                       </div>
+                    )}
+
+                    {activeJob?.status === "error" && (
+                      <p className="mt-4 text-center text-xs text-danger">
+                        {activeJob.error || "Download failed — try again."}
+                      </p>
                     )}
                   </div>
                 )}
@@ -416,28 +461,28 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
           </div>
         )}
 
-        {downloadMutation.isSuccess && !downloadMutation.isPending && (
+        {lastDownloaded && (
           <div className="mt-6 flex items-center gap-4 rounded-3xl bg-ink/5 p-4">
             <img
-              src={downloadMutation.data.coverUrl || DEFAULT_COVER}
-              alt={downloadMutation.data.title}
+              src={lastDownloaded.coverUrl || DEFAULT_COVER}
+              alt={lastDownloaded.title}
               className="h-16 w-16 rounded-2xl object-cover shadow-lg"
             />
             <div className="min-w-0 flex-1">
               <p className="truncate font-display font-bold text-ink">
-                {downloadMutation.data.title}
+                {lastDownloaded.title}
               </p>
               <p className="truncate text-sm text-ink/60">
-                {downloadMutation.data.artist}
-                {downloadMutation.data.mediaType === "video"
-                  ? ` · ${downloadMutation.data.qualityLabel === "best" ? "Best" : `${downloadMutation.data.qualityLabel}p`} video`
-                  : ` · ${downloadMutation.data.bitrateKbps} kbps MP3`}
+                {lastDownloaded.artist}
+                {lastDownloaded.mediaType === "video"
+                  ? ` · ${lastDownloaded.qualityLabel === "best" ? "Best" : `${lastDownloaded.qualityLabel}p`} video`
+                  : ` · ${lastDownloaded.bitrateKbps} kbps MP3`}
               </p>
             </div>
-            {downloadMutation.data.mediaType === "audio" && (
+            {lastDownloaded.mediaType === "audio" && (
               <button
                 type="button"
-                onClick={() => onPlay(downloadMutation.data)}
+                onClick={() => onPlay(lastDownloaded)}
                 className="rounded-full bg-ink/10 px-4 py-2 text-xs font-bold text-ink hover:bg-ink/15"
               >
                 Play ▶
@@ -511,10 +556,14 @@ const SongSearchTab = ({ onPlay }: SongSearchTabProps) => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm(`Delete "${song.title}"? This removes the downloaded file too.`)) {
-                        deleteMutation.mutate(song.id);
-                      }
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Delete song?",
+                        message: `Delete "${song.title}"? This removes the downloaded file too.`,
+                        confirmLabel: "Delete",
+                        danger: true,
+                      });
+                      if (ok) deleteMutation.mutate(song.id);
                     }}
                     disabled={deleteMutation.isPending}
                     className="rounded-full bg-ink/10 px-2 py-1 text-[11px] font-bold text-danger hover:bg-danger/10 disabled:opacity-50"

@@ -21,6 +21,9 @@ import {
   type AdminOrder,
   type ProductInput,
 } from "../../lib/adminApi";
+import { fetchSongs, fetchDownloadJobs } from "../../lib/musicApi";
+import { DEFAULT_COVER } from "../MusicPlayer/tracks";
+import { nonNegativeNumber, positiveNumber, required, url } from "../../lib/validators";
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : "—");
 const usd = (n: number) => `$${Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n)}`;
@@ -164,6 +167,15 @@ const ProductsTab = () => {
   const { data: products, isLoading } = useQuery({ queryKey: ["admin-products"], queryFn: fetchAdminProducts });
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [form, setForm] = useState<ProductInput>(emptyProduct);
+  const [formTouched, setFormTouched] = useState(false);
+
+  const formErrors = {
+    name: required(form.name, "Name"),
+    price: positiveNumber(form.price, "Price"),
+    stock: nonNegativeNumber(form.stock ?? 0, "Stock"),
+    imageUrl: url(form.imageUrl ?? ""),
+  };
+  const formHasErrors = Object.values(formErrors).some(Boolean);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-products"] });
 
@@ -197,6 +209,7 @@ const ProductsTab = () => {
   });
 
   const startEdit = (p?: AdminProduct) => {
+    setFormTouched(false);
     if (p) {
       setForm({
         name: p.name,
@@ -214,8 +227,9 @@ const ProductsTab = () => {
   };
 
   const submit = () => {
-    if (!form.name.trim() || form.price <= 0) {
-      toast.error("Name and a positive price are required.");
+    setFormTouched(true);
+    if (formHasErrors) {
+      toast.error("Fix the highlighted fields first.");
       return;
     }
     if (editingId === "new") createMutation.mutate(form);
@@ -239,6 +253,9 @@ const ProductsTab = () => {
             placeholder="Product name"
             value={form.name}
             onValueChange={(v) => setForm((f) => ({ ...f, name: v }))}
+            isRequired
+            isInvalid={formTouched && Boolean(formErrors.name)}
+            errorMessage={formErrors.name}
           />
           <AppInput
             label="Category"
@@ -252,6 +269,9 @@ const ProductsTab = () => {
             placeholder="0.00"
             value={String(form.price)}
             onValueChange={(v) => setForm((f) => ({ ...f, price: Number(v) || 0 }))}
+            isRequired
+            isInvalid={formTouched && Boolean(formErrors.price)}
+            errorMessage={formErrors.price}
           />
           <AppInput
             type="number"
@@ -259,6 +279,8 @@ const ProductsTab = () => {
             placeholder="0"
             value={String(form.stock)}
             onValueChange={(v) => setForm((f) => ({ ...f, stock: Number(v) || 0 }))}
+            isInvalid={formTouched && Boolean(formErrors.stock)}
+            errorMessage={formErrors.stock}
           />
           <AppInput
             label="Image URL"
@@ -266,6 +288,8 @@ const ProductsTab = () => {
             value={form.imageUrl}
             onValueChange={(v) => setForm((f) => ({ ...f, imageUrl: v }))}
             className="sm:col-span-2"
+            isInvalid={formTouched && Boolean(formErrors.imageUrl)}
+            errorMessage={formErrors.imageUrl}
           />
           <AppTextarea
             label="Description"
@@ -575,6 +599,147 @@ const OverviewTab = ({
 
 // ---------------------------------------------------------------------------
 
+const JOB_STATUS_COLOR: Record<string, string> = {
+  starting: "default",
+  downloading: "warning",
+  processing: "secondary",
+  done: "success",
+  error: "danger",
+};
+
+const DownloadsTab = () => {
+  const { data: songs = [], isLoading } = useQuery({ queryKey: ["admin-songs"], queryFn: fetchSongs });
+  const { data: jobs = [] } = useQuery({
+    queryKey: ["admin-download-jobs"],
+    queryFn: fetchDownloadJobs,
+    refetchInterval: 2000,
+  });
+
+  const byFormat = useMemo(() => {
+    const counts = new Map<string, number>();
+    songs.forEach((s) => counts.set(s.mediaType, (counts.get(s.mediaType) ?? 0) + 1));
+    return [...counts.entries()].map(([name, value]) => ({ name: name === "audio" ? "MP3 / audio" : "Video", value }));
+  }, [songs]);
+
+  const byDay = useMemo(() => cumulativeByDay(songs.map((s) => s.createdAt)), [songs]);
+
+  const activeJobs = jobs.filter((j) => j.status !== "done" && j.status !== "error");
+  const recent = [...songs]
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .slice(0, 20);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Total downloads" value={String(songs.length)} />
+        <StatCard label="Songs (MP3)" value={String(songs.filter((s) => s.mediaType === "audio").length)} />
+        <StatCard label="Videos" value={String(songs.filter((s) => s.mediaType === "video").length)} />
+        <StatCard label="In progress now" value={String(activeJobs.length)} />
+      </div>
+
+      {activeJobs.length > 0 && (
+        <GlassPanel title="Currently downloading" subtitle={`${activeJobs.length} active`}>
+          <div className="space-y-3">
+            {activeJobs.map((j) => (
+              <div key={j.id} className="rounded-2xl bg-ink/5 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-ink">{j.title || "Untitled"}</p>
+                    <p className="truncate text-xs text-ink/50">{j.artist || "—"}</p>
+                  </div>
+                  <Chip size="sm" variant="flat" color={JOB_STATUS_COLOR[j.status] as any}>
+                    {j.status}
+                  </Chip>
+                  <span className="shrink-0 font-mono text-xs text-ink/50">{j.progress}%</span>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2 transition-all"
+                    style={{ width: `${j.progress}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassPanel>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <GlassPanel title="Downloads over time" subtitle="Cumulative" className="lg:col-span-2">
+          {byDay.labels.length > 0 ? (
+            <Chart
+              type="area"
+              height={240}
+              series={[{ name: "Downloads", data: byDay.values }]}
+              options={{ xaxis: { categories: byDay.labels } }}
+            />
+          ) : (
+            <p className="py-16 text-center text-sm text-ink/50">Not enough data yet.</p>
+          )}
+        </GlassPanel>
+
+        <GlassPanel title="By format">
+          {byFormat.length > 0 ? (
+            <BarList data={byFormat} valueFormatter={(n) => `${n} files`} />
+          ) : (
+            <p className="py-16 text-center text-sm text-ink/50">No downloads yet.</p>
+          )}
+        </GlassPanel>
+      </div>
+
+      <GlassPanel title="Recent downloads" subtitle={songs.length ? `${songs.length} total` : undefined}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-hair/20 text-[11px] font-semibold uppercase tracking-widest text-ink/50">
+                <th className="py-2 pr-4">Title</th>
+                <th className="py-2 pr-4">Type</th>
+                <th className="py-2 pr-4">Quality</th>
+                <th className="py-2 pr-4">Downloaded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map((s) => (
+                <tr key={s.id} className="border-b border-hair/10 hover:bg-ink/5">
+                  <td className="py-3 pr-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={s.coverUrl || DEFAULT_COVER}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-ink">{s.title}</p>
+                        <p className="truncate text-xs text-ink/45">{s.artist || "Unknown artist"}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-ink/60">{s.mediaType === "video" ? "Video" : "MP3"}</td>
+                  <td className="py-3 pr-4 text-ink/60">
+                    {s.mediaType === "video"
+                      ? `${s.qualityLabel === "best" ? "Best" : `${s.qualityLabel}p`}`
+                      : `${s.bitrateKbps ?? 192} kbps`}
+                  </td>
+                  <td className="py-3 pr-4 text-ink/60">{fmtDate(s.createdAt)}</td>
+                </tr>
+              ))}
+              {!isLoading && recent.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-ink/50">
+                    No downloads yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </GlassPanel>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+
 const AdminPanel = () => {
   const { data: users } = useQuery({ queryKey: ["admin-users"], queryFn: fetchUsers });
   const { data: products } = useQuery({ queryKey: ["admin-products"], queryFn: fetchAdminProducts });
@@ -633,6 +798,11 @@ const AdminPanel = () => {
         <Tab key="orders" title="Orders">
           <div className="mt-4">
             <OrdersTab />
+          </div>
+        </Tab>
+        <Tab key="downloads" title="Downloads">
+          <div className="mt-4">
+            <DownloadsTab />
           </div>
         </Tab>
       </Tabs>

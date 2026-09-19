@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PageHeading, AppInput, GradientButton, GlassPanel } from "../shared";
+import { PageHeading, AppInput, GradientButton, GlassPanel, useConfirm } from "../shared";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { searchMedia, hasTmdb, type MediaItem } from "../../lib/tmdb";
 import {
@@ -315,6 +315,7 @@ const PlaylistTable = ({
 /** Full CRUD for movie/TV playlists — create, rename, delete, and manage titles inside each. */
 const MoviePlaylists = ({ basePath = "/movies", backLabel = "movies" }: MoviePlaylistsProps) => {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [newName, setNewName] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [renamingId, setRenamingId] = useState<number | null>(null);
@@ -488,8 +489,14 @@ const MoviePlaylists = ({ basePath = "/movies", backLabel = "movies" }: MoviePla
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm(`Delete playlist "${p.name}"?`)) deleteMutation.mutate(p.id);
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: "Delete playlist?",
+                          message: `Delete playlist "${p.name}"?`,
+                          confirmLabel: "Delete",
+                          danger: true,
+                        });
+                        if (ok) deleteMutation.mutate(p.id);
                       }}
                       className="rounded-full bg-ink/10 px-2.5 py-1 text-[11px] font-bold text-danger hover:bg-danger/10"
                     >
