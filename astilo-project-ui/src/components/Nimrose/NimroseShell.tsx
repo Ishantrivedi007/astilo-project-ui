@@ -3,6 +3,8 @@ import { useState } from "react";
 import NimroseSidebar, { NIMROSE_SECTIONS } from "./NimroseSidebar";
 import NimroseContextPanel from "./NimroseContextPanel";
 import NimroseHome from "./NimroseHome";
+import NimroseTasksView from "./NimroseTasksView";
+import NimroseCalendarView from "./NimroseCalendarView";
 import "./Nimrose.scss";
 
 const COLLAPSE_KEY = "nimrose-sidebar-collapsed";
@@ -51,7 +53,10 @@ const NimroseShell = () => {
     <div className="nimrose-shell">
       <NimroseSidebar active={active} onSelect={setActive} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
       <main className="nimrose-workspace">
-        {active === "home" ? <NimroseHome /> : <ComingSoonSection id={active} />}
+        {active === "home" && <NimroseHome />}
+        {active === "tasks" && <NimroseTasksView />}
+        {active === "calendar" && <NimroseCalendarView />}
+        {active !== "home" && active !== "tasks" && active !== "calendar" && <ComingSoonSection id={active} />}
       </main>
       <NimroseContextPanel />
     </div>
