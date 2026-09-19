@@ -16,6 +16,7 @@ export interface BoardColumn {
   slug: string;
   position: number;
   isDone: boolean;
+  wipLimit: number | null;
 }
 
 export interface NimroseSprint {
@@ -201,7 +202,11 @@ export const fetchBoardColumns = (projectId: number) =>
 export const createBoardColumn = (projectId: number, name: string) =>
   apiClient.post<BoardColumn>(`/nimrose/board-columns/${projectId}`, { name }).then((r) => r.data);
 
-export const updateBoardColumn = (projectId: number, columnId: number, patch: { name?: string; position?: number; isDone?: boolean }) =>
+export const updateBoardColumn = (
+  projectId: number,
+  columnId: number,
+  patch: { name?: string; position?: number; isDone?: boolean; wipLimit?: number | null }
+) =>
   apiClient.put<BoardColumn>(`/nimrose/board-columns/${projectId}/${columnId}`, patch).then((r) => r.data);
 
 export const deleteBoardColumn = (projectId: number, columnId: number) =>
@@ -233,3 +238,43 @@ export const attachmentFileUrl = (attachment: TicketAttachment): string => {
   const base = `${API_BASE_URL}${attachment.url}`;
   return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 };
+
+// -- Analytics (real, computed from tickets/sprints/activity — never fabricated) --
+
+export interface BurndownData {
+  sprintId: number;
+  sprintName: string;
+  startDate: string;
+  endDate: string;
+  totalPoints: number;
+  ticketCount: number;
+  dates: string[];
+  idealRemaining: number[];
+  actualRemaining: number[];
+}
+
+export const fetchBurndown = (sprintId: number) =>
+  apiClient.get<BurndownData>("/nimrose/analytics/burndown", { params: { sprint_id: sprintId } }).then((r) => r.data);
+
+export interface VelocityEntry {
+  sprintId: number;
+  sprintName: string;
+  status: SprintStatus;
+  pointsCompleted: number;
+  ticketsCompleted: number;
+  ticketsTotal: number;
+}
+
+export const fetchVelocity = (projectId: number) =>
+  apiClient.get<VelocityEntry[]>("/nimrose/analytics/velocity", { params: { project_id: projectId } }).then((r) => r.data);
+
+export interface BreakdownData {
+  total: number;
+  byType: Record<string, number>;
+  byPriority: Record<string, number>;
+  byAssignee: Record<string, number>;
+  byColumn: Record<string, number>;
+}
+
+export const fetchBreakdown = (projectId: number) =>
+  apiClient.get<BreakdownData>("/nimrose/analytics/breakdown", { params: { project_id: projectId } }).then((r) => r.data);

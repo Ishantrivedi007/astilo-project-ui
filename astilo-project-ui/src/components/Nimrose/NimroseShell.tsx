@@ -10,6 +10,7 @@ import NimroseCalendarView from "./NimroseCalendarView";
 import NimroseKanbanView from "./NimroseKanbanView";
 import NimroseSprintsView from "./NimroseSprintsView";
 import NimroseBacklogView from "./NimroseBacklogView";
+import NimroseAnalyticsView from "./NimroseAnalyticsView";
 import NimroseNotesView from "./NimroseNotesView";
 import NimroseFocusView from "./NimroseFocusView";
 import NimroseBrowserView from "./NimroseBrowserView";
@@ -68,6 +69,7 @@ const NimroseShellInner = ({
         {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
         {active === "sprints" && <NimroseSprintsView />}
         {active === "backlog" && <NimroseBacklogView />}
+        {active === "analytics" && <NimroseAnalyticsView />}
         {active === "notes" && <NimroseNotesView />}
         {active === "focus" && <NimroseFocusView />}
         {active === "browser" && <NimroseBrowserView />}

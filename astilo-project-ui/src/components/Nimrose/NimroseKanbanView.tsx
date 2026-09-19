@@ -15,6 +15,7 @@ import {
   fetchBoardColumns,
   fetchSprints,
   fetchTickets,
+  updateBoardColumn,
   updateTicket,
   type NimroseTicket,
   type TicketStatus,
@@ -32,7 +33,22 @@ const TYPE_ICON: Record<string, string> = {
   documentation: "📄",
 };
 
+const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
 type Preset = "all" | "mine" | "unassigned" | "critical";
+type SortMode = "manual" | "priority" | "dueDate" | "points";
+
+const sortTickets = (tickets: NimroseTicket[], mode: SortMode) => {
+  if (mode === "manual") return tickets;
+  const sorted = [...tickets];
+  if (mode === "priority") sorted.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9));
+  if (mode === "dueDate") sorted.sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
+  if (mode === "points") sorted.sort((a, b) => (b.storyPoints ?? 0) - (a.storyPoints ?? 0));
+  return sorted;
+};
+
+const isOverdue = (ticket: NimroseTicket, doneSlugs: Set<string>) =>
+  !!ticket.dueDate && !doneSlugs.has(ticket.status) && ticket.dueDate < new Date().toISOString().slice(0, 10);
 
 const NimroseKanbanView = () => {
   const queryClient = useQueryClient();
@@ -42,6 +58,7 @@ const NimroseKanbanView = () => {
   const [projectId, setProjectId] = useState<number | null>(null);
   const [sprintId, setSprintId] = useState<number | "backlog" | null>(null);
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("manual");
   const [preset, setPreset] = useState<Preset>("all");
   const [openTicketId, setOpenTicketId] = useState<number | null>(null);
   const [draftByColumn, setDraftByColumn] = useState<Record<string, string>>({});
@@ -115,6 +132,12 @@ const NimroseKanbanView = () => {
     },
   });
 
+  const wipLimitMutation = useMutation({
+    mutationFn: ({ columnId, wipLimit }: { columnId: number; wipLimit: number | null }) =>
+      updateBoardColumn(activeProjectId!, columnId, { wipLimit }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nimrose", "board-columns", activeProjectId] }),
+  });
+
   const allTickets = ticketsQuery.data ?? [];
 
   const visibleTickets = useMemo(() => {
@@ -130,7 +153,7 @@ const NimroseKanbanView = () => {
     return list;
   }, [allTickets, search, preset, user?.name, sprintId]);
 
-  const byColumn = (slug: TicketStatus) => visibleTickets.filter((t) => t.status === slug);
+  const byColumn = (slug: TicketStatus) => sortTickets(visibleTickets.filter((t) => t.status === slug), sortMode);
 
   const activeSprint = typeof sprintId === "number" ? sprintsQuery.data?.find((s) => s.id === sprintId) : null;
   const sprintTickets = typeof sprintId === "number" ? allTickets : [];
@@ -246,6 +269,13 @@ const NimroseKanbanView = () => {
           placeholder="Search tickets…"
           aria-label="Search tickets"
         />
+
+        <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} aria-label="Sort tickets">
+          <option value="manual">Manual order</option>
+          <option value="priority">Sort: Priority</option>
+          <option value="dueDate">Sort: Due date</option>
+          <option value="points">Sort: Story points</option>
+        </select>
       </div>
 
       <div className="nimrose-status-tabs">
@@ -282,10 +312,13 @@ const NimroseKanbanView = () => {
       )}
 
       <div className="nimrose-kanban-board">
-        {columns.map((col) => (
+        {columns.map((col) => {
+          const colTickets = byColumn(col.slug);
+          const overLimit = !!col.wipLimit && colTickets.length > col.wipLimit;
+          return (
           <div
             key={col.slug}
-            className={`nimrose-kanban-column ${dragOverColumn === col.slug ? "nimrose-kanban-column--over" : ""}`}
+            className={`nimrose-kanban-column ${dragOverColumn === col.slug ? "nimrose-kanban-column--over" : ""} ${overLimit ? "nimrose-kanban-column--over-limit" : ""}`}
             onDragOver={(e) => {
               e.preventDefault();
               setDragOverColumn(col.slug);
@@ -300,7 +333,24 @@ const NimroseKanbanView = () => {
           >
             <div className="nimrose-kanban-column-header">
               <span>{col.name}</span>
-              <span className="nimrose-widget-footnote">{byColumn(col.slug).length}</span>
+              <button
+                type="button"
+                className="nimrose-kanban-wip"
+                title="Set a soft WIP limit for this column"
+                onClick={async () => {
+                  const value = await prompt({
+                    title: `WIP limit for ${col.name}`,
+                    placeholder: "e.g. 3 (leave blank for no limit)",
+                    defaultValue: col.wipLimit ? String(col.wipLimit) : "",
+                  });
+                  if (value === null) return;
+                  const parsed = value.trim() ? Number(value.trim()) : null;
+                  wipLimitMutation.mutate({ columnId: col.id, wipLimit: Number.isFinite(parsed) ? parsed : null });
+                }}
+              >
+                {colTickets.length}
+                {col.wipLimit ? `/${col.wipLimit}` : ""}
+              </button>
               <button
                 type="button"
                 className="nimrose-kanban-column-delete"
@@ -313,8 +363,8 @@ const NimroseKanbanView = () => {
             </div>
 
             <div className="nimrose-kanban-cards">
-              {byColumn(col.slug).map((ticket) => (
-                <TicketCard key={ticket.id} ticket={ticket} onOpen={() => setOpenTicketId(ticket.id)} />
+              {colTickets.map((ticket) => (
+                <TicketCard key={ticket.id} ticket={ticket} overdue={isOverdue(ticket, doneSlugs)} onOpen={() => setOpenTicketId(ticket.id)} />
               ))}
             </div>
 
@@ -333,7 +383,8 @@ const NimroseKanbanView = () => {
               />
             </form>
           </div>
-        ))}
+          );
+        })}
 
         <div className="nimrose-kanban-column nimrose-kanban-column--add">
           <button
@@ -354,9 +405,9 @@ const NimroseKanbanView = () => {
   );
 };
 
-const TicketCard = ({ ticket, onOpen }: { ticket: NimroseTicket; onOpen: () => void }) => (
+const TicketCard = ({ ticket, overdue, onOpen }: { ticket: NimroseTicket; overdue: boolean; onOpen: () => void }) => (
   <div
-    className="nimrose-ticket-card"
+    className={`nimrose-ticket-card ${overdue ? "nimrose-ticket-card--overdue" : ""}`}
     draggable
     onDragStart={(e) => e.dataTransfer.setData("text/plain", String(ticket.id))}
     onClick={onOpen}
@@ -379,6 +430,12 @@ const TicketCard = ({ ticket, onOpen }: { ticket: NimroseTicket; onOpen: () => v
     )}
     <div className="nimrose-ticket-card-footer">
       {ticket.storyPoints != null && <span className="nimrose-chip">{ticket.storyPoints} pts</span>}
+      {ticket.dueDate && (
+        <span className={overdue ? "nimrose-ticket-due nimrose-ticket-due--overdue" : "nimrose-ticket-due"}>
+          {overdue ? "Overdue " : "Due "}
+          {ticket.dueDate}
+        </span>
+      )}
       {ticket.commentCount > 0 && (
         <span className="nimrose-ticket-card-comments">
           <MessageSquare size={11} /> {ticket.commentCount}

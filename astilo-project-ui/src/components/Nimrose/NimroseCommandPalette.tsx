@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  BarChart3,
   Calendar,
   CheckSquare,
   Focus,
@@ -78,6 +79,7 @@ const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) =
       { id: "open-notes", label: "Search / open Notes", icon: Notebook, run: () => onNavigate("notes") },
       { id: "open-focus", label: "Open Focus", icon: Focus, run: () => onNavigate("focus") },
       { id: "open-browser", label: "Open browser", icon: Globe, run: () => onNavigate("browser") },
+      { id: "open-analytics", label: "Open Analytics", icon: BarChart3, run: () => onNavigate("analytics") },
       {
         id: "start-focus",
         label: running ? "Pause focus session" : "Start focus session",

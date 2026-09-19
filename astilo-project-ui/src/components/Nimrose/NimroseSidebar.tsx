@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Bookmark,
   Calendar,
   CheckSquare,
@@ -40,6 +41,7 @@ const SECTIONS: { heading: string; items: NimroseSection[] }[] = [
       { id: "projects", label: "Projects", icon: FolderKanban },
       { id: "sprints", label: "Sprints", icon: ListTodo },
       { id: "backlog", label: "Backlog", icon: ListTodo },
+      { id: "analytics", label: "Analytics", icon: BarChart3 },
     ],
   },
   {

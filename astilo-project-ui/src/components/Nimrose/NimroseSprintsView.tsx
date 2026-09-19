@@ -147,6 +147,28 @@ const NimroseSprintsView = () => {
                 ))}
               </div>
 
+              <div className="nimrose-sprint-dates">
+                <label>
+                  Start
+                  <input
+                    type="date"
+                    defaultValue={sprint.startDate ?? ""}
+                    onBlur={(e) => updateMutation.mutate({ id: sprint.id, patch: { startDate: e.target.value } })}
+                  />
+                </label>
+                <label>
+                  End
+                  <input
+                    type="date"
+                    defaultValue={sprint.endDate ?? ""}
+                    onBlur={(e) => updateMutation.mutate({ id: sprint.id, patch: { endDate: e.target.value } })}
+                  />
+                </label>
+                {!sprint.startDate || !sprint.endDate ? (
+                  <span className="nimrose-widget-footnote">Set both dates to see a burndown in Analytics.</span>
+                ) : null}
+              </div>
+
               <div className="nimrose-sprint-bar-wrap">
                 <div className="nimrose-sprint-bar">
                   <div
