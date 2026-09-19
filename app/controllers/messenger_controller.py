@@ -4,7 +4,7 @@ import cherrypy
 from sqlalchemy import func
 
 from app.db import get_session
-from app.models import Conversation, ConversationParticipant, DirectMessage, LoginEvent, User
+from app.models import Conversation, ConversationParticipant, DirectMessage, LoginEvent, PersonalContact, User
 
 
 def _user_id():
@@ -47,6 +47,89 @@ class MessengerContactsController:
                 {"id": u.id, "name": u.name, "email": u.email, "avatar": u.avatar, "lastSeen": _last_seen(session, u.id)}
                 for u in users
             ]
+
+
+class MessengerPersonalContactsController:
+    """The user's own added-contacts list — distinct from the full roster
+    (MessengerContactsController): find a real Astilo user by email or
+    phone (or scan their QR "connect code", which just encodes their
+    email), add/remove them, and give them a private nickname."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self):
+        user_id = _user_id()
+        with get_session() as session:
+            contacts = (
+                session.query(PersonalContact)
+                .filter_by(owner_id=user_id)
+                .order_by(PersonalContact.created_at.desc())
+                .all()
+            )
+            return [c.to_dict() for c in contacts]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self):
+        """Body: {"lookup": "<email or phone or pasted QR code>", "nickname": optional}"""
+        body = cherrypy.request.json or {}
+        lookup = (body.get("lookup") or "").strip()
+        if not lookup:
+            raise cherrypy.HTTPError(400, "lookup (email or phone) is required")
+        user_id = _user_id()
+
+        # A scanned/pasted QR connect code is just "astilo-connect:<email>".
+        if lookup.lower().startswith("astilo-connect:"):
+            lookup = lookup.split(":", 1)[1].strip()
+
+        with get_session() as session:
+            found = (
+                session.query(User)
+                .filter((User.email == lookup.lower()) | (User.phone == lookup))
+                .first()
+            )
+            if not found:
+                raise cherrypy.HTTPError(404, "No Astilo user found with that email or phone")
+            if found.id == user_id:
+                raise cherrypy.HTTPError(400, "That's you")
+
+            existing = session.query(PersonalContact).filter_by(owner_id=user_id, contact_id=found.id).first()
+            if existing:
+                return existing.to_dict()
+
+            contact = PersonalContact(owner_id=user_id, contact_id=found.id, nickname=(body.get("nickname") or "").strip() or None)
+            session.add(contact)
+            session.flush()
+            return contact.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, contact_id):
+        body = cherrypy.request.json or {}
+        user_id = _user_id()
+        with get_session() as session:
+            contact = session.query(PersonalContact).filter_by(id=int(contact_id), owner_id=user_id).first()
+            if not contact:
+                raise cherrypy.HTTPError(404, "Contact not found")
+            if "nickname" in body:
+                contact.nickname = (body["nickname"] or "").strip() or None
+            session.flush()
+            return contact.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, contact_id):
+        user_id = _user_id()
+        with get_session() as session:
+            contact = session.query(PersonalContact).filter_by(id=int(contact_id), owner_id=user_id).first()
+            if not contact:
+                raise cherrypy.HTTPError(404, "Contact not found")
+            session.delete(contact)
+            return {"deleted": True}
 
 
 class MessengerConversationsController:

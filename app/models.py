@@ -1085,3 +1085,33 @@ class DirectMessage(Base):
             "editedAt": self.edited_at.isoformat() if self.edited_at else None,
             "readAt": self.read_at.isoformat() if self.read_at else None,
         }
+
+
+class PersonalContact(Base):
+    """A Messenger contact the user explicitly added (by email, phone, or
+    QR/connect code), with an optional nickname — distinct from the raw
+    Users roster, which lists every Astilo account whether or not you've
+    "added" them."""
+
+    __tablename__ = "personal_contacts"
+    __table_args__ = (UniqueConstraint("owner_id", "contact_id", name="uq_personal_contact"),)
+
+    id = Column(Integer, primary_key=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    contact_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    nickname = Column(String(120), nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    contact = relationship("User", foreign_keys=[contact_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "contactId": self.contact_id,
+            "name": self.nickname or (self.contact.name if self.contact else None),
+            "realName": self.contact.name if self.contact else None,
+            "email": self.contact.email if self.contact else None,
+            "avatar": self.contact.avatar if self.contact else None,
+            "nickname": self.nickname,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }

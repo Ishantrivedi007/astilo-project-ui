@@ -59,6 +59,7 @@ from app.controllers.messenger_controller import (
     MessengerContactsController,
     MessengerConversationsController,
     MessengerMessagesController,
+    MessengerPersonalContactsController,
 )
 from app.controllers.markets_controller import (
     MarketsAssetController,
@@ -167,6 +168,7 @@ def build_app():
     cherrypy.tree.mount(ChatChannelsController(), "/api/chat/channels", conf)
     cherrypy.tree.mount(ChatMessagesController(), "/api/chat/messages", conf)
     cherrypy.tree.mount(MessengerContactsController(), "/api/messenger/contacts", conf)
+    cherrypy.tree.mount(MessengerPersonalContactsController(), "/api/messenger/my-contacts", conf)
     cherrypy.tree.mount(MessengerConversationsController(), "/api/messenger/conversations", conf)
     cherrypy.tree.mount(MessengerMessagesController(), "/api/messenger/messages", conf)
     cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)
