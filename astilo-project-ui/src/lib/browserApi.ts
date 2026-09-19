@@ -1,4 +1,4 @@
-import { apiClient } from "./apiClient";
+import { API_BASE_URL, apiClient, getAuthToken } from "./apiClient";
 
 export interface BrowserSpace {
   id: number;
@@ -82,3 +82,15 @@ export const recordHistoryVisit = (url: string, title?: string) =>
   apiClient.post<HistoryEntry>("/nimrose/history", { url, title }).then((r) => r.data);
 
 export const clearHistory = () => apiClient.delete("/nimrose/history").then((r) => r.data);
+
+/** Routes a page through the backend's best-effort proxy so sites that
+ * block iframe embedding can still be viewed — see nimrose_browser_
+ * controller.py's NimroseBrowserProxyController for what this can and
+ * can't handle. Falls back to the direct URL if not signed in, though the
+ * proxy endpoint itself always requires a token. */
+export const proxiedUrl = (url: string): string => {
+  const token = getAuthToken();
+  if (!token) return url;
+  const params = new URLSearchParams({ url, token });
+  return `${API_BASE_URL}/nimrose/browser-proxy?${params.toString()}`;
+};

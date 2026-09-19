@@ -24,6 +24,7 @@ import {
   fetchBrowserSpaces,
   fetchBrowserTabs,
   fetchHistory,
+  proxiedUrl,
   recordHistoryVisit,
   updateBrowserTab,
 } from "../../lib/browserApi";
@@ -319,9 +320,9 @@ const NimroseBrowserView = () => {
               {currentUrl && (
                 <iframe
                   key={currentUrl}
-                  src={currentUrl}
+                  src={proxiedUrl(currentUrl)}
                   title="Nimrose Browser"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  sandbox="allow-scripts allow-forms allow-popups"
                   onLoad={() => {
                     setLoadState("loaded");
                     if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
@@ -331,9 +332,10 @@ const NimroseBrowserView = () => {
               {loadState === "unknown" && (
                 <div className="nimrose-browser-blocked">
                   <p>
-                    This site may not allow embedding (most major sites block it via
-                    X-Frame-Options/CSP — a real browser limitation of embedding pages inside
-                    another page, not a bug).
+                    This page is taking a while — it may need a login, rely on assets our proxy
+                    can't fetch, or be timing out server-side. Pages are proxied through the
+                    backend so embedding restrictions don't block them, but that only covers the
+                    top-level page, not everything a modern site loads.
                   </p>
                   <a href={currentUrl} target="_blank" rel="noreferrer" className="nimrose-chip">
                     <ExternalLink size={12} /> Open in new tab
