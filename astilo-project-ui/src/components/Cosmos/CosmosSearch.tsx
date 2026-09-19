@@ -30,6 +30,7 @@ import CosmosImagePreview from "./CosmosImagePreview";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import ResearchButton from "./ResearchButton";
 import AddToKanbanButton from "./AddToKanbanButton";
+import VisualizeWorldButton from "./VisualizeWorldButton";
 import "./Cosmos.scss";
 
 type ResultGroup =
@@ -462,6 +463,13 @@ const ExoplanetCard = ({ data }: { data: ExoplanetData }) => (
         title={data.name}
         source={data._provenance.source}
         sourceDataset={data._provenance.sourceDataset}
+      />
+      <VisualizeWorldButton
+        name={data.name}
+        equilibriumTemperatureK={data.equilibriumTemperatureK}
+        radiusEarthRadii={data.radiusEarthRadii}
+        massEarthMasses={data.massEarthMasses}
+        hostStarTeffK={data.hostStarTeffK}
       />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
