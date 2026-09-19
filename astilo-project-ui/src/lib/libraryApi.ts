@@ -40,6 +40,38 @@ export interface BookChapter {
 export const fetchBookContent = (textUrl: string) =>
   library.get<{ chapterCount: number; chapters: BookChapter[] }>("/book-content", { params: { text_url: textUrl } }).then((r) => r.data);
 
+// -- PDF source (Internet Archive) --
+
+export interface ArchivePdfResult {
+  identifier: string;
+  title: string;
+  creator: string | null;
+  year: string | null;
+  coverUrl: string;
+}
+
+export const searchArchivePdfs = (q: string, page = 1) =>
+  library.get<LibraryEnvelope<{ count: number; results: ArchivePdfResult[] }>>("/pdf-search", { params: { q, page } }).then((r) => r.data);
+
+export const resolveArchivePdfUrl = (identifier: string) =>
+  library.get<{ pdfUrl: string }>("/pdf-url", { params: { identifier } }).then((r) => r.data.pdfUrl);
+
+// -- Open Library (broadest catalog; public items expose an Internet
+// Archive identifier reusable with resolveArchivePdfUrl) --
+
+export interface OpenLibraryResult {
+  key: string;
+  title: string;
+  authors: string[];
+  firstPublishYear: number | null;
+  coverUrl: string | null;
+  ebookAccess: string | null;
+  iaIdentifier: string | null;
+}
+
+export const searchOpenLibrary = (q: string, page = 1) =>
+  library.get<LibraryEnvelope<{ count: number; results: OpenLibraryResult[] }>>("/openlibrary-search", { params: { q, page } }).then((r) => r.data);
+
 // -- Personal shelf (auth required) --
 
 export type LibraryShelf = "want_to_read" | "reading" | "finished";

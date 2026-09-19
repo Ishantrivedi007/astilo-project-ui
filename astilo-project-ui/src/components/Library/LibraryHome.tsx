@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Library as LibraryIcon, Search, Trash2 } from "lucide-react";
+import { BookOpen, FileText, Library as LibraryIcon, Search, Trash2 } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
@@ -10,11 +10,16 @@ import {
   fetchLibraryCategories,
   fetchMyLibrary,
   removeFromLibrary,
+  resolveArchivePdfUrl,
+  searchArchivePdfs,
   searchLibrary,
+  searchOpenLibrary,
   updateLibraryEntry,
+  type ArchivePdfResult,
   type GutenbergBook,
   type LibraryEntry,
   type LibraryShelf,
+  type OpenLibraryResult,
 } from "../../lib/libraryApi";
 import "./Library.scss";
 
@@ -29,15 +34,29 @@ const LibraryHome = () => {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"browse" | "shelf">("browse");
+  const [source, setSource] = useState<"gutenberg" | "pdf" | "openlibrary">("gutenberg");
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const [resolvingPdf, setResolvingPdf] = useState<string | null>(null);
 
   const categoriesQuery = useQuery({ queryKey: ["library", "categories"], queryFn: fetchLibraryCategories });
   const searchQuery = useQuery({
     queryKey: ["library", "search", submitted, category],
     queryFn: () => searchLibrary({ q: submitted || undefined, topic: category ?? undefined }),
-    enabled: !!submitted || !!category,
+    enabled: source === "gutenberg" && (!!submitted || !!category),
+    retry: false,
+  });
+  const pdfSearchQuery = useQuery({
+    queryKey: ["library", "pdf-search", submitted],
+    queryFn: () => searchArchivePdfs(submitted),
+    enabled: source === "pdf" && !!submitted,
+    retry: false,
+  });
+  const openLibraryQuery = useQuery({
+    queryKey: ["library", "openlibrary-search", submitted],
+    queryFn: () => searchOpenLibrary(submitted),
+    enabled: source === "openlibrary" && !!submitted,
     retry: false,
   });
   const myLibraryQuery = useQuery({ queryKey: ["library", "my"], queryFn: () => fetchMyLibrary(), enabled: isAuthenticated && tab === "shelf" });
@@ -70,6 +89,37 @@ const LibraryHome = () => {
     navigate(`${AppRoute.libraryReader}?${p.toString()}`);
   };
 
+  const openPdfReader = async (item: ArchivePdfResult) => {
+    setResolvingPdf(item.identifier);
+    try {
+      const pdfUrl = await resolveArchivePdfUrl(item.identifier);
+      const p = new URLSearchParams({ pdfUrl, title: item.title, cover: item.coverUrl });
+      navigate(`${AppRoute.libraryReader}?${p.toString()}`);
+    } catch {
+      // Handled by the disabled/loading state resetting below; a toast
+      // would be nicer but this keeps scope tight for a rare failure path.
+    } finally {
+      setResolvingPdf(null);
+    }
+  };
+
+  const openOpenLibraryPdf = async (item: OpenLibraryResult) => {
+    if (!item.iaIdentifier) return;
+    setResolvingPdf(item.iaIdentifier);
+    try {
+      const pdfUrl = await resolveArchivePdfUrl(item.iaIdentifier);
+      const p = new URLSearchParams({ pdfUrl, title: item.title });
+      if (item.coverUrl) p.set("cover", item.coverUrl);
+      navigate(`${AppRoute.libraryReader}?${p.toString()}`);
+    } catch {
+      // Public Internet Archive access doesn't always carry a freely
+      // downloadable PDF (some are read-online-only) — the item just stays
+      // unopenable rather than showing a broken link.
+    } finally {
+      setResolvingPdf(null);
+    }
+  };
+
   const results = searchQuery.data?.data.results ?? [];
   const myBooks = myLibraryQuery.data ?? [];
   const myIds = new Set(myBooks.map((b) => b.gutenbergId));
@@ -97,13 +147,25 @@ const LibraryHome = () => {
 
       {tab === "browse" && (
         <>
+          <div className="lib-tabs">
+            <button type="button" className={`lib-tab ${source === "gutenberg" ? "active" : ""}`} onClick={() => setSource("gutenberg")}>
+              <BookOpen size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Gutenberg (text)
+            </button>
+            <button type="button" className={`lib-tab ${source === "pdf" ? "active" : ""}`} onClick={() => setSource("pdf")}>
+              <FileText size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Internet Archive (PDF)
+            </button>
+            <button type="button" className={`lib-tab ${source === "openlibrary" ? "active" : ""}`} onClick={() => setSource("openlibrary")}>
+              <LibraryIcon size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Open Library
+            </button>
+          </div>
+
           <form onSubmit={submit}>
             <div className="lib-search-row">
               <input
                 className="lib-search-input"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search title or author — Frankenstein, Jane Austen, Sherlock Holmes…"
+                placeholder={source === "gutenberg" ? "Search title or author — Frankenstein, Jane Austen…" : "Search for a PDF on Internet Archive…"}
               />
               <button type="submit" className="lib-tab">
                 <Search size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Search
@@ -111,56 +173,122 @@ const LibraryHome = () => {
             </div>
           </form>
 
-          <div className="lib-category-row">
-            {categoriesQuery.data?.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`lib-category-chip ${category === c ? "active" : ""}`}
-                onClick={() => {
-                  setCategory(category === c ? null : c);
-                  setSubmitted("");
-                  setQuery("");
-                }}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-
-          {searchQuery.isLoading && <p className="lib-empty">Searching Project Gutenberg…</p>}
-          {(submitted || category) && !searchQuery.isLoading && results.length === 0 && <p className="lib-empty">No books found.</p>}
-          {!submitted && !category && <p className="lib-empty">Search, or pick a category to browse.</p>}
-
-          <div className="lib-grid">
-            {results.map((book) => (
-              <div key={book.id} className="lib-book-card" onClick={() => openReader({ textUrl: book.textUrl, title: book.title, coverUrl: book.coverUrl })}>
-                {book.coverUrl ? (
-                  <img className="lib-book-cover" src={book.coverUrl} alt={book.title} loading="lazy" />
-                ) : (
-                  <div className="lib-book-cover-fallback">{book.title}</div>
-                )}
-                <div className="lib-book-info">
-                  <p className="lib-book-title">{book.title}</p>
-                  <p className="lib-book-author">{book.authors.join(", ") || "Unknown author"}</p>
-                  {isAuthenticated && book.hasText && (
-                    <button
-                      type="button"
-                      className="lib-category-chip"
-                      style={{ marginTop: "0.4rem" }}
-                      disabled={myIds.has(book.id)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addMutation.mutate(book);
-                      }}
-                    >
-                      {myIds.has(book.id) ? "On shelf" : "+ Add to shelf"}
-                    </button>
-                  )}
-                </div>
+          {source === "gutenberg" && (
+            <>
+              <div className="lib-category-row">
+                {categoriesQuery.data?.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`lib-category-chip ${category === c ? "active" : ""}`}
+                    onClick={() => {
+                      setCategory(category === c ? null : c);
+                      setSubmitted("");
+                      setQuery("");
+                    }}
+                  >
+                    {c}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+
+              {searchQuery.isLoading && <p className="lib-empty">Searching Project Gutenberg…</p>}
+              {(submitted || category) && !searchQuery.isLoading && results.length === 0 && <p className="lib-empty">No books found.</p>}
+              {!submitted && !category && <p className="lib-empty">Search, or pick a category to browse.</p>}
+
+              <div className="lib-grid">
+                {results.map((book) => (
+                  <div key={book.id} className="lib-book-card" onClick={() => openReader({ textUrl: book.textUrl, title: book.title, coverUrl: book.coverUrl })}>
+                    {book.coverUrl ? (
+                      <img className="lib-book-cover" src={book.coverUrl} alt={book.title} loading="lazy" />
+                    ) : (
+                      <div className="lib-book-cover-fallback">{book.title}</div>
+                    )}
+                    <div className="lib-book-info">
+                      <p className="lib-book-title">{book.title}</p>
+                      <p className="lib-book-author">{book.authors.join(", ") || "Unknown author"}</p>
+                      {isAuthenticated && book.hasText && (
+                        <button
+                          type="button"
+                          className="lib-category-chip"
+                          style={{ marginTop: "0.4rem" }}
+                          disabled={myIds.has(book.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addMutation.mutate(book);
+                          }}
+                        >
+                          {myIds.has(book.id) ? "On shelf" : "+ Add to shelf"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {source === "pdf" && (
+            <>
+              {pdfSearchQuery.isLoading && <p className="lib-empty">Searching Internet Archive…</p>}
+              {submitted && !pdfSearchQuery.isLoading && (pdfSearchQuery.data?.data.results.length ?? 0) === 0 && <p className="lib-empty">No PDFs found.</p>}
+              {!submitted && <p className="lib-empty">Search Internet Archive for a public-domain PDF.</p>}
+
+              <div className="lib-grid">
+                {pdfSearchQuery.data?.data.results.map((item) => (
+                  <div key={item.identifier} className="lib-book-card" onClick={() => openPdfReader(item)}>
+                    <img className="lib-book-cover" src={item.coverUrl} alt={item.title} loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
+                    <div className="lib-book-info">
+                      <p className="lib-book-title">{item.title}</p>
+                      <p className="lib-book-author">
+                        {item.creator || "Unknown"} {item.year ? `· ${item.year}` : ""}
+                      </p>
+                      {resolvingPdf === item.identifier && <p className="lib-book-author">Opening…</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="lib-empty" style={{ marginTop: "0.6rem" }}>
+                Only items with a freely-downloadable PDF open — lending-library (DRM) copies are skipped.
+              </p>
+            </>
+          )}
+
+          {source === "openlibrary" && (
+            <>
+              {openLibraryQuery.isLoading && <p className="lib-empty">Searching Open Library…</p>}
+              {submitted && !openLibraryQuery.isLoading && (openLibraryQuery.data?.data.results.length ?? 0) === 0 && <p className="lib-empty">No books found.</p>}
+              {!submitted && <p className="lib-empty">Search Open Library's full catalog — the broadest of the three sources.</p>}
+
+              <div className="lib-grid">
+                {openLibraryQuery.data?.data.results.map((item) => (
+                  <div
+                    key={item.key}
+                    className="lib-book-card"
+                    onClick={() => openOpenLibraryPdf(item)}
+                    style={{ cursor: item.iaIdentifier ? "pointer" : "default", opacity: item.iaIdentifier ? 1 : 0.55 }}
+                  >
+                    {item.coverUrl ? (
+                      <img className="lib-book-cover" src={item.coverUrl} alt={item.title} loading="lazy" />
+                    ) : (
+                      <div className="lib-book-cover-fallback">{item.title}</div>
+                    )}
+                    <div className="lib-book-info">
+                      <p className="lib-book-title">{item.title}</p>
+                      <p className="lib-book-author">
+                        {item.authors.join(", ") || "Unknown author"} {item.firstPublishYear ? `· ${item.firstPublishYear}` : ""}
+                      </p>
+                      {resolvingPdf === item.iaIdentifier && <p className="lib-book-author">Opening…</p>}
+                      {!item.iaIdentifier && <p className="lib-book-author">No free PDF available</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="lib-empty" style={{ marginTop: "0.6rem" }}>
+                Only entries with a public Internet Archive scan (not lending-library) open a real PDF.
+              </p>
+            </>
+          )}
         </>
       )}
 

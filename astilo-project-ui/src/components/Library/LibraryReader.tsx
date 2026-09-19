@@ -6,6 +6,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { AppRoute } from "../../app/AppRoute";
 import { fetchBookContent, updateLibraryEntry } from "../../lib/libraryApi";
 import BookOpening3D from "./BookOpening3D";
+import PdfBookView from "./PdfBookView";
 import "./Library.scss";
 
 const PAGE_CHARS = 1500;
@@ -33,6 +34,7 @@ const LibraryReader = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const textUrl = params.get("textUrl") ?? "";
+  const pdfUrl = params.get("pdfUrl") ?? "";
   const title = params.get("title") ?? "Untitled";
   const coverUrl = params.get("cover");
   const entryId = params.get("entryId") ? Number(params.get("entryId")) : null;
@@ -55,7 +57,7 @@ const LibraryReader = () => {
   const page = pages[pageIndex] ?? "";
 
   const saveProgressMutation = useMutation({
-    mutationFn: (idx: number) => updateLibraryEntry(entryId!, { lastChapterIndex: idx, totalChapters: chapters.length }),
+    mutationFn: ({ idx, total }: { idx: number; total: number }) => updateLibraryEntry(entryId!, { lastChapterIndex: idx, totalChapters: total }),
   });
 
   useEffect(() => {
@@ -63,7 +65,7 @@ const LibraryReader = () => {
   }, [chapterIndex]);
 
   useEffect(() => {
-    if (entryId && chapters.length) saveProgressMutation.mutate(chapterIndex);
+    if (entryId && chapters.length) saveProgressMutation.mutate({ idx: chapterIndex, total: chapters.length });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterIndex, chapters.length]);
 
@@ -85,12 +87,39 @@ const LibraryReader = () => {
     }
   };
 
-  if (!textUrl) {
+  if (!textUrl && !pdfUrl) {
     return (
       <div className="lib-reader-page">
         <p className="lib-empty" style={{ margin: "auto" }}>
           No book selected.
         </p>
+      </div>
+    );
+  }
+
+  if (pdfUrl) {
+    return (
+      <div className="lib-reader-page">
+        <div className="lib-reader-topbar">
+          <button type="button" className="lib-tab" onClick={() => navigate(AppRoute.library)}>
+            <ArrowLeft size={12} style={{ display: "inline", verticalAlign: "-1px" }} /> Library
+          </button>
+          <span>{title}</span>
+        </div>
+
+        {showIntro && (
+          <BookOpening3D title={title} coverUrl={coverUrl} onDone={() => setShowIntro(false)} />
+        )}
+
+        {!showIntro && (
+          <PdfBookView
+            pdfUrl={pdfUrl}
+            startPage={startChapter}
+            onPageChange={(idx, total) => {
+              if (entryId) saveProgressMutation.mutate({ idx, total });
+            }}
+          />
+        )}
       </div>
     );
   }
