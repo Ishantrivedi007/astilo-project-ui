@@ -758,6 +758,484 @@
 }
 
 // -------------------------------------------------------------------------
+// Kanban
+// -------------------------------------------------------------------------
+
+.nimrose-kanban-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+
+  select,
+  .nimrose-kanban-search {
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.8rem;
+
+    &:focus {
+      outline: none;
+      border-color: rgb(var(--accent-rgb) / 0.6);
+    }
+  }
+
+  .nimrose-kanban-search {
+    flex: 1;
+    min-width: 160px;
+  }
+}
+
+.nimrose-sprint-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.nimrose-sprint-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.nimrose-sprint-bar-wrap {
+  min-width: 220px;
+}
+
+.nimrose-sprint-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--hair-rgb) / 0.18);
+  overflow: hidden;
+  margin-bottom: 0.3rem;
+}
+
+.nimrose-sprint-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(var(--accent-rgb)), rgb(var(--accent-2-rgb)));
+  transition: width 0.3s ease;
+}
+
+.nimrose-kanban-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(220px, 1fr));
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+
+  @media (max-width: 1100px) {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+  }
+}
+
+.nimrose-kanban-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  border-radius: 1rem;
+  background: rgb(var(--surface-rgb) / 0.4);
+  border: 1px solid rgb(var(--hair-rgb) / 0.12);
+  padding: 0.6rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &--over {
+    border-color: rgb(var(--accent-rgb) / 0.6);
+    background: rgb(var(--accent-rgb) / 0.06);
+  }
+}
+
+.nimrose-kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--ink-muted-rgb));
+}
+
+.nimrose-kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 40px;
+}
+
+.nimrose-ticket-card {
+  border-radius: 0.75rem;
+  background: rgb(var(--bg-rgb) / 0.5);
+  border: 1px solid rgb(var(--hair-rgb) / 0.14);
+  padding: 0.6rem 0.65rem;
+  cursor: grab;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    border-color: rgb(var(--accent-rgb) / 0.4);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.nimrose-ticket-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.nimrose-ticket-key {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgb(var(--accent-rgb));
+  letter-spacing: 0.03em;
+}
+
+.nimrose-ticket-card-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.nimrose-ticket-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.nimrose-ticket-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: rgb(var(--ink-muted-rgb));
+}
+
+.nimrose-ticket-card-comments {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.nimrose-ticket-avatar {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: rgb(var(--accent-rgb));
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.nimrose-kanban-add {
+  margin-top: 0.5rem;
+
+  input {
+    width: 100%;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.55rem;
+    border: 1px dashed rgb(var(--hair-rgb) / 0.25);
+    background: transparent;
+    color: rgb(var(--ink-rgb));
+    font-size: 0.78rem;
+
+    &:focus {
+      outline: none;
+      border-style: solid;
+      border-color: rgb(var(--accent-rgb) / 0.5);
+    }
+  }
+}
+
+// -------------------------------------------------------------------------
+// Ticket detail modal
+// -------------------------------------------------------------------------
+
+.nimrose-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.nimrose-modal {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: rgb(var(--surface-rgb) / 0.98);
+}
+
+.nimrose-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: rgb(var(--ink-muted-rgb));
+  cursor: pointer;
+}
+
+.nimrose-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  padding-right: 1.5rem;
+}
+
+.nimrose-modal-title {
+  width: 100%;
+  border: none;
+  background: none;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: rgb(var(--ink-rgb));
+  margin-bottom: 0.9rem;
+  padding: 0.2rem 0;
+
+  &:focus {
+    outline: none;
+    border-bottom: 1px solid rgb(var(--accent-rgb) / 0.5);
+  }
+}
+
+.nimrose-modal-field-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgb(var(--ink-muted-rgb));
+  }
+
+  input,
+  select {
+    padding: 0.4rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.8rem;
+    text-transform: none;
+  }
+}
+
+.nimrose-modal-description-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(var(--ink-muted-rgb));
+  margin-bottom: 1rem;
+
+  textarea {
+    min-height: 70px;
+    padding: 0.5rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.82rem;
+    text-transform: none;
+    font-family: inherit;
+    resize: vertical;
+  }
+}
+
+.nimrose-modal-section {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgb(var(--hair-rgb) / 0.14);
+}
+
+.nimrose-modal-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--ink-muted-rgb));
+  margin: 0 0 0.6rem;
+}
+
+.nimrose-link-list {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+
+    button {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: rgb(var(--ink-muted-rgb) / 0.6);
+      cursor: pointer;
+    }
+  }
+}
+
+.nimrose-link-form {
+  display: flex;
+  gap: 0.4rem;
+
+  select,
+  input {
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.75rem;
+  }
+
+  input {
+    flex: 1;
+  }
+
+  button {
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.5rem;
+    border: none;
+    background: rgb(var(--accent-rgb) / 0.18);
+    color: rgb(var(--accent-rgb));
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+.nimrose-comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 0.7rem;
+}
+
+.nimrose-comment {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nimrose-comment-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: rgb(var(--accent-rgb));
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.nimrose-comment-meta {
+  margin: 0;
+  font-size: 0.75rem;
+
+  span {
+    color: rgb(var(--ink-muted-rgb));
+    margin-left: 0.4rem;
+  }
+}
+
+.nimrose-comment-body {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+}
+
+.nimrose-comment-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.8rem;
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: rgb(var(--accent-rgb) / 0.18);
+    color: rgb(var(--accent-rgb));
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+}
+
+.nimrose-activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+// -------------------------------------------------------------------------
 // Right context panel
 // -------------------------------------------------------------------------
 

@@ -5,6 +5,7 @@ import NimroseContextPanel from "./NimroseContextPanel";
 import NimroseHome from "./NimroseHome";
 import NimroseTasksView from "./NimroseTasksView";
 import NimroseCalendarView from "./NimroseCalendarView";
+import NimroseKanbanView from "./NimroseKanbanView";
 import "./Nimrose.scss";
 
 const COLLAPSE_KEY = "nimrose-sidebar-collapsed";
@@ -56,7 +57,8 @@ const NimroseShell = () => {
         {active === "home" && <NimroseHome />}
         {active === "tasks" && <NimroseTasksView />}
         {active === "calendar" && <NimroseCalendarView />}
-        {active !== "home" && active !== "tasks" && active !== "calendar" && <ComingSoonSection id={active} />}
+        {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
+        {!["home", "tasks", "calendar", "kanban", "projects"].includes(active) && <ComingSoonSection id={active} />}
       </main>
       <NimroseContextPanel />
     </div>

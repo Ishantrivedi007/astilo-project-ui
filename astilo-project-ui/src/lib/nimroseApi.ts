@@ -7,6 +7,7 @@ export interface NimroseProject {
   id: number;
   name: string;
   color: string | null;
+  keyPrefix: string | null;
   createdAt: string | null;
 }
 
