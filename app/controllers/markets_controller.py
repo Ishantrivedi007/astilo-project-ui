@@ -71,6 +71,17 @@ class MarketsNewsController:
         return _guard(yahoo.news, symbol, int(limit))
 
 
+class MarketsRegionsController:
+    """Real benchmark-index performance per country, for the world/region
+    map — every country's own major index, live from Yahoo Finance."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        return _guard(yahoo.region_indices)
+
+
 class MarketsTopController:
     """Curated/trending lists to populate the Markets home page."""
 

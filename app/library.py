@@ -113,7 +113,14 @@ def parse_chapters(raw_text: str, max_chapters: int = 200) -> list[dict]:
             start = m.end()
             end = headings[i + 1].start() if i + 1 < len(headings) else len(body)
             content = body[start:end].strip()
-            if content:
+            # Gutenberg texts often open with a CONTENTS/table-of-contents
+            # block whose lines ("CHAPTER II.    The Pool of Tears") match
+            # this same heading pattern — a real chapter has substantial
+            # body text after it, a TOC line is immediately followed by the
+            # next TOC line, so short-content matches are TOC noise, not
+            # real chapters, and get dropped rather than duplicating/
+            # scrambling the real chapter list.
+            if content and len(content) >= 200:
                 chapters.append({"heading": heading, "text": content})
     if not chapters:
         chunk_size = 3000
@@ -175,7 +182,17 @@ def resolve_archive_pdf_url(identifier: str) -> str | None:
     raw = cached_fetch("archive_metadata", {"id": identifier}, fetch, ttl_seconds=7 * 24 * 3600)
     for f in raw.get("files") or []:
         if f.get("format") == "Text PDF" and f.get("name", "").lower().endswith(".pdf"):
-            return f"https://archive.org/download/{identifier}/{f['name']}"
+            candidate = f"https://archive.org/download/{identifier}/{f['name']}"
+            # Some items are marked "Text PDF" in their file listing but are
+            # still access-restricted (lending-library rights not fully
+            # cleared) and 401/403 on the real download — verify with a
+            # tiny ranged request rather than handing back a dead link.
+            try:
+                probe = cosmos_get(candidate, timeout=10, headers={**_HEADERS, "Range": "bytes=0-1023"})
+                if probe.status_code in (200, 206):
+                    return candidate
+            except Exception:
+                continue
     return None
 
 

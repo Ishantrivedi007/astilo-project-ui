@@ -62,6 +62,7 @@ from app.controllers.library_controller import (
     LibraryCategoriesController,
     LibraryEntriesController,
     LibraryOpenSearchController,
+    LibraryPdfProxyController,
     LibraryPdfSearchController,
     LibraryPdfUrlController,
     LibrarySearchController,
@@ -75,6 +76,7 @@ from app.controllers.messenger_controller import (
 from app.controllers.markets_controller import (
     MarketsAssetController,
     MarketsNewsController,
+    MarketsRegionsController,
     MarketsSearchController,
     MarketsTopController,
 )
@@ -159,6 +161,7 @@ def build_app():
     cherrypy.tree.mount(MarketsSearchController(), "/api/markets/search", conf)
     cherrypy.tree.mount(MarketsTopController(), "/api/markets/top", conf)
     cherrypy.tree.mount(MarketsNewsController(), "/api/markets/news", conf)
+    cherrypy.tree.mount(MarketsRegionsController(), "/api/markets/regions", conf)
 
     cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)
@@ -188,6 +191,7 @@ def build_app():
     cherrypy.tree.mount(LibraryEntriesController(), "/api/library/entries", conf)
     cherrypy.tree.mount(LibraryPdfSearchController(), "/api/library/pdf-search", conf)
     cherrypy.tree.mount(LibraryPdfUrlController(), "/api/library/pdf-url", conf)
+    cherrypy.tree.mount(LibraryPdfProxyController(), "/api/library/pdf-proxy", conf)
     cherrypy.tree.mount(LibraryOpenSearchController(), "/api/library/openlibrary-search", conf)
     cherrypy.tree.mount(MessengerConversationsController(), "/api/messenger/conversations", conf)
     cherrypy.tree.mount(MessengerMessagesController(), "/api/messenger/messages", conf)

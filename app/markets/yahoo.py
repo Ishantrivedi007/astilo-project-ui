@@ -182,3 +182,69 @@ def trending():
     result = (raw.get("finance", {}).get("result") or [{}])[0]
     symbols = [q["symbol"] for q in (result.get("quotes") or []) if q.get("symbol")]
     return envelope("Yahoo Finance", "trending", None, {"symbols": symbols})
+
+
+# Each country's real, major benchmark index — the same free Yahoo chart
+# endpoint used everywhere else here, just one call per country so the
+# world map can show each market's *actual* current performance rather
+# than an invented number.
+REGION_INDICES = (
+    {"country": "US", "region": "North America", "name": "United States", "symbol": "^GSPC", "indexName": "S&P 500"},
+    {"country": "CA", "region": "North America", "name": "Canada", "symbol": "^GSPTSE", "indexName": "S&P/TSX Composite"},
+    {"country": "MX", "region": "North America", "name": "Mexico", "symbol": "^MXX", "indexName": "IPC Mexico"},
+    {"country": "BR", "region": "South America", "name": "Brazil", "symbol": "^BVSP", "indexName": "Bovespa"},
+    {"country": "AR", "region": "South America", "name": "Argentina", "symbol": "^MERV", "indexName": "Merval"},
+    {"country": "GB", "region": "Europe", "name": "United Kingdom", "symbol": "^FTSE", "indexName": "FTSE 100"},
+    {"country": "DE", "region": "Europe", "name": "Germany", "symbol": "^GDAXI", "indexName": "DAX"},
+    {"country": "FR", "region": "Europe", "name": "France", "symbol": "^FCHI", "indexName": "CAC 40"},
+    {"country": "IT", "region": "Europe", "name": "Italy", "symbol": "FTSEMIB.MI", "indexName": "FTSE MIB"},
+    {"country": "ES", "region": "Europe", "name": "Spain", "symbol": "^IBEX", "indexName": "IBEX 35"},
+    {"country": "NL", "region": "Europe", "name": "Netherlands", "symbol": "^AEX", "indexName": "AEX"},
+    {"country": "CH", "region": "Europe", "name": "Switzerland", "symbol": "^SSMI", "indexName": "SMI"},
+    {"country": "RU", "region": "Europe", "name": "Russia", "symbol": "IMOEX.ME", "indexName": "MOEX Russia"},
+    {"country": "JP", "region": "Asia", "name": "Japan", "symbol": "^N225", "indexName": "Nikkei 225"},
+    {"country": "CN", "region": "Asia", "name": "China", "symbol": "000001.SS", "indexName": "SSE Composite"},
+    {"country": "HK", "region": "Asia", "name": "Hong Kong", "symbol": "^HSI", "indexName": "Hang Seng"},
+    {"country": "IN", "region": "Asia", "name": "India", "symbol": "^BSESN", "indexName": "BSE Sensex"},
+    {"country": "KR", "region": "Asia", "name": "South Korea", "symbol": "^KS11", "indexName": "KOSPI"},
+    {"country": "SG", "region": "Asia", "name": "Singapore", "symbol": "^STI", "indexName": "STI"},
+    {"country": "ID", "region": "Asia", "name": "Indonesia", "symbol": "^JKSE", "indexName": "IDX Composite"},
+    {"country": "TR", "region": "Middle East", "name": "Turkey", "symbol": "XU100.IS", "indexName": "BIST 100"},
+    {"country": "SA", "region": "Middle East", "name": "Saudi Arabia", "symbol": "^TASI.SR", "indexName": "TASI"},
+    {"country": "AU", "region": "Oceania", "name": "Australia", "symbol": "^AXJO", "indexName": "ASX 200"},
+    {"country": "ZA", "region": "Africa", "name": "South Africa", "symbol": "^J203.JO", "indexName": "JSE Top 40"},
+)
+
+
+def region_indices():
+    """One real quote per country's benchmark index, fetched in parallel
+    (each call is independently cached, so repeat loads are instant)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    results = []
+
+    def fetch_one(entry):
+        env = chart(entry["symbol"], "5d")
+        if not env or (isinstance(env, dict) and env.get("error")):
+            return None
+        data = env.get("data") if isinstance(env, dict) else None
+        if not data:
+            return None
+        return {
+            **entry,
+            "price": data.get("price"),
+            "changePercent": data.get("changePercent"),
+            "currency": data.get("currency"),
+        }
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(fetch_one, entry): entry for entry in REGION_INDICES}
+        for future in as_completed(futures):
+            try:
+                row = future.result()
+            except Exception:
+                row = None
+            if row:
+                results.append(row)
+
+    return envelope("Yahoo Finance", "region_indices", None, {"count": len(results), "results": results})

@@ -57,6 +57,41 @@ class LibraryPdfUrlController:
         return {"pdfUrl": url}
 
 
+class LibraryPdfProxyController:
+    """Streams a resolved archive.org PDF through our own server.
+
+    archive.org's /download/ URLs 302-redirect to a per-item storage node
+    (e.g. iaXXXXXX.us.archive.org) that doesn't send permissive CORS
+    headers, so pdf.js fetching the URL directly from the browser fails
+    outright. Fetching it here (server-to-server, where CORS doesn't
+    apply) and re-streaming it from our own origin fixes that."""
+
+    exposed = True
+
+    def GET(self, url=None):
+        if not url or not url.startswith("https://archive.org/download/"):
+            raise cherrypy.HTTPError(400, "url must be a resolved archive.org download URL")
+
+        upstream = requests.get(url, stream=True, timeout=30, headers=library._HEADERS)
+        if upstream.status_code != 200:
+            raise cherrypy.HTTPError(502, f"Upstream PDF fetch failed ({upstream.status_code})")
+
+        cherrypy.response.headers["Content-Type"] = "application/pdf"
+        content_length = upstream.headers.get("Content-Length")
+        if content_length:
+            cherrypy.response.headers["Content-Length"] = content_length
+
+        def stream():
+            for chunk in upstream.iter_content(chunk_size=65536):
+                if chunk:
+                    yield chunk
+            upstream.close()
+
+        return stream()
+
+    GET._cp_config = {"response.stream": True}
+
+
 class LibraryOpenSearchController:
     """Open Library's free, keyless search — the broadest catalog of the
     three sources; each result may carry a public Internet Archive
