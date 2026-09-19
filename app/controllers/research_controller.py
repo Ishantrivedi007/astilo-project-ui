@@ -10,6 +10,7 @@ from the dedicated Research page, not auto-written into note text.
 """
 
 import datetime
+from urllib.parse import quote_plus
 
 import cherrypy
 
@@ -32,7 +33,8 @@ def _user_id():
     return int(cherrypy.request.user["sub"])
 
 
-def _build_brief(title: str, object_type: str, data: dict | None) -> dict:
+def _build_brief(item: CosmosSavedItem) -> dict:
+    title, object_type, data = item.title, item.object_type, item.data_json
     try:
         wiki = wikipedia.research_summary(title)
     except Exception:
@@ -41,6 +43,22 @@ def _build_brief(title: str, object_type: str, data: dict | None) -> dict:
     wiki_data = (wiki or {}).get("data") or {}
     extract = wiki_data.get("extract")
     detailed = wiki_data.get("detailedExtract") or extract
+
+    # Dynamically grows the image gallery with whatever Wikipedia turns up
+    # for this object — the lead thumbnail plus other images found in the
+    # article — instead of only ever showing what was there at save time.
+    images = list(item.research_images_json or [])
+    existing_urls = {img["url"] for img in images}
+    candidates = []
+    if wiki_data.get("thumbnailUrl"):
+        candidates.append({"url": wiki_data["thumbnailUrl"], "caption": wiki_data.get("title") or title})
+    for img in wiki_data.get("articleImages") or []:
+        candidates.append({"url": img["url"], "caption": img.get("title") or title})
+    for c in candidates:
+        if c["url"] not in existing_urls:
+            images.append({**c, "source": "Wikipedia", "addedAt": datetime.datetime.utcnow().isoformat() + "Z"})
+            existing_urls.add(c["url"])
+    item.research_images_json = images
 
     return {
         "summary": extract,
@@ -53,6 +71,43 @@ def _build_brief(title: str, object_type: str, data: dict | None) -> dict:
         "dataSnapshot": {k: v for k, v in (data or {}).items() if not k.startswith("_") and v not in (None, "")},
         "generatedAt": datetime.datetime.utcnow().isoformat() + "Z",
     }
+
+
+def _merge_next_steps(existing: list[dict], fresh: list[dict]) -> list[dict]:
+    """Refreshing the brief shouldn't wipe out steps the user has checked
+    off, edited, manually added, or removed — it only appends newly
+    suggested steps whose text isn't already present."""
+    existing_texts = {s["text"].strip().lower() for s in existing}
+    merged = list(existing)
+    for step in fresh:
+        if step["text"].strip().lower() not in existing_texts:
+            merged.append(step)
+    return merged
+
+
+def _auto_research_note_body(item_title: str, step_text: str, query: str) -> str:
+    """Real search links for a checklist step — never a fabricated
+    "finding", since we have no way to actually answer an open research
+    question. This just gets the user straight to searching it."""
+    q = quote_plus(query)
+    wiki_q = quote_plus(step_text)
+    return "\n".join(
+        [
+            f"# {step_text}",
+            "",
+            f"_Auto-research started from the checklist for **{item_title}**._",
+            "",
+            "## Search this",
+            "",
+            f"- [Wikipedia search]({f'https://en.wikipedia.org/w/index.php?search={wiki_q}'})",
+            f"- [Google Scholar]({f'https://scholar.google.com/scholar?q={q}'})",
+            f"- [NASA ADS]({f'https://ui.adsabs.harvard.edu/search/q={q}'})",
+            "",
+            "## Findings",
+            "",
+            "_Write what you find here._",
+        ]
+    )
 
 
 def _ensure_project(session, item: CosmosSavedItem) -> NimroseProject:
@@ -167,7 +222,7 @@ class ResearchController:
 
             cosmos_item.research_project_id = project.id
             if not cosmos_item.research_brief_json:
-                cosmos_item.research_brief_json = _build_brief(title, object_type, data)
+                cosmos_item.research_brief_json = _build_brief(cosmos_item)
 
             if created_project:
                 space = NimroseBrowserSpace(user_id=user_id, name=project_name[:60], position=0)
@@ -201,11 +256,14 @@ class ResearchController:
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
     def PUT(self, item_id):
-        """Body: {"action": "refresh"} to regenerate the brief,
-        {"action": "toggle_step", "index": N} to check/uncheck a next-step,
-        {"action": "add_image", "url": ..., "caption": ..., "source": ...}
-        to add to the image gallery, or
-        {"action": "remove_image", "index": N} to remove one."""
+        """Body: {"action": "refresh"} to regenerate the brief (keeps
+        existing next-steps' text/done state, only appends newly suggested
+        ones), {"action": "toggle_step", "index": N}, {"action": "add_step",
+        "text": ...}, {"action": "update_step", "index": N, "text": ...},
+        {"action": "remove_step", "index": N}, {"action":
+        "auto_research_step", "index": N} (creates a starter document for
+        that step and checks it off), {"action": "add_image", ...}, or
+        {"action": "remove_image", "index": N}."""
         body = cherrypy.request.json or {}
         action = body.get("action")
         user_id = _user_id()
@@ -216,7 +274,10 @@ class ResearchController:
                 raise cherrypy.HTTPError(404, "Research item not found")
 
             if action == "refresh":
-                item.research_brief_json = _build_brief(item.title, item.object_type, item.data_json)
+                fresh = _build_brief(item)
+                existing = (item.research_brief_json or {}).get("nextSteps") or []
+                fresh["nextSteps"] = _merge_next_steps(existing, fresh["nextSteps"])
+                item.research_brief_json = fresh
             elif action == "toggle_step":
                 index = body.get("index")
                 brief = dict(item.research_brief_json or {})
@@ -226,6 +287,61 @@ class ResearchController:
                 steps[int(index)] = {**steps[int(index)], "done": not steps[int(index)].get("done")}
                 brief["nextSteps"] = steps
                 item.research_brief_json = brief
+            elif action == "add_step":
+                text = (body.get("text") or "").strip()
+                if not text:
+                    raise cherrypy.HTTPError(400, "text is required")
+                brief = dict(item.research_brief_json or {})
+                steps = list(brief.get("nextSteps") or [])
+                steps.append({"text": text, "done": False})
+                brief["nextSteps"] = steps
+                item.research_brief_json = brief
+            elif action == "update_step":
+                index = body.get("index")
+                text = (body.get("text") or "").strip()
+                brief = dict(item.research_brief_json or {})
+                steps = list(brief.get("nextSteps") or [])
+                if index is None or not (0 <= int(index) < len(steps)) or not text:
+                    raise cherrypy.HTTPError(400, "index and a non-empty text are required")
+                steps[int(index)] = {**steps[int(index)], "text": text}
+                brief["nextSteps"] = steps
+                item.research_brief_json = brief
+            elif action == "remove_step":
+                index = body.get("index")
+                brief = dict(item.research_brief_json or {})
+                steps = list(brief.get("nextSteps") or [])
+                if index is None or not (0 <= int(index) < len(steps)):
+                    raise cherrypy.HTTPError(400, "index is required and must reference an existing step")
+                steps.pop(int(index))
+                brief["nextSteps"] = steps
+                item.research_brief_json = brief
+            elif action == "auto_research_step":
+                index = body.get("index")
+                brief = dict(item.research_brief_json or {})
+                steps = list(brief.get("nextSteps") or [])
+                if index is None or not (0 <= int(index) < len(steps)):
+                    raise cherrypy.HTTPError(400, "index is required and must reference an existing step")
+                step_text = steps[int(index)]["text"]
+
+                project = _ensure_project(session, item)
+                query = f"{step_text} {item.title}".strip()
+                note = NimroseNote(
+                    user_id=user_id,
+                    title=step_text[:150],
+                    content=_auto_research_note_body(item.title, step_text, query),
+                    folder=project.name,
+                    tags=["auto-research"],
+                )
+                session.add(note)
+
+                steps[int(index)] = {**steps[int(index)], "done": True}
+                brief["nextSteps"] = steps
+                item.research_brief_json = brief
+                session.flush()
+
+                result = _item_summary(session, item)
+                result["autoResearchNoteId"] = note.id
+                return result
             elif action == "add_image":
                 url = (body.get("url") or "").strip()
                 if not url:

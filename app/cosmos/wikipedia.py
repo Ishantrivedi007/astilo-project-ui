@@ -11,8 +11,11 @@ from app.cosmos.http import cosmos_get, envelope
 SEARCH_URL = "https://en.wikipedia.org/w/api.php"
 SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 ACTION_API_URL = "https://en.wikipedia.org/w/api.php"
-# 1200 is the Wikipedia Action API's hard cap on exchars per request.
-MAX_EXTRACT_CHARS = 1200
+# We fetch the *full* plaintext extract (no exchars cap) and truncate it
+# ourselves at a sentence boundary — gives noticeably more detail than the
+# Action API's 1200-char-per-request exchars cap would allow.
+MAX_DETAILED_CHARS = 3500
+_SKIP_IMAGE_HINTS = ("logo", "icon", "edit-ltr", "cscr-featured", "commons-logo", "red circle", "red_circle")
 
 _HEADERS = {"User-Agent": "AstiloCosmos/1.0 (personal research app; contact: astilo-app@example.com)"}
 
@@ -61,21 +64,19 @@ def summary(title: str) -> dict | None:
 
 
 def detailed_extract(title: str) -> str | None:
-    """Fetches a longer plain-text extract (multiple paragraphs, up to
-    Wikipedia's 1200-char-per-request cap on the Action API) rather than
-    just the short lead-section summary the REST endpoint gives — still the
-    real article text, just more of it."""
+    """Fetches the full plain-text article extract and truncates it to
+    MAX_DETAILED_CHARS at a sentence boundary — several paragraphs of real
+    article text, well beyond the short lead-section summary."""
     params = {
         "action": "query",
         "prop": "extracts",
         "explaintext": 1,
-        "exchars": MAX_EXTRACT_CHARS,
         "titles": title,
         "format": "json",
     }
 
     def fetch():
-        resp = cosmos_get(ACTION_API_URL, params=params, timeout=10, headers=_HEADERS)
+        resp = cosmos_get(ACTION_API_URL, params=params, timeout=12, headers=_HEADERS)
         resp.raise_for_status()
         return resp.json()
 
@@ -83,9 +84,55 @@ def detailed_extract(title: str) -> str | None:
     pages = raw.get("query", {}).get("pages") or {}
     for page in pages.values():
         extract = page.get("extract")
-        if extract:
-            return extract.strip()
+        if not extract:
+            continue
+        extract = extract.strip()
+        if len(extract) <= MAX_DETAILED_CHARS:
+            return extract
+        cut = extract[:MAX_DETAILED_CHARS]
+        last_break = max(cut.rfind(". "), cut.rfind(".\n"))
+        return cut[: last_break + 1] if last_break > 0 else cut
     return None
+
+
+def article_images(title: str, limit: int = 8) -> list[dict]:
+    """Extra images found in the Wikipedia article itself (beyond its lead
+    thumbnail) — filters out site chrome (logos/edit icons/rating badges),
+    not just anything tagged as an image on the page."""
+    params = {
+        "action": "query",
+        "generator": "images",
+        "titles": title,
+        "prop": "imageinfo",
+        "iiprop": "url|mime",
+        "iiurlwidth": 400,
+        "gimlimit": 30,
+        "format": "json",
+    }
+
+    def fetch():
+        resp = cosmos_get(ACTION_API_URL, params=params, timeout=12, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("wikipedia_article_images", {"title": title}, fetch, ttl_seconds=7 * 24 * 3600)
+    pages = (raw.get("query", {}) or {}).get("pages") or {}
+
+    results = []
+    for page in pages.values():
+        page_title = (page.get("title") or "").lower()
+        if any(hint in page_title for hint in _SKIP_IMAGE_HINTS):
+            continue
+        info = (page.get("imageinfo") or [{}])[0]
+        if not info.get("mime", "").startswith("image/") or "svg" in info.get("mime", ""):
+            continue
+        url = info.get("thumburl") or info.get("url")
+        if not url:
+            continue
+        results.append({"title": page.get("title", "").replace("File:", ""), "url": url})
+        if len(results) >= limit:
+            break
+    return results
 
 
 def research_summary(query: str) -> dict:
@@ -101,11 +148,16 @@ def research_summary(query: str) -> dict:
                 result["detailedExtract"] = detailed_extract(title)
             except Exception:
                 result["detailedExtract"] = None
+            try:
+                result["articleImages"] = article_images(title)
+            except Exception:
+                result["articleImages"] = []
             return envelope("Wikipedia", "rest_v1/page/summary", title, result, None)
     return envelope("Wikipedia", "rest_v1/page/summary", query, {
         "title": None,
         "extract": None,
         "detailedExtract": None,
+        "articleImages": [],
         "description": None,
         "thumbnailUrl": None,
         "pageUrl": None,
