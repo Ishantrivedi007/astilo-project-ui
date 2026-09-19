@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import threading
+import time
 import uuid
 
 import cherrypy
@@ -27,6 +29,93 @@ if not os.path.isdir(FFMPEG_LOCATION):
 
 MP3_BITRATES = (128, 192, 256, 320)
 VIDEO_QUALITIES = ("360", "480", "720", "1080", "best")
+
+
+# ---------------------------------------------------------------------------
+# In-memory download job tracker — downloads run on a background thread so
+# the POST can return immediately with a job id; the frontend then polls
+# GET /api/music/downloads for live progress (and the admin panel reads the
+# same list for "currently downloading" stats).
+# ---------------------------------------------------------------------------
+
+_jobs_lock = threading.Lock()
+DOWNLOAD_JOBS: dict = {}
+_MAX_FINISHED_JOBS = 30
+
+
+def _new_job(job_id: str, **fields):
+    with _jobs_lock:
+        DOWNLOAD_JOBS[job_id] = {
+            "id": job_id,
+            "status": "starting",  # starting | downloading | processing | done | error
+            "progress": 0,
+            "error": None,
+            "songId": None,
+            "speedBytesPerSec": None,
+            "etaSeconds": None,
+            "startedAt": time.time(),
+            **fields,
+        }
+        finished = sorted(
+            (j for j in DOWNLOAD_JOBS.values() if j["status"] in ("done", "error")),
+            key=lambda j: j["startedAt"],
+        )
+        for j in finished[: max(0, len(finished) - _MAX_FINISHED_JOBS)]:
+            DOWNLOAD_JOBS.pop(j["id"], None)
+
+
+def _set_job(job_id: str, **patch):
+    with _jobs_lock:
+        job = DOWNLOAD_JOBS.get(job_id)
+        if job is not None:
+            job.update(patch)
+
+
+def _job_progress_hook(job_id: str):
+    def hook(d):
+        if d.get("status") == "downloading":
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            downloaded = d.get("downloaded_bytes") or 0
+            # Reserve the 90-100% tail for muxing/tagging/cover work below.
+            pct = min(89, int(downloaded / total * 90)) if total else 10
+            _set_job(
+                job_id,
+                status="downloading",
+                progress=pct,
+                speedBytesPerSec=d.get("speed"),
+                etaSeconds=d.get("eta"),
+            )
+        elif d.get("status") == "finished":
+            _set_job(job_id, status="processing", progress=92, speedBytesPerSec=None, etaSeconds=None)
+
+    return hook
+
+
+class DownloadJobsController:
+    """Live progress for in-flight (and recently finished) downloads."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        with _jobs_lock:
+            jobs = sorted(DOWNLOAD_JOBS.values(), key=lambda j: j["startedAt"], reverse=True)
+        return [
+            {
+                "id": j["id"],
+                "status": j["status"],
+                "progress": j["progress"],
+                "title": j.get("title"),
+                "artist": j.get("artist"),
+                "format": j.get("format"),
+                "error": j.get("error"),
+                "songId": j.get("songId"),
+                "speedBytesPerSec": j.get("speedBytesPerSec"),
+                "etaSeconds": j.get("etaSeconds"),
+                "startedAt": j["startedAt"],
+            }
+            for j in jobs
+        ]
 
 
 def _itunes_cover(title: str, artist: str):
@@ -147,6 +236,59 @@ def _delete_files_for(song: Song):
             pass
 
 
+def reconcile_downloads(session):
+    """Syncs the `songs` table with what's actually on disk: prunes rows
+    whose file is gone, and adds rows for media files present in
+    DOWNLOADS_DIR that aren't tracked yet (e.g. dropped in manually, or left
+    over from before this table existed). Called on every songs list fetch
+    and right after login so the library always matches the filesystem."""
+    if not os.path.isdir(DOWNLOADS_DIR):
+        return
+
+    songs = session.query(Song).all()
+    known_files = {s.audio_url.rsplit("/", 1)[-1] for s in songs if s.audio_url}
+
+    for s in songs:
+        if not _file_exists_for(s):
+            session.delete(s)
+
+    for fname in sorted(os.listdir(DOWNLOADS_DIR)):
+        ext = os.path.splitext(fname)[1].lower()
+        if ext not in (".mp3", ".mp4") or fname in known_files:
+            continue
+
+        file_id = os.path.splitext(fname)[0]
+        full_path = os.path.join(DOWNLOADS_DIR, fname)
+        cover_path = os.path.join(DOWNLOADS_DIR, f"{file_id}.jpg")
+        cover_url = f"/downloads/{file_id}.jpg" if os.path.isfile(cover_path) else None
+
+        title, artist, duration = file_id, "Unknown Artist", None
+        if ext == ".mp3":
+            try:
+                tags = EasyID3(full_path)
+                title = (tags.get("title") or [title])[0]
+                artist = (tags.get("artist") or [artist])[0]
+            except Exception:
+                pass
+            try:
+                duration = int(MP3(full_path).info.length)
+            except Exception:
+                pass
+
+        session.add(
+            Song(
+                title=title,
+                artist=artist,
+                audio_url=f"/downloads/{fname}",
+                cover_url=cover_url,
+                duration_seconds=duration,
+                media_type="audio" if ext == ".mp3" else "video",
+            )
+        )
+
+    session.flush()
+
+
 class SongPreviewController:
     """Resolves a direct, streamable audio URL for a YouTube id — no download,
     no file written to disk. Used so users can audition a search result before
@@ -195,6 +337,8 @@ class SongsController:
     @cherrypy.tools.json_out()
     def GET(self, id=None):
         with get_session() as session:
+            reconcile_downloads(session)
+
             if id is not None:
                 try:
                     song_id = int(id)
@@ -206,14 +350,7 @@ class SongsController:
                 return song.to_dict()
 
             songs = session.query(Song).order_by(Song.created_at.desc()).all()
-            live, stale = [], []
-            for s in songs:
-                (live if _file_exists_for(s) else stale).append(s)
-            for s in stale:
-                session.delete(s)
-            if stale:
-                session.flush()
-            return [s.to_dict() for s in live]
+            return [s.to_dict() for s in songs]
 
     @cherrypy.tools.json_out()
     def PUT(self, id, **kwargs):
@@ -238,6 +375,10 @@ class SongsController:
                 song.title = title
             if artist:
                 song.artist = artist
+            if "lyrics" in data:
+                song.lyrics_text = (data.get("lyrics") or "").strip() or None
+            if "syncedLyrics" in data:
+                song.lyrics_synced = (data.get("syncedLyrics") or "").strip() or None
             session.flush()
 
             if song.media_type == "audio" and (title or artist) and _file_exists_for(song):
@@ -304,73 +445,100 @@ class SongsController:
         os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
         file_id = uuid.uuid4().hex[:12]
-        out_template = os.path.join(DOWNLOADS_DIR, f"{file_id}.%(ext)s")
+        job_id = uuid.uuid4().hex
 
-        if media_format == "mp3":
-            ydl_opts = {
-                "format": "bestaudio/best",
-                "outtmpl": out_template,
-                "noplaylist": True,
-                "quiet": True,
-                "no_warnings": True,
-                "noprogress": True,
-                "postprocessors": [
-                    {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": str(bitrate)}
-                ],
-            }
-        else:
-            height_filter = f"[height<={quality}]" if quality != "best" else ""
-            ydl_opts = {
-                "format": f"bestvideo{height_filter}+bestaudio/best{height_filter}",
-                "outtmpl": out_template,
-                "noplaylist": True,
-                "quiet": True,
-                "no_warnings": True,
-                "noprogress": True,
-                "merge_output_format": "mp4",
-            }
-        if FFMPEG_LOCATION:
-            ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
+        _new_job(
+            job_id,
+            title=title_hint or query or "Unknown title",
+            artist=artist_hint,
+            format=media_format,
+        )
 
+        thread = threading.Thread(
+            target=_run_download_job,
+            args=(job_id, file_id, source, query, title_hint, artist_hint, media_format, bitrate, quality),
+            daemon=True,
+        )
+        thread.start()
+
+        return {"jobId": job_id}
+
+
+def _run_download_job(job_id, file_id, source, query, title_hint, artist_hint, media_format, bitrate, quality):
+    out_template = os.path.join(DOWNLOADS_DIR, f"{file_id}.%(ext)s")
+
+    if media_format == "mp3":
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": out_template,
+            "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
+            "progress_hooks": [_job_progress_hook(job_id)],
+            "postprocessors": [
+                {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": str(bitrate)}
+            ],
+        }
+    else:
+        height_filter = f"[height<={quality}]" if quality != "best" else ""
+        ydl_opts = {
+            "format": f"bestvideo{height_filter}+bestaudio/best{height_filter}",
+            "outtmpl": out_template,
+            "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
+            "progress_hooks": [_job_progress_hook(job_id)],
+            "merge_output_format": "mp4",
+        }
+    if FFMPEG_LOCATION:
+        ydl_opts["ffmpeg_location"] = FFMPEG_LOCATION
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(source, download=True)
+            if info.get("entries"):
+                info = info["entries"][0]
+    except Exception as exc:
+        _set_job(job_id, status="error", error=f"Download failed: {exc}")
+        return
+
+    ext = "mp3" if media_format == "mp3" else "mp4"
+    media_path = os.path.join(DOWNLOADS_DIR, f"{file_id}.{ext}")
+    if not os.path.exists(media_path):
+        _set_job(job_id, status="error", error="Conversion failed (is ffmpeg installed?)")
+        return
+
+    _set_job(job_id, status="processing", progress=95)
+
+    title = title_hint or info.get("track") or info.get("title") or query or "Unknown title"
+    artist = artist_hint or info.get("artist") or info.get("uploader") or "Unknown Artist"
+    duration = int(info.get("duration") or 0)
+    resolved_youtube_id = info.get("id")
+    source_url = info.get("webpage_url")
+    thumbnail = info.get("thumbnail")
+
+    cover_url = _itunes_cover(title, artist) or thumbnail
+    cover_url_path = None
+    if cover_url:
+        cover_path = _download_cover(cover_url, os.path.join(DOWNLOADS_DIR, file_id))
+        if cover_path:
+            cover_url_path = f"/downloads/{os.path.basename(cover_path)}"
+            if media_format == "mp3":
+                _embed_cover(media_path, cover_path)
+
+    if media_format == "mp3":
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(source, download=True)
-                if info.get("entries"):
-                    info = info["entries"][0]
-        except Exception as exc:
-            raise cherrypy.HTTPError(502, f"Download failed: {exc}")
+            tags = EasyID3(media_path)
+        except Exception:
+            MP3(media_path).add_tags()
+            tags = EasyID3(media_path)
+        tags["title"] = title
+        tags["artist"] = artist
+        tags.save()
 
-        ext = "mp3" if media_format == "mp3" else "mp4"
-        media_path = os.path.join(DOWNLOADS_DIR, f"{file_id}.{ext}")
-        if not os.path.exists(media_path):
-            raise cherrypy.HTTPError(502, "Conversion failed (is ffmpeg installed?)")
-
-        title = title_hint or info.get("track") or info.get("title") or query or "Unknown title"
-        artist = artist_hint or info.get("artist") or info.get("uploader") or "Unknown Artist"
-        duration = int(info.get("duration") or 0)
-        resolved_youtube_id = info.get("id")
-        source_url = info.get("webpage_url")
-        thumbnail = info.get("thumbnail")
-
-        cover_url = _itunes_cover(title, artist) or thumbnail
-        cover_url_path = None
-        if cover_url:
-            cover_path = _download_cover(cover_url, os.path.join(DOWNLOADS_DIR, file_id))
-            if cover_path:
-                cover_url_path = f"/downloads/{os.path.basename(cover_path)}"
-                if media_format == "mp3":
-                    _embed_cover(media_path, cover_path)
-
-        if media_format == "mp3":
-            try:
-                tags = EasyID3(media_path)
-            except Exception:
-                MP3(media_path).add_tags()
-                tags = EasyID3(media_path)
-            tags["title"] = title
-            tags["artist"] = artist
-            tags.save()
-
+    try:
         with get_session() as session:
             song = Song(
                 title=title,
@@ -387,5 +555,8 @@ class SongsController:
             session.add(song)
             session.flush()
             result = song.to_dict()
+    except Exception as exc:
+        _set_job(job_id, status="error", error=f"Couldn't save song: {exc}")
+        return
 
-        return result
+    _set_job(job_id, status="done", progress=100, songId=result["id"], title=title, artist=artist)

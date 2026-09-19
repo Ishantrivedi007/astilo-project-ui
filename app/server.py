@@ -8,7 +8,12 @@ from app.controllers.health_controller import HealthController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.playlists_controller import PlaylistsController
 from app.controllers.sessions_controller import SessionsController
-from app.controllers.songs_controller import SongPreviewController, SongSearchController, SongsController
+from app.controllers.songs_controller import (
+    DownloadJobsController,
+    SongPreviewController,
+    SongSearchController,
+    SongsController,
+)
 from app.controllers.store_controller import OrdersController, ProductsController
 from app.controllers.users_controller import UsersController
 from app.db import init_db
@@ -56,6 +61,7 @@ def build_app():
     cherrypy.tree.mount(SongsController(), "/api/music/songs", conf)
     cherrypy.tree.mount(SongSearchController(), "/api/music/search", conf)
     cherrypy.tree.mount(SongPreviewController(), "/api/music/preview", conf)
+    cherrypy.tree.mount(DownloadJobsController(), "/api/music/downloads", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,

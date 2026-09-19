@@ -240,6 +240,10 @@ class Song(Base):
     bitrate_kbps = Column(Integer)
     quality_label = Column(String(20))
     created_at = Column(DateTime, default=utcnow)
+    # Lyrics synced to this specific song from the Lyrics tab search — takes
+    # priority over the live lyrics lookup once set.
+    lyrics_text = Column(Text, nullable=True)
+    lyrics_synced = Column(Text, nullable=True)  # raw LRC, when the source has timings
 
     def to_dict(self):
         return {
@@ -255,6 +259,8 @@ class Song(Base):
             "bitrateKbps": self.bitrate_kbps,
             "qualityLabel": self.quality_label,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "lyrics": self.lyrics_text,
+            "syncedLyrics": self.lyrics_synced,
         }
 
 

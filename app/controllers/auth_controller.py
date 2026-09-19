@@ -1,6 +1,7 @@
 import cherrypy
 
 from app.auth import create_token, hash_password, verify_password
+from app.controllers.songs_controller import reconcile_downloads
 from app.db import get_session
 from app.models import LoginEvent, User
 
@@ -69,5 +70,9 @@ class AuthController:
                 raise cherrypy.HTTPError(401, "Invalid email or password")
 
             _log_login_event(session, user.id)
+            # Reconcile the songs table with the downloads folder on every
+            # login, so files dropped in (or removed) outside the app show
+            # up without waiting for the next library fetch.
+            reconcile_downloads(session)
             token = create_token(user)
             return {"token": token, "user": user.to_dict()}
