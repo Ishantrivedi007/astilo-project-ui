@@ -5,6 +5,21 @@ import { Chart, GlassPanel } from "../shared";
 import { fetchNimroseProjects } from "../../lib/nimroseApi";
 import { fetchBreakdown, fetchBurndown, fetchSprints, fetchVelocity } from "../../lib/kanbanApi";
 
+// A warm amber/coral palette for Nimrose's charts specifically — passed as
+// a per-chart override rather than changing the shared Chart component's
+// theme, so Movies/Music/Store stats elsewhere in the app keep their own
+// look. Ideal-vs-actual burndown gets its own two-tone pairing so the two
+// lines stay readable against each other.
+const WARM_PALETTE = ["#f59e0b", "#fb7185", "#f97316", "#e879f9", "#facc15", "#fb923c"];
+const BURNDOWN_PALETTE = ["#fdba74", "#f43f5e"];
+
+const interactive = {
+  markers: { size: 4, strokeWidth: 2, hover: { sizeOffset: 3 } },
+  dataLabels: { enabled: false },
+  chart: { toolbar: { show: true, tools: { download: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } }, zoom: { enabled: true } },
+  tooltip: { shared: true, intersect: false, followCursor: true },
+};
+
 const NimroseAnalyticsView = () => {
   const [projectId, setProjectId] = useState<number | null>(null);
   const [sprintId, setSprintId] = useState<number | null>(null);
@@ -106,9 +121,12 @@ const NimroseAnalyticsView = () => {
                 { name: "Actual", data: burndownQuery.data.actualRemaining },
               ]}
               options={{
+                ...interactive,
+                colors: BURNDOWN_PALETTE,
                 xaxis: { categories: burndownQuery.data.dates },
                 stroke: { curve: "straight", width: [2, 3], dashArray: [4, 0] },
                 yaxis: { title: { text: "Story points remaining" } },
+                markers: { ...interactive.markers, strokeColors: BURNDOWN_PALETTE },
               }}
             />
           )}
@@ -122,7 +140,13 @@ const NimroseAnalyticsView = () => {
               type="bar"
               height={260}
               series={[{ name: "Points completed", data: velocity.map((v) => v.pointsCompleted) }]}
-              options={{ xaxis: { categories: velocity.map((v) => v.sprintName) } }}
+              options={{
+                ...interactive,
+                colors: WARM_PALETTE,
+                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
+                xaxis: { categories: velocity.map((v) => v.sprintName) },
+                plotOptions: { bar: { borderRadius: 6, columnWidth: "55%" } },
+              }}
             />
           )}
         </GlassPanel>
@@ -134,10 +158,12 @@ const NimroseAnalyticsView = () => {
               height={220}
               series={Object.values(breakdown.byType)}
               options={{
+                colors: WARM_PALETTE,
                 labels: Object.keys(breakdown.byType),
                 legend: { position: "bottom" },
-                stroke: { width: 0 },
-                plotOptions: { pie: { donut: { size: "68%" } } },
+                stroke: { width: 2, colors: ["rgba(0,0,0,0)"] },
+                plotOptions: { pie: { donut: { size: "62%" }, expandOnClick: true } },
+                dataLabels: { enabled: true, dropShadow: { enabled: false } },
               }}
             />
           ) : (
@@ -151,7 +177,14 @@ const NimroseAnalyticsView = () => {
               type="bar"
               height={220}
               series={[{ name: "Tickets", data: Object.values(breakdown.byPriority) }]}
-              options={{ xaxis: { categories: Object.keys(breakdown.byPriority) }, plotOptions: { bar: { horizontal: true } } }}
+              options={{
+                ...interactive,
+                colors: WARM_PALETTE,
+                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
+                xaxis: { categories: Object.keys(breakdown.byPriority) },
+                plotOptions: { bar: { horizontal: true, borderRadius: 5, distributed: true } },
+                legend: { show: false },
+              }}
             />
           ) : (
             <p className="nimrose-widget-empty">No tickets yet.</p>
@@ -164,7 +197,14 @@ const NimroseAnalyticsView = () => {
               type="bar"
               height={220}
               series={[{ name: "Tickets", data: Object.values(breakdown.byColumn) }]}
-              options={{ xaxis: { categories: Object.keys(breakdown.byColumn) } }}
+              options={{
+                ...interactive,
+                colors: WARM_PALETTE,
+                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
+                xaxis: { categories: Object.keys(breakdown.byColumn) },
+                plotOptions: { bar: { borderRadius: 6, distributed: true, columnWidth: "55%" } },
+                legend: { show: false },
+              }}
             />
           ) : (
             <p className="nimrose-widget-empty">No tickets yet.</p>
@@ -177,7 +217,14 @@ const NimroseAnalyticsView = () => {
               type="bar"
               height={220}
               series={[{ name: "Tickets", data: Object.values(breakdown.byAssignee) }]}
-              options={{ xaxis: { categories: Object.keys(breakdown.byAssignee) }, plotOptions: { bar: { horizontal: true } } }}
+              options={{
+                ...interactive,
+                colors: WARM_PALETTE,
+                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
+                xaxis: { categories: Object.keys(breakdown.byAssignee) },
+                plotOptions: { bar: { horizontal: true, borderRadius: 5, distributed: true } },
+                legend: { show: false },
+              }}
             />
           ) : (
             <p className="nimrose-widget-empty">No tickets yet.</p>

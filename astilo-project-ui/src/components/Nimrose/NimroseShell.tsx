@@ -17,6 +17,7 @@ import NimroseBrowserView from "./NimroseBrowserView";
 import NimroseBookmarksView from "./NimroseBookmarksView";
 import NimroseSettingsView from "./NimroseSettingsView";
 import NimroseCommandPalette from "./NimroseCommandPalette";
+import NimrosePulse from "./NimrosePulse";
 import { NimroseFocusProvider, useNimroseFocus } from "./NimroseFocusContext";
 import { NimrosePromptProvider } from "./NimrosePromptDialog";
 import "./Nimrose.scss";
@@ -77,14 +78,21 @@ const NimroseShellInner = ({
         {active === "saved" && <NimroseBookmarksView readLaterOnly />}
         {active === "settings" && <NimroseSettingsView />}
       </main>
-      {!isImmersiveFocus && <NimroseContextPanel />}
+      {!isImmersiveFocus && (
+        <>
+          <NimroseContextPanel />
+          <div className="nimrose-pulse-anchor">
+            <NimrosePulse onNavigate={setActive} />
+          </div>
+        </>
+      )}
       <NimroseCommandPalette onNavigate={setActive} />
     </div>
   );
 };
 
 const VALID_SECTIONS = [
-  "home", "tasks", "calendar", "kanban", "projects", "sprints", "backlog",
+  "home", "tasks", "calendar", "kanban", "projects", "sprints", "backlog", "analytics",
   "notes", "focus", "browser", "bookmarks", "saved", "settings",
 ];
 

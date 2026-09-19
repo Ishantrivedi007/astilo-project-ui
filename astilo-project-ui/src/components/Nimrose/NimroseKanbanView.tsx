@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare, Paperclip, Plus, Trash2 } from "lucide-react";
 
@@ -16,6 +16,7 @@ import {
   fetchSprints,
   fetchTickets,
   TICKET_TYPE_ICON,
+  TICKET_TYPE_LABEL,
   updateBoardColumn,
   updateTicket,
   type NimroseTicket,
@@ -28,6 +29,36 @@ const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2,
 
 type Preset = "all" | "mine" | "unassigned" | "critical";
 type SortMode = "manual" | "priority" | "dueDate" | "points";
+
+interface SavedFilter {
+  id: string;
+  name: string;
+  search: string;
+  preset: Preset;
+  type: string;
+  priority: string;
+  assignee: string;
+  sortMode: SortMode;
+}
+
+const savedFiltersKey = (projectId: number) => `nimrose-kanban-filters-${projectId}`;
+
+const readSavedFilters = (projectId: number): SavedFilter[] => {
+  try {
+    const raw = localStorage.getItem(savedFiltersKey(projectId));
+    return raw ? (JSON.parse(raw) as SavedFilter[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeSavedFilters = (projectId: number, filters: SavedFilter[]) => {
+  try {
+    localStorage.setItem(savedFiltersKey(projectId), JSON.stringify(filters));
+  } catch {
+    /* ignore */
+  }
+};
 
 const sortTickets = (tickets: NimroseTicket[], mode: SortMode) => {
   if (mode === "manual") return tickets;
@@ -51,12 +82,21 @@ const NimroseKanbanView = () => {
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("manual");
   const [preset, setPreset] = useState<Preset>("all");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [assigneeFilter, setAssigneeFilter] = useState("");
   const [openTicketId, setOpenTicketId] = useState<number | null>(null);
   const [draftByColumn, setDraftByColumn] = useState<Record<string, string>>({});
-  const [dragOverColumn, setDragOverColumn] = useState<TicketStatus | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [groupBy, setGroupBy] = useState<"none" | "assignee">("none");
 
   const projectsQuery = useQuery({ queryKey: ["nimrose", "projects"], queryFn: fetchNimroseProjects });
   const activeProjectId = projectId ?? projectsQuery.data?.[0]?.id ?? null;
+
+  useEffect(() => {
+    setSavedFilters(activeProjectId ? readSavedFilters(activeProjectId) : []);
+  }, [activeProjectId]);
 
   const sprintsQuery = useQuery({
     queryKey: ["nimrose", "sprints", activeProjectId],
@@ -140,11 +180,30 @@ const NimroseKanbanView = () => {
     if (preset === "mine" && user?.name) list = list.filter((t) => t.assignee === user.name);
     if (preset === "unassigned") list = list.filter((t) => !t.assignee);
     if (preset === "critical") list = list.filter((t) => t.priority === "critical");
+    if (typeFilter) list = list.filter((t) => t.type === typeFilter);
+    if (priorityFilter) list = list.filter((t) => t.priority === priorityFilter);
+    if (assigneeFilter.trim()) {
+      const a = assigneeFilter.trim().toLowerCase();
+      list = list.filter((t) => (t.assignee ?? "").toLowerCase().includes(a));
+    }
     if (sprintId === "backlog") list = list.filter((t) => !t.sprintId);
     return list;
-  }, [allTickets, search, preset, user?.name, sprintId]);
+  }, [allTickets, search, preset, typeFilter, priorityFilter, assigneeFilter, user?.name, sprintId]);
 
-  const byColumn = (slug: TicketStatus) => sortTickets(visibleTickets.filter((t) => t.status === slug), sortMode);
+  const byColumnIn = (list: NimroseTicket[], slug: TicketStatus) => sortTickets(list.filter((t) => t.status === slug), sortMode);
+
+  const lanes: { label: string; tickets: NimroseTicket[] }[] =
+    groupBy === "assignee"
+      ? Object.entries(
+          visibleTickets.reduce((acc, t) => {
+            const key = t.assignee || "Unassigned";
+            (acc[key] ??= []).push(t);
+            return acc;
+          }, {} as Record<string, NimroseTicket[]>)
+        )
+          .sort(([a], [b]) => (a === "Unassigned" ? 1 : b === "Unassigned" ? -1 : a.localeCompare(b)))
+          .map(([label, tickets]) => ({ label, tickets }))
+      : [{ label: "", tickets: visibleTickets }];
 
   const activeSprint = typeof sprintId === "number" ? sprintsQuery.data?.find((s) => s.id === sprintId) : null;
   const sprintTickets = typeof sprintId === "number" ? allTickets : [];
@@ -267,6 +326,10 @@ const NimroseKanbanView = () => {
           <option value="dueDate">Sort: Due date</option>
           <option value="points">Sort: Story points</option>
         </select>
+        <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as "none" | "assignee")} aria-label="Group into swimlanes">
+          <option value="none">No swimlanes</option>
+          <option value="assignee">Swimlanes: Assignee</option>
+        </select>
       </div>
 
       <div className="nimrose-status-tabs">
@@ -280,6 +343,89 @@ const NimroseKanbanView = () => {
             {p === "all" ? "All" : p === "mine" ? "My Tickets" : p === "unassigned" ? "Unassigned" : "Critical"}
           </button>
         ))}
+
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="Filter by type">
+          <option value="">Any type</option>
+          {(Object.keys(TICKET_TYPE_LABEL) as (keyof typeof TICKET_TYPE_LABEL)[]).map((t) => (
+            <option key={t} value={t}>
+              {TICKET_TYPE_ICON[t]} {TICKET_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
+        <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} aria-label="Filter by priority">
+          <option value="">Any priority</option>
+          {["low", "medium", "high", "critical"].map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <input
+          value={assigneeFilter}
+          onChange={(e) => setAssigneeFilter(e.target.value)}
+          placeholder="Assignee contains…"
+          aria-label="Filter by assignee"
+          className="nimrose-kanban-search"
+          style={{ maxWidth: 160 }}
+        />
+      </div>
+
+      <div className="nimrose-status-tabs">
+        {savedFilters.map((f) => (
+          <span key={f.id} className="nimrose-saved-filter-chip">
+            <button
+              type="button"
+              onClick={() => {
+                setSearch(f.search);
+                setPreset(f.preset);
+                setTypeFilter(f.type);
+                setPriorityFilter(f.priority);
+                setAssigneeFilter(f.assignee);
+                setSortMode(f.sortMode);
+              }}
+            >
+              {f.name}
+            </button>
+            <button
+              type="button"
+              aria-label={`Delete filter ${f.name}`}
+              onClick={() => {
+                if (!activeProjectId) return;
+                const next = savedFilters.filter((sf) => sf.id !== f.id);
+                setSavedFilters(next);
+                writeSavedFilters(activeProjectId, next);
+              }}
+            >
+              <Trash2 size={10} />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          className="nimrose-chip"
+          onClick={async () => {
+            if (!activeProjectId) return;
+            const name = await prompt({ title: "Save filter as…", placeholder: "e.g. My critical bugs" });
+            if (!name?.trim()) return;
+            const next = [
+              ...savedFilters,
+              {
+                id: crypto.randomUUID(),
+                name: name.trim(),
+                search,
+                preset,
+                type: typeFilter,
+                priority: priorityFilter,
+                assignee: assigneeFilter,
+                sortMode,
+              },
+            ];
+            setSavedFilters(next);
+            writeSavedFilters(activeProjectId, next);
+          }}
+        >
+          <Plus size={12} /> Save current filter
+        </button>
       </div>
 
       {activeSprint && (
@@ -302,94 +448,119 @@ const NimroseKanbanView = () => {
         </div>
       )}
 
-      <div className="nimrose-kanban-board">
-        {columns.map((col) => {
-          const colTickets = byColumn(col.slug);
-          const overLimit = !!col.wipLimit && colTickets.length > col.wipLimit;
-          return (
-          <div
-            key={col.slug}
-            className={`nimrose-kanban-column ${dragOverColumn === col.slug ? "nimrose-kanban-column--over" : ""} ${overLimit ? "nimrose-kanban-column--over-limit" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOverColumn(col.slug);
-            }}
-            onDragLeave={() => setDragOverColumn((c) => (c === col.slug ? null : c))}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOverColumn(null);
-              const id = Number(e.dataTransfer.getData("text/plain"));
-              if (id) moveMutation.mutate({ id, status: col.slug });
-            }}
-          >
-            <div className="nimrose-kanban-column-header">
-              <span>{col.name}</span>
-              <button
-                type="button"
-                className="nimrose-kanban-wip"
-                title="Set a soft WIP limit for this column"
-                onClick={async () => {
-                  const value = await prompt({
-                    title: `WIP limit for ${col.name}`,
-                    placeholder: "e.g. 3 (leave blank for no limit)",
-                    defaultValue: col.wipLimit ? String(col.wipLimit) : "",
-                  });
-                  if (value === null) return;
-                  const parsed = value.trim() ? Number(value.trim()) : null;
-                  wipLimitMutation.mutate({ columnId: col.id, wipLimit: Number.isFinite(parsed) ? parsed : null });
-                }}
-              >
-                {colTickets.length}
-                {col.wipLimit ? `/${col.wipLimit}` : ""}
-              </button>
-              <button
-                type="button"
-                className="nimrose-kanban-column-delete"
-                onClick={() => deleteColumnMutation.mutate(col.id)}
-                aria-label={`Delete ${col.name} column`}
-                title={`Delete ${col.name}`}
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
+      {lanes.map((lane) => (
+        <div key={lane.label || "__all__"}>
+          {groupBy === "assignee" && (
+            <p className="nimrose-swimlane-label">
+              {lane.label} <span className="nimrose-widget-footnote">({lane.tickets.length})</span>
+            </p>
+          )}
+          <div className="nimrose-kanban-board">
+            {columns.map((col) => {
+              const colTickets = byColumnIn(lane.tickets, col.slug);
+              const overLimit = !!col.wipLimit && colTickets.length > col.wipLimit;
+              return (
+                <div
+                  key={col.slug}
+                  className={`nimrose-kanban-column ${dragOverColumn === `${lane.label}:${col.slug}` ? "nimrose-kanban-column--over" : ""} ${overLimit ? "nimrose-kanban-column--over-limit" : ""}`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverColumn(`${lane.label}:${col.slug}`);
+                  }}
+                  onDragLeave={() => setDragOverColumn((c) => (c === `${lane.label}:${col.slug}` ? null : c))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverColumn(null);
+                    const id = Number(e.dataTransfer.getData("text/plain"));
+                    if (id) moveMutation.mutate({ id, status: col.slug });
+                  }}
+                >
+                  <div className="nimrose-kanban-column-header">
+                    <span>{col.name}</span>
+                    <button
+                      type="button"
+                      className="nimrose-kanban-wip"
+                      title="Set a soft WIP limit for this column"
+                      onClick={async () => {
+                        const value = await prompt({
+                          title: `WIP limit for ${col.name}`,
+                          placeholder: "e.g. 3 (leave blank for no limit)",
+                          defaultValue: col.wipLimit ? String(col.wipLimit) : "",
+                        });
+                        if (value === null) return;
+                        const parsed = value.trim() ? Number(value.trim()) : null;
+                        wipLimitMutation.mutate({ columnId: col.id, wipLimit: Number.isFinite(parsed) ? parsed : null });
+                      }}
+                    >
+                      {colTickets.length}
+                      {col.wipLimit ? `/${col.wipLimit}` : ""}
+                    </button>
+                    <button
+                      type="button"
+                      className="nimrose-kanban-column-delete"
+                      onClick={() => deleteColumnMutation.mutate(col.id)}
+                      aria-label={`Delete ${col.name} column`}
+                      title={`Delete ${col.name}`}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
 
-            <div className="nimrose-kanban-cards">
-              {colTickets.map((ticket) => (
-                <TicketCard key={ticket.id} ticket={ticket} overdue={isOverdue(ticket, doneSlugs)} onOpen={() => setOpenTicketId(ticket.id)} />
-              ))}
-            </div>
+                  <div className="nimrose-kanban-cards">
+                    {colTickets.map((ticket) => (
+                      <TicketCard key={ticket.id} ticket={ticket} overdue={isOverdue(ticket, doneSlugs)} onOpen={() => setOpenTicketId(ticket.id)} />
+                    ))}
+                  </div>
 
-            <form
-              className="nimrose-kanban-add"
-              onSubmit={(e) => {
-                e.preventDefault();
-                addTicket(col.slug);
-              }}
-            >
-              <input
-                value={draftByColumn[col.slug] ?? ""}
-                onChange={(e) => setDraftByColumn((prev) => ({ ...prev, [col.slug]: e.target.value }))}
-                placeholder="+ Add ticket"
-                aria-label={`Add ticket to ${col.name}`}
-              />
-            </form>
+                  <form
+                    className="nimrose-kanban-add"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      addTicket(col.slug);
+                    }}
+                  >
+                    <input
+                      value={draftByColumn[col.slug] ?? ""}
+                      onChange={(e) => setDraftByColumn((prev) => ({ ...prev, [col.slug]: e.target.value }))}
+                      placeholder="+ Add ticket"
+                      aria-label={`Add ticket to ${col.name}`}
+                    />
+                  </form>
+                </div>
+              );
+            })}
+
+            {groupBy === "none" && (
+              <div className="nimrose-kanban-column nimrose-kanban-column--add">
+                <button
+                  type="button"
+                  className="nimrose-chip"
+                  onClick={async () => {
+                    const name = await prompt({ title: "New column", placeholder: "e.g. Testing, QA" });
+                    if (name?.trim()) addColumnMutation.mutate(name.trim());
+                  }}
+                >
+                  <Plus size={12} /> Add column
+                </button>
+              </div>
+            )}
           </div>
-          );
-        })}
-
-        <div className="nimrose-kanban-column nimrose-kanban-column--add">
-          <button
-            type="button"
-            className="nimrose-chip"
-            onClick={async () => {
-              const name = await prompt({ title: "New column", placeholder: "e.g. Testing, QA" });
-              if (name?.trim()) addColumnMutation.mutate(name.trim());
-            }}
-          >
-            <Plus size={12} /> Add column
-          </button>
         </div>
-      </div>
+      ))}
+
+      {groupBy === "assignee" && (
+        <button
+          type="button"
+          className="nimrose-chip"
+          style={{ marginTop: "0.5rem" }}
+          onClick={async () => {
+            const name = await prompt({ title: "New column", placeholder: "e.g. Testing, QA" });
+            if (name?.trim()) addColumnMutation.mutate(name.trim());
+          }}
+        >
+          <Plus size={12} /> Add column
+        </button>
+      )}
 
       {openTicketId && <NimroseTicketModal ticketId={openTicketId} onClose={() => setOpenTicketId(null)} />}
     </div>
