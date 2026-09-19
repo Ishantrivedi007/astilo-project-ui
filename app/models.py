@@ -975,3 +975,56 @@ class Notification(Base):
             "read": bool(self.read),
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+BOT_NAME = "Astilo Bot"
+
+
+class ChatChannel(Base):
+    """A Slack-style channel within a user's own workspace — this app has
+    no cross-account real-time messaging infra, so channels are personal
+    organizational threads (e.g. #general, #random) rather than shared
+    team channels. The bot is the one other "participant"."""
+
+    __tablename__ = "chat_channels"
+    __table_args__ = (UniqueConstraint("user_id", "name", name="uq_chat_channel_name"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(80), nullable=False)
+    topic = Column(String(255), nullable=True)
+    archived = Column(Integer, nullable=False, default=0)  # 0/1
+    created_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "topic": self.topic,
+            "archived": bool(self.archived),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True)
+    channel_id = Column(Integer, ForeignKey("chat_channels.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    author_name = Column(String(120), nullable=False)
+    is_bot = Column(Integer, nullable=False, default=0)  # 0/1
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    edited_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "channelId": self.channel_id,
+            "authorName": self.author_name,
+            "isBot": bool(self.is_bot),
+            "body": self.body,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "editedAt": self.edited_at.isoformat() if self.edited_at else None,
+        }
