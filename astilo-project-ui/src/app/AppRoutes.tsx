@@ -25,6 +25,10 @@ const MovieCategory = lazy(() => import("../components/Movies/MovieCategory"));
 const MovieWatchlistPage = lazy(() => import("../components/Movies/MovieWatchlistPage"));
 const MoviePlaylists = lazy(() => import("../components/Movies/MoviePlaylists"));
 const AnimeHome = lazy(() => import("../components/Anime/AnimeHome"));
+const CosmosHome = lazy(() => import("../components/Cosmos/CosmosHome"));
+const CosmosSearch = lazy(() => import("../components/Cosmos/CosmosSearch"));
+const CosmosLibrary = lazy(() => import("../components/Cosmos/CosmosLibrary"));
+const CosmosSpaceWeather = lazy(() => import("../components/Cosmos/CosmosSpaceWeather"));
 const Customize = lazy(() => import("../components/Customize/Customize"));
 const Home = lazy(() => import("../components/Home/Home"));
 const Login = lazy(() => import("../components/Login/Login"));
@@ -134,6 +138,10 @@ const AppRoutes = () => (
           />
         )}
       />
+      <Route path={AppRoute.cosmos} element={getAuthRoute(<CosmosHome />)} />
+      <Route path={AppRoute.cosmosSearch} element={getAuthRoute(<CosmosSearch />)} />
+      <Route path={AppRoute.cosmosLibrary} element={getAuthRoute(<CosmosLibrary />)} />
+      <Route path={AppRoute.cosmosSpaceWeather} element={getAuthRoute(<CosmosSpaceWeather />)} />
       <Route path={AppRoute.customize} element={getAuthRoute(<Customize />)} />
       <Route path={AppRoute.profile} element={getAuthRoute(<Profile />)} />
       <Route

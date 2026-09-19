@@ -14,6 +14,7 @@ import {
   X,
   Globe,
   CalendarClock,
+  Orbit,
 } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Music", href: AppRoute.music, icon: Music },
   { label: "Anime", href: AppRoute.anime, icon: Sparkles },
   { label: "Store", href: AppRoute.store, icon: ShoppingBag },
+  { label: "Cosmos", href: AppRoute.cosmos, icon: Orbit },
 ];
 
 const COMING_SOON_ITEMS = [
