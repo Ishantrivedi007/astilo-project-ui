@@ -1,0 +1,304 @@
+.office-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.office-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(232, 236, 255, 0.5);
+  margin-bottom: 0.35rem;
+}
+
+.office-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.4rem;
+}
+
+.office-tagline {
+  color: rgba(232, 236, 255, 0.55);
+  font-size: 0.9rem;
+  max-width: 46rem;
+  margin-bottom: 0.5rem;
+}
+
+.office-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.2rem;
+  margin-top: 1.5rem;
+}
+
+.office-hub-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  text-align: left;
+  padding: 1.6rem 1.4rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(140, 160, 255, 0.15);
+  background: rgba(15, 18, 40, 0.4);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  p {
+    font-size: 0.8rem;
+    color: rgba(232, 236, 255, 0.55);
+    line-height: 1.5;
+  }
+}
+
+.office-hub-tile--word {
+  &:hover { border-color: rgba(96, 165, 250, 0.5); }
+  .office-hub-icon { background: rgba(96, 165, 250, 0.18); color: #60a5fa; }
+}
+
+.office-hub-tile--excel {
+  &:hover { border-color: rgba(74, 222, 128, 0.5); }
+  .office-hub-icon { background: rgba(74, 222, 128, 0.18); color: #4ade80; }
+}
+
+.office-hub-tile--slides {
+  &:hover { border-color: rgba(251, 146, 60, 0.5); }
+  .office-hub-icon { background: rgba(251, 146, 60, 0.18); color: #fb923c; }
+}
+
+.office-hub-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// -- Shared doc-list layout (Word) --
+
+.office-docs-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+  min-height: 480px;
+  margin-top: 1rem;
+}
+
+.office-docs-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.office-doc-item {
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.55rem;
+  font-size: 0.8rem;
+  color: rgba(232, 236, 255, 0.65);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  &:hover {
+    background: rgba(127, 176, 255, 0.08);
+  }
+
+  &.active {
+    background: rgba(127, 176, 255, 0.16);
+    color: #fff;
+  }
+}
+
+// -- Excel --
+
+.office-sheet-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.office-sheet-scroll {
+  overflow: auto;
+  border: 1px solid rgba(140, 160, 255, 0.15);
+  border-radius: 0.7rem;
+  max-height: 65vh;
+}
+
+.office-sheet-table {
+  border-collapse: collapse;
+  font-size: 0.78rem;
+
+  th, td {
+    border: 1px solid rgba(140, 160, 255, 0.12);
+    padding: 0;
+    min-width: 90px;
+  }
+
+  th {
+    background: rgba(15, 18, 40, 0.6);
+    color: rgba(232, 236, 255, 0.5);
+    font-weight: 600;
+    padding: 0.35rem 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  th.office-sheet-rownum {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    min-width: 36px;
+    text-align: center;
+  }
+
+  td.office-sheet-rowhead {
+    background: rgba(15, 18, 40, 0.6);
+    color: rgba(232, 236, 255, 0.5);
+    text-align: center;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+
+  input {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.78rem;
+
+    &:focus {
+      outline: 2px solid rgba(127, 176, 255, 0.5);
+      outline-offset: -2px;
+      background: rgba(127, 176, 255, 0.08);
+    }
+  }
+}
+
+// -- PowerPoint --
+
+.office-slides-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.office-slide-thumbs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.office-slide-thumb {
+  border: 2px solid rgba(140, 160, 255, 0.15);
+  border-radius: 0.6rem;
+  background: rgba(15, 18, 40, 0.5);
+  padding: 0.6rem;
+  text-align: left;
+  cursor: pointer;
+  aspect-ratio: 16/10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &.active {
+    border-color: rgba(127, 176, 255, 0.6);
+  }
+
+  .thumb-num {
+    font-size: 0.6rem;
+    color: rgba(232, 236, 255, 0.4);
+  }
+
+  .thumb-title {
+    font-size: 0.72rem;
+    color: #fff;
+    font-weight: 600;
+    margin-top: 0.2rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+}
+
+.office-slide-editor {
+  background: #14162c;
+  border: 1px solid rgba(140, 160, 255, 0.15);
+  border-radius: 0.9rem;
+  padding: 1.4rem;
+  aspect-ratio: 16/9;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.office-slide-title-input {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin-bottom: 0.8rem;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.office-present-overlay {
+  position: fixed;
+  inset: 0;
+  background: #0a0b18;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.office-present-slide {
+  width: min(1100px, 90vw);
+  aspect-ratio: 16/9;
+  background: #14162c;
+  border-radius: 1rem;
+  padding: 3rem;
+  overflow-y: auto;
+  color: #fff;
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+  }
+}
+
+.office-present-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  color: rgba(232, 236, 255, 0.6);
+  font-size: 0.85rem;
+}

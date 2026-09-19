@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Eye, FileText, NotebookPen, Pencil, Pin, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Eye, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 
+import { AppRoute } from "../../app/AppRoute";
 import { RichTextEditor, useConfirm } from "../shared";
 import {
   createNimroseNote,
@@ -12,14 +14,13 @@ import {
 import { downloadDocument } from "../../lib/downloadDoc";
 import MarkdownRenderer from "../Nimrose/MarkdownRenderer";
 import "../Nimrose/Nimrose.scss";
-import "./Wordpad.scss";
+import "./Office.scss";
 
-/** Astilo Wordpad — a standalone document editor tab (separate from the
- * Notes list view, though both read/write the same NimroseNote records):
- * full CRUD, a rich WYSIWYG mode alongside Markdown, and local file
- * download. Everything here also shows up in Notes and vice versa — same
- * underlying records, this is just a dedicated writing-focused view. */
-const WordpadHome = () => {
+/** "Word" — rich (and plain Markdown) documents. Same NimroseNote records
+ * as the Notes tab (kind="note"); this is a dedicated writing-focused view
+ * inside the Office suite rather than a separate data store. */
+const OfficeWord = () => {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -27,7 +28,7 @@ const WordpadHome = () => {
   const [richDraft, setRichDraft] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const docsQuery = useQuery({ queryKey: ["nimrose", "notes", "all-wordpad"], queryFn: () => fetchNimroseNotes() });
+  const docsQuery = useQuery({ queryKey: ["nimrose", "notes", "kind-note"], queryFn: () => fetchNimroseNotes({ kind: "note" }) });
   const docs = docsQuery.data ?? [];
   const selected = docs.find((d) => d.id === selectedId) ?? null;
   const isRich = selected?.contentFormat === "html";
@@ -44,6 +45,7 @@ const WordpadHome = () => {
         title: contentFormat === "html" ? "Untitled document" : "Untitled note",
         content: "",
         contentFormat,
+        kind: "note",
       }),
     onSuccess: (note) => {
       invalidate();
@@ -74,20 +76,17 @@ const WordpadHome = () => {
     }, 800);
   };
 
-  const grouped = useMemo(() => {
-    const rich = docs.filter((d) => d.contentFormat === "html");
-    const md = docs.filter((d) => d.contentFormat !== "html");
-    return { rich, md };
-  }, [docs]);
-
   return (
-    <div className="wordpad-page">
+    <div className="office-page">
+      <button type="button" className="nimrose-chip mb-4" onClick={() => navigate(AppRoute.office)}>
+        <ArrowLeft size={12} /> Office
+      </button>
+
       <div className="nimrose-home-header">
         <div>
-          <p className="nimrose-eyebrow">Astilo</p>
-          <h1 className="nimrose-page-title">
-            <NotebookPen size={22} style={{ display: "inline", verticalAlign: "-4px", marginRight: 8 }} />
-            Wordpad
+          <p className="office-eyebrow">Astilo Office</p>
+          <h1 className="office-title" style={{ fontSize: "1.5rem" }}>
+            Word
           </h1>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -95,52 +94,29 @@ const WordpadHome = () => {
             <Plus size={12} /> New note
           </button>
           <button type="button" className="nimrose-chip" onClick={() => createMutation.mutate("html")}>
-            <FileText size={12} /> New document
+            <FileText size={12} /> New rich document
           </button>
         </div>
       </div>
 
-      <div className="nimrose-notes-layout">
-        <div className="nimrose-notes-sidebar">
-          <p className="wordpad-group-label">Rich documents ({grouped.rich.length})</p>
-          <div className="nimrose-notes-list">
-            {grouped.rich.length === 0 && <p className="nimrose-widget-empty">None yet.</p>}
-            {grouped.rich.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className={`nimrose-note-list-item ${selectedId === n.id ? "nimrose-note-list-item--active" : ""}`}
-                onClick={() => {
-                  setSelectedId(n.id);
-                  setMode("edit");
-                }}
-              >
-                {n.pinned && <Pin size={11} />}
-                <span className="nimrose-note-list-title">{n.title}</span>
-                <span className="nimrose-widget-footnote">{n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}</span>
-              </button>
-            ))}
-          </div>
-
-          <p className="wordpad-group-label">Notes ({grouped.md.length})</p>
-          <div className="nimrose-notes-list">
-            {grouped.md.length === 0 && <p className="nimrose-widget-empty">None yet.</p>}
-            {grouped.md.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className={`nimrose-note-list-item ${selectedId === n.id ? "nimrose-note-list-item--active" : ""}`}
-                onClick={() => {
-                  setSelectedId(n.id);
-                  setMode("edit");
-                }}
-              >
-                {n.pinned && <Pin size={11} />}
-                <span className="nimrose-note-list-title">{n.title}</span>
-                <span className="nimrose-widget-footnote">{n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}</span>
-              </button>
-            ))}
-          </div>
+      <div className="office-docs-layout">
+        <div className="office-docs-sidebar">
+          {docs.length === 0 && <p className="nimrose-widget-empty">No documents yet.</p>}
+          {docs.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className={`office-doc-item ${selectedId === d.id ? "active" : ""}`}
+              onClick={() => {
+                setSelectedId(d.id);
+                setMode("edit");
+              }}
+            >
+              {d.pinned && <Pin size={11} />}
+              {d.contentFormat === "html" && <FileText size={11} />}
+              {d.title}
+            </button>
+          ))}
         </div>
 
         <div className="nimrose-notes-editor glass-card">
@@ -167,22 +143,11 @@ const WordpadHome = () => {
                   <Pin size={14} fill={selected.pinned ? "currentColor" : "none"} />
                 </button>
                 {!isRich && (
-                  <button
-                    type="button"
-                    className="nimrose-icon-btn"
-                    onClick={() => setMode(mode === "edit" ? "preview" : "edit")}
-                    aria-label={mode === "edit" ? "Preview" : "Edit"}
-                  >
+                  <button type="button" className="nimrose-icon-btn" onClick={() => setMode(mode === "edit" ? "preview" : "edit")} aria-label={mode === "edit" ? "Preview" : "Edit"}>
                     {mode === "edit" ? <Eye size={14} /> : <Pencil size={14} />}
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="nimrose-icon-btn"
-                  onClick={() => downloadDocument(selected)}
-                  aria-label="Download"
-                  title="Download as a local file"
-                >
+                <button type="button" className="nimrose-icon-btn" onClick={() => downloadDocument(selected)} aria-label="Download" title="Download as a local file">
                   <Download size={14} />
                 </button>
                 <button
@@ -196,24 +161,6 @@ const WordpadHome = () => {
                 >
                   <Trash2 size={14} />
                 </button>
-              </div>
-
-              <div className="nimrose-notes-meta-row">
-                <input
-                  defaultValue={selected.folder ?? ""}
-                  placeholder="Folder"
-                  onBlur={(e) => updateMutation.mutate({ id: selected.id, patch: { folder: e.target.value.trim() || null } })}
-                />
-                <input
-                  defaultValue={selected.tags.join(", ")}
-                  placeholder="tags, comma, separated"
-                  onBlur={(e) =>
-                    updateMutation.mutate({
-                      id: selected.id,
-                      patch: { tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean) },
-                    })
-                  }
-                />
               </div>
 
               {isRich ? (
@@ -238,4 +185,4 @@ const WordpadHome = () => {
   );
 };
 
-export default WordpadHome;
+export default OfficeWord;

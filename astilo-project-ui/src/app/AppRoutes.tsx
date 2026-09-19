@@ -37,7 +37,10 @@ const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
 const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetView"));
 const ResearchHome = lazy(() => import("../components/Research/ResearchHome"));
 const ResearchDetail = lazy(() => import("../components/Research/ResearchDetail"));
-const WordpadHome = lazy(() => import("../components/Wordpad/WordpadHome"));
+const OfficeHome = lazy(() => import("../components/Office/OfficeHome"));
+const OfficeWord = lazy(() => import("../components/Office/OfficeWord"));
+const OfficeExcel = lazy(() => import("../components/Office/OfficeExcel"));
+const OfficePowerPoint = lazy(() => import("../components/Office/OfficePowerPoint"));
 const NotificationsView = lazy(() => import("../components/Notifications/NotificationsView"));
 const Customize = lazy(() => import("../components/Customize/Customize"));
 const Home = lazy(() => import("../components/Home/Home"));
@@ -160,7 +163,10 @@ const AppRoutes = () => (
       <Route path={AppRoute.marketsAsset} element={getAuthRoute(<MarketsAssetView />)} />
       <Route path={AppRoute.research} element={getAuthRoute(<ResearchHome />)} />
       <Route path={`${AppRoute.researchDetail}/:id`} element={getAuthRoute(<ResearchDetail />)} />
-      <Route path={AppRoute.wordpad} element={getAuthRoute(<WordpadHome />)} />
+      <Route path={AppRoute.office} element={getAuthRoute(<OfficeHome />)} />
+      <Route path={AppRoute.officeWord} element={getAuthRoute(<OfficeWord />)} />
+      <Route path={AppRoute.officeExcel} element={getAuthRoute(<OfficeExcel />)} />
+      <Route path={AppRoute.officeSlides} element={getAuthRoute(<OfficePowerPoint />)} />
       <Route path={AppRoute.notifications} element={getAuthRoute(<NotificationsView />)} />
       <Route path={AppRoute.customize} element={getAuthRoute(<Customize />)} />
       <Route path={AppRoute.profile} element={getAuthRoute(<Profile />)} />
