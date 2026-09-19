@@ -31,6 +31,7 @@ export interface MarketAssetData {
   marketCap?: number | null;
   fiftyTwoWeekHigh: number | null;
   fiftyTwoWeekLow: number | null;
+  logoUrl: string | null;
   marketTime: number | null;
   range: string;
   interval: string;
@@ -56,6 +57,7 @@ export interface MarketSearchResult {
   exchange: string | null;
   quoteType: string | null;
   sector: string | null;
+  logoUrl: string | null;
 }
 
 export async function searchMarkets(query: string, assetType: AssetType, limit = 10) {
@@ -70,7 +72,19 @@ export interface TopCoin {
   price: number;
   changePercent: number;
   marketCap: number;
-  image: string;
+  logoUrl: string;
+}
+
+export interface MarketArticle {
+  title: string;
+  link: string;
+  description: string;
+  publishedAt: string;
+}
+
+export async function fetchMarketNews(symbol: string, limit = 8) {
+  const { data } = await markets.get(`/news`, { params: { symbol, limit } });
+  return data as MarketEnvelope<{ count: number; results: MarketArticle[] }>;
 }
 
 export async function fetchTopCrypto(limit = 20) {

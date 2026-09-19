@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { LineChart, Search } from "lucide-react";
@@ -6,6 +6,7 @@ import { LineChart, Search } from "lucide-react";
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
 import MarketQuoteCard from "./MarketQuoteCard";
+import MarketLogo, { categoryFromQuoteType, type MarketCategory } from "./MarketLogo";
 import "./Markets.scss";
 
 const STOCKS = [
@@ -45,11 +46,21 @@ const FUNDS = [
   { symbol: "JPM", label: "JPMorgan Chase" },
 ];
 
+const QUOTE_TYPE_FILTERS: { value: string | null; label: string }[] = [
+  { value: null, label: "All" },
+  { value: "EQUITY", label: "Stocks" },
+  { value: "ETF", label: "ETFs/Funds" },
+  { value: "INDEX", label: "Indices" },
+  { value: "FUTURE", label: "Commodities" },
+  { value: "CURRENCY", label: "Forex" },
+];
+
 const MarketsHome = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [searchType, setSearchType] = useState<AssetType>("stock");
+  const [quoteTypeFilter, setQuoteTypeFilter] = useState<string | null>(null);
 
   const searchQuery = useQuery({
     queryKey: ["markets", "search", submitted, searchType],
@@ -74,9 +85,15 @@ const MarketsHome = () => {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(query.trim());
+    setQuoteTypeFilter(null);
   };
 
-  const results = searchQuery.data?.data.results ?? [];
+  const allResults = searchQuery.data?.data.results ?? [];
+  const results = useMemo(
+    () => (quoteTypeFilter ? allResults.filter((r) => r.quoteType === quoteTypeFilter) : allResults),
+    [allResults, quoteTypeFilter]
+  );
+  const availableTypes = useMemo(() => new Set(allResults.map((r) => r.quoteType)), [allResults]);
 
   return (
     <div className="markets-page">
@@ -100,7 +117,7 @@ const MarketsHome = () => {
           />
           <div className="markets-type-toggle">
             <button type="button" className={searchType === "stock" ? "active" : ""} onClick={() => setSearchType("stock")}>
-              Stocks &amp; more
+              Stocks, funds &amp; commodities
             </button>
             <button type="button" className={searchType === "crypto" ? "active" : ""} onClick={() => setSearchType("crypto")}>
               Crypto
@@ -113,26 +130,51 @@ const MarketsHome = () => {
       </form>
 
       {searchQuery.isLoading && <p className="markets-unavailable">Searching…</p>}
-      {submitted && !searchQuery.isLoading && results.length > 0 && (
-        <div className="markets-search-results">
-          {results.map((r) => (
+
+      {submitted && !searchQuery.isLoading && allResults.length > 0 && searchType === "stock" && (
+        <div className="markets-filter-row">
+          {QUOTE_TYPE_FILTERS.filter((f) => f.value === null || availableTypes.has(f.value)).map((f) => (
             <button
-              key={r.symbol}
+              key={f.label}
               type="button"
-              className="markets-search-result-row"
-              onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(r.symbol)}&type=${searchType}`)}
+              className={`markets-filter-chip ${quoteTypeFilter === f.value ? "active" : ""}`}
+              onClick={() => setQuoteTypeFilter(f.value)}
             >
-              <span>
-                <span className="markets-result-name">{r.name}</span>{" "}
-                <span className="markets-result-meta">{r.symbol}</span>
-              </span>
-              <span className="markets-result-meta">{r.exchange ?? r.quoteType}</span>
+              {f.label}
             </button>
           ))}
         </div>
       )}
-      {submitted && !searchQuery.isLoading && results.length === 0 && (
+
+      {submitted && !searchQuery.isLoading && results.length > 0 && (
+        <div className="markets-search-results">
+          {results.map((r) => {
+            const category: MarketCategory = searchType === "crypto" ? "crypto" : categoryFromQuoteType(r.quoteType);
+            return (
+              <button
+                key={r.symbol}
+                type="button"
+                className="markets-search-result-row"
+                onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(r.symbol)}&type=${searchType}`)}
+              >
+                <span className="markets-result-left">
+                  <MarketLogo logoUrl={r.logoUrl} category={category} name={r.name} size={24} />
+                  <span>
+                    <span className="markets-result-name">{r.name}</span>{" "}
+                    <span className="markets-result-meta">{r.symbol}</span>
+                  </span>
+                </span>
+                <span className="markets-result-meta">{r.exchange ?? r.quoteType}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {submitted && !searchQuery.isLoading && allResults.length === 0 && (
         <p className="markets-unavailable">No matches for "{submitted}".</p>
+      )}
+      {submitted && !searchQuery.isLoading && allResults.length > 0 && results.length === 0 && (
+        <p className="markets-unavailable">No "{QUOTE_TYPE_FILTERS.find((f) => f.value === quoteTypeFilter)?.label}" matches for "{submitted}".</p>
       )}
 
       <h2 className="markets-section-title">Crypto — top by market cap</h2>
@@ -144,7 +186,10 @@ const MarketsHome = () => {
             className="markets-quote-card"
             onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${c.symbol}&type=crypto`)}
           >
-            <span className="markets-quote-symbol">{c.ticker}</span>
+            <div className="markets-quote-card-head">
+              <MarketLogo logoUrl={c.logoUrl} category="crypto" name={c.name} size={26} />
+              <span className="markets-quote-symbol">{c.ticker}</span>
+            </div>
             <span className="markets-quote-name">{c.name}</span>
             <span className="markets-quote-price">${c.price.toLocaleString(undefined, { maximumFractionDigits: c.price < 5 ? 4 : 2 })}</span>
             <span className={`markets-quote-change ${c.changePercent >= 0 ? "positive" : "negative"}`}>
@@ -167,35 +212,35 @@ const MarketsHome = () => {
       <h2 className="markets-section-title">Stocks</h2>
       <div className="markets-quote-grid">
         {STOCKS.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="stock" />
         ))}
       </div>
 
       <h2 className="markets-section-title">Indices</h2>
       <div className="markets-quote-grid">
         {INDICES.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="index" />
         ))}
       </div>
 
       <h2 className="markets-section-title">Commodities</h2>
       <div className="markets-quote-grid">
         {COMMODITIES.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="commodity" />
         ))}
       </div>
 
       <h2 className="markets-section-title">Forex</h2>
       <div className="markets-quote-grid">
         {FOREX.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="forex" />
         ))}
       </div>
 
       <h2 className="markets-section-title">Funds &amp; banks</h2>
       <div className="markets-quote-grid">
         {FUNDS.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="fund" />
         ))}
       </div>
     </div>
