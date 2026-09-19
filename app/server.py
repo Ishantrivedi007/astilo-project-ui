@@ -41,6 +41,7 @@ from app.controllers.nimrose_controller import (
     NimroseTicketsController,
 )
 from app.controllers.playlists_controller import PlaylistsController
+from app.controllers.research_controller import ResearchController
 from app.controllers.sessions_controller import SessionsController
 from app.controllers.songs_controller import (
     DownloadJobsController,
@@ -129,6 +130,7 @@ def build_app():
     cherrypy.tree.mount(NimroseBookmarksController(), "/api/nimrose/bookmarks", conf)
     cherrypy.tree.mount(NimroseHistoryController(), "/api/nimrose/history", conf)
     cherrypy.tree.mount(NimroseBrowserProxyController(), "/api/nimrose/browser-proxy", conf)
+    cherrypy.tree.mount(ResearchController(), "/api/research", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
