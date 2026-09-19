@@ -389,8 +389,8 @@
   border-radius: 1rem;
   padding: 0.75rem;
   background:
-    radial-gradient(ellipse 80% 60% at 50% 20%, rgba(88, 101, 242, 0.18), transparent 60%),
-    radial-gradient(ellipse at center, rgba(40, 50, 90, 0.3), rgba(6, 6, 12, 0.55));
+    radial-gradient(ellipse 80% 60% at 50% 20%, rgba(88, 101, 242, 0.22), transparent 60%),
+    radial-gradient(ellipse at center, #1c2036 0%, #0a0c16 100%);
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
   margin-bottom: 1.5rem;
   overflow: hidden;

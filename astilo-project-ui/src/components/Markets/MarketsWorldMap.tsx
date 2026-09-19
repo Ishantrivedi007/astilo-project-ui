@@ -12,11 +12,13 @@ import "./Markets.scss";
 // own docs use for this exact purpose.
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
+const NO_DATA_FILL = "#454b63";
+
 const colorFor = (changePercent: number | null): string => {
-  if (changePercent == null) return "#2a2a35";
+  if (changePercent == null) return NO_DATA_FILL;
   if (changePercent >= 1.5) return "#16a34a";
   if (changePercent >= 0.3) return "#4ade80";
-  if (changePercent > -0.3) return "#6b7280";
+  if (changePercent > -0.3) return "#8b93ab";
   if (changePercent > -1.5) return "#f87171";
   return "#dc2626";
 };
@@ -105,8 +107,8 @@ const MarketsWorldMap = () => {
                       key={geo.id ?? name}
                       geography={geo}
                       fill={isHovered && entry ? "#facc15" : colorFor(entry?.changePercent ?? null)}
-                      stroke="#0d0d12"
-                      strokeWidth={isHovered ? 0.9 : 0.4}
+                      stroke="#12141f"
+                      strokeWidth={isHovered ? 0.9 : 0.5}
                       onMouseEnter={() => {
                         if (entry) {
                           setHovered(entry);
@@ -160,7 +162,7 @@ const MarketsWorldMap = () => {
             <i style={{ background: "#f87171" }} /> Loss
           </span>
           <span>
-            <i style={{ background: "#6b7280" }} /> Flat
+            <i style={{ background: "#8b93ab" }} /> Flat
           </span>
           <span>
             <i style={{ background: "#4ade80" }} /> Gain
@@ -169,7 +171,7 @@ const MarketsWorldMap = () => {
             <i style={{ background: "#16a34a" }} /> Sharp gain
           </span>
           <span>
-            <i style={{ background: "#2a2a35" }} /> No data
+            <i style={{ background: NO_DATA_FILL }} /> No data
           </span>
         </div>
       </div>
