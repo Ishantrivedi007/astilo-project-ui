@@ -7,25 +7,37 @@ import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   fetchAsteroid,
+  fetchGalaxy,
   fetchStar,
   saveCosmosItem,
   searchExoplanets,
   searchHighEnergyObservations,
   searchNasaImages,
   searchObservations,
+  searchSupernovae,
   type AsteroidData,
   type CosmosObjectType,
   type ExoplanetData,
+  type GalaxyData,
   type HighEnergyObservationRow,
   type NasaImageData,
   type ObservationData,
   type StarData,
+  type SupernovaRemnantRow,
 } from "../../lib/cosmosApi";
 import CosmosField from "./CosmosField";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
 
-type ResultGroup = "asteroid" | "exoplanet" | "star" | "observation" | "image" | "high-energy";
+type ResultGroup =
+  | "asteroid"
+  | "exoplanet"
+  | "star"
+  | "observation"
+  | "image"
+  | "high-energy"
+  | "galaxy"
+  | "supernova";
 
 const TYPE_LABELS: Record<ResultGroup, string> = {
   asteroid: "Asteroids & comets",
@@ -34,6 +46,8 @@ const TYPE_LABELS: Record<ResultGroup, string> = {
   observation: "Telescope observations",
   image: "NASA image & video library",
   "high-energy": "X-ray observations (HEASARC)",
+  galaxy: "Galaxies",
+  supernova: "Supernova remnants",
 };
 
 const SaveButton = ({
@@ -92,6 +106,8 @@ const CosmosSearch = () => {
   const showObservations = !typeFilter || typeFilter === "observation";
   const showImages = !typeFilter || typeFilter === "image";
   const showHighEnergy = !typeFilter || typeFilter === "high-energy";
+  const showGalaxies = !typeFilter || typeFilter === "galaxy";
+  const showSupernovae = !typeFilter || typeFilter === "supernova";
 
   const asteroidQuery = useQuery({
     queryKey: ["cosmos", "asteroid", q],
@@ -135,18 +151,35 @@ const CosmosSearch = () => {
     retry: false,
   });
 
+  const galaxyQuery = useQuery({
+    queryKey: ["cosmos", "galaxy", q],
+    queryFn: () => fetchGalaxy(q),
+    enabled: showGalaxies && q.length > 1,
+    retry: false,
+  });
+
+  const supernovaQuery = useQuery({
+    queryKey: ["cosmos", "supernova", q],
+    queryFn: () => searchSupernovae(q),
+    enabled: showSupernovae && q.length > 1,
+    retry: false,
+  });
+
   const loading =
     asteroidQuery.isLoading ||
     exoplanetQuery.isLoading ||
     starQuery.isLoading ||
     observationQuery.isLoading ||
     imageQuery.isLoading ||
-    highEnergyQuery.isLoading;
+    highEnergyQuery.isLoading ||
+    galaxyQuery.isLoading ||
+    supernovaQuery.isLoading;
 
   const exoplanetResults = exoplanetQuery.data?.data.results ?? [];
   const observationResults = observationQuery.data?.data.results ?? [];
   const imageResults = imageQuery.data?.data.results ?? [];
   const highEnergyResults = highEnergyQuery.data?.data.results ?? [];
+  const supernovaResults = supernovaQuery.data?.data.results ?? [];
 
   const nothingFound = useMemo(() => {
     if (!q) return false;
@@ -157,7 +190,9 @@ const CosmosSearch = () => {
       !starQuery.data &&
       observationResults.length === 0 &&
       imageResults.length === 0 &&
-      highEnergyResults.length === 0
+      highEnergyResults.length === 0 &&
+      !galaxyQuery.data &&
+      supernovaResults.length === 0
     );
   }, [
     q,
@@ -168,6 +203,8 @@ const CosmosSearch = () => {
     observationResults,
     imageResults,
     highEnergyResults,
+    galaxyQuery.data,
+    supernovaResults,
   ]);
 
   return (
@@ -235,6 +272,24 @@ const CosmosSearch = () => {
           <div className="cosmos-result-list">
             {observationResults.slice(0, 10).map((o, i) => (
               <ObservationCard key={`${o.observationId}-${i}`} data={o} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {showGalaxies && galaxyQuery.data && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.galaxy}</h2>
+          <GalaxyCard data={galaxyQuery.data.data} source={galaxyQuery.data.source} />
+        </>
+      )}
+
+      {showSupernovae && supernovaResults.length > 0 && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.supernova}</h2>
+          <div className="cosmos-result-list">
+            {supernovaResults.map((row, i) => (
+              <SupernovaCard key={`${row.name}-${i}`} data={row} />
             ))}
           </div>
         </>
@@ -383,6 +438,57 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
         className="mt-3 max-h-40 rounded-lg object-cover"
       />
     )}
+  </div>
+);
+
+const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
+  <div className="cosmos-card">
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      <CosmosSourceBadge source={source} />
+      {data.objectType && <span className="cosmos-chip">{data.objectType}</span>}
+      <SaveButton
+        objectType="galaxy"
+        externalId={data.name}
+        title={data.name}
+        source={source}
+        sourceDataset="basic"
+        data={data}
+      />
+    </div>
+    <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
+    <dl className="cosmos-field-grid">
+      <CosmosField label="Morphological type" value={data.morphologicalType} />
+      <CosmosField label="Redshift" value={data.redshift} />
+      <CosmosField label="Angular size (major)" value={data.angularMajorAxisArcmin} unit="arcmin" />
+      <CosmosField label="Angular size (minor)" value={data.angularMinorAxisArcmin} unit="arcmin" />
+      <CosmosField label="RA" value={data.raDeg} unit="°" />
+      <CosmosField label="Dec" value={data.decDeg} unit="°" />
+    </dl>
+  </div>
+);
+
+const SupernovaCard = ({ data }: { data: SupernovaRemnantRow }) => (
+  <div className="cosmos-card">
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      <CosmosSourceBadge source="HEASARC · Green's SNR Catalog" />
+      <SaveButton
+        objectType="supernova"
+        externalId={data.name}
+        title={data.name}
+        source="HEASARC"
+        sourceDataset="Green's Supernova Remnant Catalog"
+        data={data}
+      />
+    </div>
+    <h3 className="mb-2 text-base font-bold">{data.name}</h3>
+    <dl className="cosmos-field-grid">
+      <CosmosField label="Angular size (major)" value={data.major_diameter} unit="arcmin" />
+      <CosmosField label="Angular size (minor)" value={data.minor_diameter} unit="arcmin" />
+      <CosmosField label="Remnant type" value={data.type} />
+      <CosmosField label="Flux at 1 GHz" value={data.flux_1_ghz} unit="mJy" />
+      <CosmosField label="RA" value={data.ra} unit="°" />
+      <CosmosField label="Dec" value={data.dec} unit="°" />
+    </dl>
   </div>
 );
 

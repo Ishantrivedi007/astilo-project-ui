@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   CircleDot,
+  Flame,
+  Galaxy as Milky,
   Image as ImageIcon,
   Orbit,
   Radar,
@@ -16,22 +18,61 @@ import {
 
 import { AppRoute } from "../../app/AppRoute";
 import { Reveal } from "../shared";
-import { fetchApod } from "../../lib/cosmosApi";
+import {
+  fetchApod,
+  fetchAsteroid,
+  fetchGalaxy,
+  fetchStar,
+  searchExoplanets,
+  searchHighEnergyObservations,
+  searchObservations,
+  searchSupernovae,
+} from "../../lib/cosmosApi";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
 
-const EXAMPLES = ["Apophis", "TRAPPIST-1", "Sirius", "Cygnus X-1", "Pillars of Creation"];
+const EXAMPLES = ["Apophis", "TRAPPIST-1", "Sirius", "Cygnus X-1", "Andromeda Galaxy", "Crab Nebula"];
 
 const NAV_TILES = [
   { label: "Asteroids", icon: CircleDot, href: `${AppRoute.cosmosSearch}?type=asteroid` },
   { label: "Exoplanets", icon: Orbit, href: `${AppRoute.cosmosSearch}?type=exoplanet` },
   { label: "Stars", icon: Star, href: `${AppRoute.cosmosSearch}?type=star` },
+  { label: "Galaxies", icon: Milky, href: `${AppRoute.cosmosSearch}?type=galaxy` },
+  { label: "Supernovae", icon: Flame, href: `${AppRoute.cosmosSearch}?type=supernova` },
   { label: "Telescopes", icon: Telescope, href: `${AppRoute.cosmosSearch}?type=observation` },
   { label: "X-ray sources", icon: Zap, href: `${AppRoute.cosmosSearch}?type=high-energy` },
   { label: "Image Library", icon: ImageIcon, href: `${AppRoute.cosmosSearch}?type=image` },
   { label: "Space Weather", icon: Sun, href: AppRoute.cosmosSpaceWeather },
   { label: "Cosmos Library", icon: Sparkles, href: AppRoute.cosmosLibrary },
 ];
+
+interface FeaturedTileProps {
+  eyebrow: string;
+  href: string;
+  loading: boolean;
+  errored: boolean;
+  title?: string;
+  subtitle?: string;
+}
+
+const FeaturedTile = ({ eyebrow, href, loading, errored, title, subtitle }: FeaturedTileProps) => {
+  const navigate = useNavigate();
+  return (
+    <button type="button" className="cosmos-card text-left" onClick={() => navigate(href)}>
+      <p className="cosmos-eyebrow" style={{ fontSize: "0.65rem" }}>
+        {eyebrow}
+      </p>
+      {loading && <p className="mt-1 text-sm text-white/40">Loading…</p>}
+      {!loading && errored && <p className="mt-1 cosmos-unavailable">Data unavailable</p>}
+      {!loading && !errored && (
+        <>
+          <p className="mt-1 truncate text-base font-bold">{title ?? "Data unavailable"}</p>
+          {subtitle && <p className="mt-0.5 truncate text-xs text-white/50">{subtitle}</p>}
+        </>
+      )}
+    </button>
+  );
+};
 
 const CosmosHome = () => {
   const navigate = useNavigate();
@@ -41,6 +82,50 @@ const CosmosHome = () => {
     queryKey: ["cosmos", "apod"],
     staleTime: 1000 * 60 * 60,
     queryFn: () => fetchApod(),
+    retry: false,
+  });
+
+  const staleTime = 1000 * 60 * 30;
+  const featuredAsteroid = useQuery({
+    queryKey: ["cosmos", "featured", "asteroid"],
+    queryFn: () => fetchAsteroid("Apophis"),
+    staleTime,
+    retry: false,
+  });
+  const featuredExoplanet = useQuery({
+    queryKey: ["cosmos", "featured", "exoplanet"],
+    queryFn: () => searchExoplanets({ name: "TRAPPIST-1", limit: 1 }),
+    staleTime,
+    retry: false,
+  });
+  const featuredStar = useQuery({
+    queryKey: ["cosmos", "featured", "star"],
+    queryFn: () => fetchStar("Sirius"),
+    staleTime,
+    retry: false,
+  });
+  const featuredGalaxy = useQuery({
+    queryKey: ["cosmos", "featured", "galaxy"],
+    queryFn: () => fetchGalaxy("Andromeda Galaxy"),
+    staleTime,
+    retry: false,
+  });
+  const featuredSupernova = useQuery({
+    queryKey: ["cosmos", "featured", "supernova"],
+    queryFn: () => searchSupernovae("Crab Nebula", 1),
+    staleTime,
+    retry: false,
+  });
+  const featuredObservation = useQuery({
+    queryKey: ["cosmos", "featured", "observation"],
+    queryFn: () => searchObservations("M16", "HST", 1),
+    staleTime,
+    retry: false,
+  });
+  const featuredHighEnergy = useQuery({
+    queryKey: ["cosmos", "featured", "high-energy"],
+    queryFn: () => searchHighEnergyObservations("Cygnus X-1", "numaster", 1),
+    staleTime,
     retry: false,
   });
 
@@ -107,6 +192,82 @@ const CosmosHome = () => {
             </Reveal>
           );
         })}
+      </div>
+
+      <h2 className="cosmos-section-title">Featured across the Cosmos</h2>
+      <div className="cosmos-nav-grid">
+        <FeaturedTile
+          eyebrow="Asteroid · JPL SBDB"
+          href={`${AppRoute.cosmosSearch}?q=Apophis`}
+          loading={featuredAsteroid.isLoading}
+          errored={featuredAsteroid.isError}
+          title={featuredAsteroid.data?.data.name}
+          subtitle={featuredAsteroid.data ? `⌀ ${featuredAsteroid.data.data.diameterKm ?? "?"} km` : undefined}
+        />
+        <FeaturedTile
+          eyebrow="Exoplanet · NASA Exoplanet Archive"
+          href={`${AppRoute.cosmosSearch}?q=TRAPPIST-1`}
+          loading={featuredExoplanet.isLoading}
+          errored={featuredExoplanet.isError}
+          title={featuredExoplanet.data?.data.results[0]?.name}
+          subtitle={
+            featuredExoplanet.data?.data.results[0]
+              ? `${featuredExoplanet.data.data.count} planets around ${featuredExoplanet.data.data.results[0].hostStar}`
+              : undefined
+          }
+        />
+        <FeaturedTile
+          eyebrow="Star · ESA Gaia"
+          href={`${AppRoute.cosmosSearch}?q=Sirius`}
+          loading={featuredStar.isLoading}
+          errored={featuredStar.isError}
+          title={featuredStar.data?.data.queriedName}
+          subtitle={featuredStar.data ? `G mag ${featuredStar.data.data.gMagnitude ?? "?"}` : undefined}
+        />
+        <FeaturedTile
+          eyebrow="Galaxy · SIMBAD"
+          href={`${AppRoute.cosmosSearch}?q=Andromeda Galaxy`}
+          loading={featuredGalaxy.isLoading}
+          errored={featuredGalaxy.isError}
+          title={featuredGalaxy.data?.data.name}
+          subtitle={featuredGalaxy.data ? featuredGalaxy.data.data.morphologicalType ?? undefined : undefined}
+        />
+        <FeaturedTile
+          eyebrow="Supernova remnant · HEASARC"
+          href={`${AppRoute.cosmosSearch}?q=Crab Nebula`}
+          loading={featuredSupernova.isLoading}
+          errored={featuredSupernova.isError}
+          title={featuredSupernova.data?.data.results[0]?.name}
+          subtitle={
+            featuredSupernova.data?.data.results[0]
+              ? `Type ${featuredSupernova.data.data.results[0].type ?? "?"}`
+              : undefined
+          }
+        />
+        <FeaturedTile
+          eyebrow="Telescope observation · MAST"
+          href={`${AppRoute.cosmosSearch}?q=M16`}
+          loading={featuredObservation.isLoading}
+          errored={featuredObservation.isError}
+          title={featuredObservation.data?.data.results[0]?.target ?? "M16"}
+          subtitle={
+            featuredObservation.data?.data.results[0]
+              ? `${featuredObservation.data.data.results[0].mission} · ${featuredObservation.data.data.results[0].instrument}`
+              : undefined
+          }
+        />
+        <FeaturedTile
+          eyebrow="X-ray source · HEASARC NuSTAR"
+          href={`${AppRoute.cosmosSearch}?q=Cygnus X-1`}
+          loading={featuredHighEnergy.isLoading}
+          errored={featuredHighEnergy.isError}
+          title={featuredHighEnergy.data?.data.results[0]?.name}
+          subtitle={
+            featuredHighEnergy.data?.data.results[0]
+              ? `ObsID ${featuredHighEnergy.data.data.results[0].obsid}`
+              : undefined
+          }
+        />
       </div>
 
       <h2 className="cosmos-section-title">Astronomy Picture of the Day</h2>

@@ -189,9 +189,50 @@ export async function searchHighEnergyObservations(name: string, catalog = "numa
   return data as CosmosEnvelope<{ queriedName: string; catalog: string; count: number; results: HighEnergyObservationRow[] }>;
 }
 
+export interface GalaxyData {
+  name: string;
+  objectType: string | null;
+  raDeg: number | null;
+  decDeg: number | null;
+  angularMajorAxisArcmin: number | null;
+  angularMinorAxisArcmin: number | null;
+  morphologicalType: string | null;
+  redshift: number | null;
+  spectralType: string | null;
+  parallaxMas: number | null;
+}
+
+export async function fetchGalaxy(name: string): Promise<CosmosEnvelope<GalaxyData>> {
+  const { data } = await cosmos.get(`/galaxies`, { params: { name } });
+  return data;
+}
+
+export interface SupernovaRemnantRow {
+  name: string;
+  ra: number;
+  dec: number;
+  major_diameter: number | null;
+  minor_diameter: number | null;
+  type: string | null;
+  flux_1_ghz: number | null;
+}
+
+export async function searchSupernovae(name: string, limit = 10) {
+  const { data } = await cosmos.get(`/supernovae`, { params: { name, limit } });
+  return data as CosmosEnvelope<{ queriedName: string; catalog: string; count: number; results: SupernovaRemnantRow[] }>;
+}
+
 // -- Cosmos Library (requires auth; the axios instance below attaches the token) --
 
-export type CosmosObjectType = "planet" | "asteroid" | "exoplanet" | "star" | "observation" | "image";
+export type CosmosObjectType =
+  | "planet"
+  | "asteroid"
+  | "exoplanet"
+  | "star"
+  | "observation"
+  | "image"
+  | "galaxy"
+  | "supernova";
 
 export interface CosmosSavedItem {
   id: number;
