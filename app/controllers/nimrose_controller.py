@@ -482,7 +482,7 @@ class NimroseTicketsController:
             )
             session.add(ticket)
             session.flush()
-            _log_activity(session, ticket.id, "created", f"Created as {ticket.ticket_key}")
+            _log_activity(session, ticket.id, "created", f"Created as {ticket.ticket_key} in {status}")
             session.flush()
             return ticket.to_dict()
 
@@ -626,6 +626,8 @@ class NimroseBoardColumnsController:
                 column.position = int(body["position"])
             if "isDone" in body:
                 column.is_done = 1 if body["isDone"] else 0
+            if "wipLimit" in body:
+                column.wip_limit = int(body["wipLimit"]) if body["wipLimit"] not in (None, "") else None
 
             session.flush()
             return column.to_dict()

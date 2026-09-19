@@ -30,6 +30,22 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     _migrate_song_columns()
     _migrate_nimrose_project_columns()
+    _migrate_board_column_wip_limit()
+
+
+def _migrate_board_column_wip_limit():
+    """create_all only creates missing tables, not columns on ones that
+    already exist — patch in wip_limit for nimrose_board_columns rows
+    created before this feature existed."""
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(nimrose_board_columns)")}
+            if "wip_limit" not in existing:
+                conn.exec_driver_sql("ALTER TABLE nimrose_board_columns ADD COLUMN wip_limit INTEGER")
+        else:
+            conn.exec_driver_sql("ALTER TABLE nimrose_board_columns ADD COLUMN IF NOT EXISTS wip_limit INTEGER")
+        conn.commit()
 
 
 def _migrate_nimrose_project_columns():

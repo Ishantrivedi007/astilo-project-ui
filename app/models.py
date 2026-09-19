@@ -901,6 +901,7 @@ class NimroseBoardColumn(Base):
     slug = Column(String(50), nullable=False)
     position = Column(Integer, nullable=False, default=0)
     is_done = Column(Integer, nullable=False, default=0)  # 0/1
+    wip_limit = Column(Integer, nullable=True)  # soft cap — UI warns past it, never blocks
     created_at = Column(DateTime, default=utcnow)
 
     project = relationship("NimroseProject", back_populates="board_columns")
@@ -913,6 +914,7 @@ class NimroseBoardColumn(Base):
             "slug": self.slug,
             "position": self.position,
             "isDone": bool(self.is_done),
+            "wipLimit": self.wip_limit,
         }
 
 
