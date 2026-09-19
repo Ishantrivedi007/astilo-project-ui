@@ -14,10 +14,17 @@ class UsersController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self, user_id=None):
+    def GET(self, user_id=None, basic=None):
         claims = cherrypy.request.user
         with get_session() as session:
             if user_id is None:
+                if basic:
+                    # Any authenticated user can see the minimal roster (id/name/email)
+                    # for pickers like ticket assignees — no profile/sensitive fields.
+                    return [
+                        {"id": u.id, "name": u.name, "email": u.email}
+                        for u in session.query(User).order_by(User.name.asc()).all()
+                    ]
                 if claims.get("role") != "admin":
                     raise cherrypy.HTTPError(403, "Admin access required")
                 return [u.to_dict() for u in session.query(User).order_by(User.created_at.desc()).all()]
