@@ -441,10 +441,7 @@
 }
 
 .cosmos-save-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 20;
+  z-index: 291;
   display: flex;
   flex-direction: column;
   min-width: 160px;

@@ -40,7 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Cosmos", href: AppRoute.cosmos, icon: Orbit },
   { label: "Markets", href: AppRoute.markets, icon: LineChart },
   { label: "Research", href: AppRoute.research, icon: FlaskConical },
-  { label: "Office", href: AppRoute.office, icon: NotebookPen },
+  { label: "Studio", href: AppRoute.office, icon: NotebookPen },
   { label: "Messenger", href: AppRoute.messenger, icon: MessageCircle },
   { label: "Library", href: AppRoute.library, icon: Library },
   { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },

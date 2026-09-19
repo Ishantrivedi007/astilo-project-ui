@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 
-export type NotificationModule = "kanban" | "research" | "calendar" | "nimrose" | "cosmos" | "markets";
+export type NotificationModule = "kanban" | "research" | "calendar" | "nimrose" | "cosmos" | "markets" | "library";
 
 export interface AppNotification {
   id: number;

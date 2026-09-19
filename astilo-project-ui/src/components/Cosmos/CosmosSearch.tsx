@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BookmarkPlus, Loader2 } from "lucide-react";
@@ -84,6 +85,7 @@ const SaveButton = ({
   const [saving, setSaving] = useState(false);
   const [collection, setCollection] = useState<string>("favorites");
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
 
   if (!isAuthenticated) return null;
 
@@ -110,9 +112,12 @@ const SaveButton = ({
     );
   }
 
+  const rect = anchorRef.current?.getBoundingClientRect();
+
   return (
     <span className="relative inline-block">
       <button
+        ref={anchorRef}
         type="button"
         className="cosmos-chip"
         disabled={saving}
@@ -123,15 +128,27 @@ const SaveButton = ({
           {saving ? "Saving…" : "Save"}
         </span>
       </button>
-      {open && (
-        <div className="cosmos-save-menu">
-          {COLLECTIONS.map((c) => (
-            <button key={c.value} type="button" onClick={() => save(c.value)}>
-              {c.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 290 }} onClick={() => setOpen(false)} />
+            <div
+              className="cosmos-save-menu"
+              style={{
+                position: "fixed",
+                top: rect ? Math.min(rect.bottom + 4, window.innerHeight - 180) : 60,
+                left: rect ? rect.left : 60,
+              }}
+            >
+              {COLLECTIONS.map((c) => (
+                <button key={c.value} type="button" onClick={() => save(c.value)}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body
+        )}
     </span>
   );
 };

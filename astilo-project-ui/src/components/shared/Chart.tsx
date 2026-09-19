@@ -91,6 +91,12 @@ const Chart = ({ type, series, options, height = 280, themeKey }: ChartProps) =>
       grid: { ...base.grid, ...options?.grid },
       xaxis: { ...base.xaxis, ...options?.xaxis },
       yaxis: { ...base.yaxis, ...options?.yaxis },
+      // base's gradient fill is meant for "area" charts; on a plain "line"
+      // chart (no caller-supplied fill override) it was washing the stroke
+      // out to near-invisible against warm/light themes — a solid, fully
+      // transparent fill keeps line charts crisp.
+      fill: options?.fill ?? (type === "line" ? { type: "solid", opacity: 0 } : base.fill),
+      stroke: { ...base.stroke, ...options?.stroke },
     }),
     [base, options, type]
   );

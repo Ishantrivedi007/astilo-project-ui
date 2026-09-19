@@ -35,7 +35,7 @@ const OfficeHome = () => {
   const navigate = useNavigate();
   return (
     <div className="office-page">
-      <p className="office-eyebrow">✦ Astilo Office</p>
+      <p className="office-eyebrow">✦ Astilo Studio</p>
       <h1 className="office-title">Documents, sheets &amp; slides</h1>
       <p className="office-tagline">
         A lightweight office suite built into Astilo's — full CRUD, no external app needed. Choose what to

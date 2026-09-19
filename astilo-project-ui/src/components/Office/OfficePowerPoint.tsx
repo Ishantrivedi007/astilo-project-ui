@@ -179,7 +179,7 @@ ${slidesHtml}
 
       <div className="nimrose-home-header">
         <div>
-          <p className="office-eyebrow">Astilo Office</p>
+          <p className="office-eyebrow">Astilo Studio</p>
           <h1 className="office-title" style={{ fontSize: "1.5rem" }}>
             PowerPoint
           </h1>

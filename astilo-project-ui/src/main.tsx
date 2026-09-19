@@ -13,6 +13,7 @@ import { EqualizerProvider } from "./components/MusicPlayer/EqualizerContext";
 import { PlayerProvider } from "./components/MusicPlayer/PlayerContext";
 import { DownloadsProvider } from "./components/MusicPlayer/DownloadsContext";
 import { ConfirmProvider } from "./components/shared/ConfirmDialog";
+import { NimrosePromptProvider } from "./components/Nimrose/NimrosePromptDialog";
 import "./styles/index.scss";
 
 function Providers({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <PreferencesProvider>
           <ConfirmProvider>
+          <NimrosePromptProvider>
           <AuthProvider>
             <QueryClientProvider client={queryClient}>
               <EqualizerProvider>
@@ -65,6 +67,7 @@ function Providers({ children }: { children: React.ReactNode }) {
               />
             </QueryClientProvider>
           </AuthProvider>
+          </NimrosePromptProvider>
           </ConfirmProvider>
         </PreferencesProvider>
       </ThemeProvider>
