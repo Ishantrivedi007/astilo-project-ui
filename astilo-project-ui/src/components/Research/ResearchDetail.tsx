@@ -1,7 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Eye, ExternalLink, FileText, ImagePlus, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Download,
+  Eye,
+  ExternalLink,
+  FileText,
+  FlaskConical,
+  ImagePlus,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { RichTextEditor, useConfirm } from "../shared";
@@ -13,11 +28,15 @@ import {
 } from "../../lib/nimroseApi";
 import {
   addResearchImage,
+  addResearchStep,
+  autoResearchStep,
   deleteResearchItem,
   fetchResearchItem,
   refreshResearchBrief,
   removeResearchImage,
+  removeResearchStep,
   toggleResearchStep,
+  updateResearchStep,
 } from "../../lib/researchApi";
 import { searchNasaImages, type NasaImageData } from "../../lib/cosmosApi";
 import { searchWebImages, type WebImageResult } from "../../lib/webImagesApi";
@@ -26,6 +45,25 @@ import { downloadDocument } from "../../lib/downloadDoc";
 import "./Research.scss";
 
 const fieldLabel = (key: string) => key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+
+const downloadImage = async (url: string, filename: string) => {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch {
+    // Cross-origin images without CORS headers can't be fetched as a blob —
+    // fall back to opening it directly so the user can save it manually.
+    window.open(url, "_blank", "noopener");
+  }
+};
 
 const ResearchDetail = () => {
   const { id } = useParams();
@@ -36,11 +74,14 @@ const ResearchDetail = () => {
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [richDraft, setRichDraft] = useState("");
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightbox, setLightbox] = useState<{ url: string; caption?: string | null; source?: string | null; galleryIndex?: number } | null>(null);
   const [imageSearch, setImageSearch] = useState("");
   const [imageSearchSubmitted, setImageSearchSubmitted] = useState("");
   const [imageSource, setImageSource] = useState<"nasa" | "web">("nasa");
   const [manualImageUrl, setManualImageUrl] = useState("");
+  const [newStepText, setNewStepText] = useState("");
+  const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
+  const [editingStepText, setEditingStepText] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const itemQuery = useQuery({ queryKey: ["research", "item", itemId], queryFn: () => fetchResearchItem(itemId), enabled: !!itemId });
@@ -82,6 +123,31 @@ const ResearchDetail = () => {
     mutationFn: (index: number) => toggleResearchStep(itemId, index),
     onSuccess: invalidateItem,
   });
+  const addStepMutation = useMutation({
+    mutationFn: (text: string) => addResearchStep(itemId, text),
+    onSuccess: () => {
+      invalidateItem();
+      setNewStepText("");
+    },
+  });
+  const updateStepMutation = useMutation({
+    mutationFn: ({ index, text }: { index: number; text: string }) => updateResearchStep(itemId, index, text),
+    onSuccess: () => {
+      invalidateItem();
+      setEditingStepIndex(null);
+    },
+  });
+  const removeStepMutation = useMutation({
+    mutationFn: (index: number) => removeResearchStep(itemId, index),
+    onSuccess: invalidateItem,
+  });
+  const autoResearchMutation = useMutation({
+    mutationFn: (index: number) => autoResearchStep(itemId, index),
+    onSuccess: () => {
+      invalidateItem();
+      invalidateDocs();
+    },
+  });
   const deleteItemMutation = useMutation({
     mutationFn: () => deleteResearchItem(itemId),
     onSuccess: () => {
@@ -98,7 +164,7 @@ const ResearchDetail = () => {
     mutationFn: (index: number) => removeResearchImage(itemId, index),
     onSuccess: () => {
       invalidateItem();
-      setLightboxIndex(null);
+      setLightbox(null);
     },
   });
 
@@ -145,7 +211,6 @@ const ResearchDetail = () => {
   const brief = item.researchBrief;
   const dataFields = Object.entries(item.data ?? {}).filter(([k, v]) => !k.startsWith("_") && v !== null && v !== "");
   const images = item.images ?? [];
-  const lightboxImage = lightboxIndex != null ? images[lightboxIndex] : null;
   const nasaResults = nasaImageQuery.data?.data.results ?? [];
   const webResults = webImageQuery.data?.data.results ?? [];
   const alreadyAdded = (url: string) => images.some((img) => img.url === url);
@@ -163,7 +228,13 @@ const ResearchDetail = () => {
 
       <div className="research-detail-header">
         {(brief?.thumbnailUrl || item.imageUrl) && (
-          <img className="research-detail-thumb" src={brief?.thumbnailUrl ?? item.imageUrl ?? undefined} alt={item.title} />
+          <button
+            type="button"
+            className="research-detail-thumb-btn"
+            onClick={() => setLightbox({ url: (brief?.thumbnailUrl ?? item.imageUrl)!, caption: item.title, source: brief?.wikiUrl ? "Wikipedia" : item.source })}
+          >
+            <img className="research-detail-thumb" src={brief?.thumbnailUrl ?? item.imageUrl ?? undefined} alt={item.title} />
+          </button>
         )}
         <div style={{ flex: 1, minWidth: 220 }}>
           <p className="research-eyebrow">
@@ -248,17 +319,75 @@ const ResearchDetail = () => {
         </div>
       )}
 
-      {brief && brief.nextSteps.length > 0 && (
+      {brief && (
         <div className="research-section">
           <h2 className="research-section-title">What to research next</h2>
           <div className="research-checklist">
             {brief.nextSteps.map((step, i) => (
-              <label key={i} className={`research-checklist-item ${step.done ? "done" : ""}`}>
+              <div key={i} className={`research-checklist-item ${step.done ? "done" : ""}`}>
                 <input type="checkbox" checked={step.done} onChange={() => toggleMutation.mutate(i)} />
-                {step.text}
-              </label>
+                {editingStepIndex === i ? (
+                  <input
+                    className="research-checklist-edit-input"
+                    value={editingStepText}
+                    autoFocus
+                    onChange={(e) => setEditingStepText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && editingStepText.trim()) updateStepMutation.mutate({ index: i, text: editingStepText.trim() });
+                      if (e.key === "Escape") setEditingStepIndex(null);
+                    }}
+                  />
+                ) : (
+                  <span className="research-checklist-text">{step.text}</span>
+                )}
+                <span className="research-checklist-actions">
+                  {editingStepIndex === i ? (
+                    <button type="button" onClick={() => editingStepText.trim() && updateStepMutation.mutate({ index: i, text: editingStepText.trim() })} aria-label="Save">
+                      <Check size={12} />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => autoResearchMutation.mutate(i)}
+                        disabled={autoResearchMutation.isPending || step.done}
+                        aria-label="Auto research"
+                        title="Create a starter document for this and check it off"
+                      >
+                        <FlaskConical size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingStepIndex(i);
+                          setEditingStepText(step.text);
+                        }}
+                        aria-label="Edit"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button type="button" onClick={() => removeStepMutation.mutate(i)} aria-label="Remove">
+                        <X size={12} />
+                      </button>
+                    </>
+                  )}
+                </span>
+              </div>
             ))}
           </div>
+          <form
+            className="research-image-add-row"
+            style={{ marginTop: "0.6rem" }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newStepText.trim()) addStepMutation.mutate(newStepText.trim());
+            }}
+          >
+            <input value={newStepText} onChange={(e) => setNewStepText(e.target.value)} placeholder="Add your own research step…" />
+            <button type="submit" className="research-pill" style={{ cursor: "pointer" }}>
+              <Plus size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Add
+            </button>
+          </form>
         </div>
       )}
 
@@ -268,7 +397,12 @@ const ResearchDetail = () => {
         {images.length > 0 && (
           <div className="research-image-grid">
             {images.map((img, i) => (
-              <button key={img.url + i} type="button" className="research-image-thumb" onClick={() => setLightboxIndex(i)}>
+              <button
+                key={img.url + i}
+                type="button"
+                className="research-image-thumb"
+                onClick={() => setLightbox({ url: img.url, caption: img.caption, source: img.source, galleryIndex: i })}
+              >
                 <img src={img.url} alt={img.caption ?? item.title} loading="lazy" />
               </button>
             ))}
@@ -364,19 +498,31 @@ const ResearchDetail = () => {
         )}
       </div>
 
-      {lightboxImage && (
-        <div className="research-lightbox-overlay" onClick={() => setLightboxIndex(null)}>
+      {lightbox && (
+        <div className="research-lightbox-overlay" onClick={() => setLightbox(null)}>
           <div className="research-lightbox" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="research-lightbox-close" onClick={() => setLightboxIndex(null)} aria-label="Close">
+            <button type="button" className="research-lightbox-close" onClick={() => setLightbox(null)} aria-label="Close">
               <X size={16} />
             </button>
-            <img src={lightboxImage.url} alt={lightboxImage.caption ?? item.title} />
+            <img src={lightbox.url} alt={lightbox.caption ?? item.title} />
             <div className="research-lightbox-body">
-              {lightboxImage.caption && <p>{lightboxImage.caption}</p>}
-              {lightboxImage.source && <p className="research-card-meta">Source: {lightboxImage.source}</p>}
-              <button type="button" className="research-pill" style={{ cursor: "pointer" }} onClick={() => removeImageMutation.mutate(lightboxIndex!)}>
-                <Trash2 size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Remove
-              </button>
+              {lightbox.caption && <p>{lightbox.caption}</p>}
+              {lightbox.source && <p className="research-card-meta">Source: {lightbox.source}</p>}
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                <button
+                  type="button"
+                  className="research-pill"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => downloadImage(lightbox.url, `${(lightbox.caption ?? item.title).slice(0, 60)}.jpg`)}
+                >
+                  <Download size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Download
+                </button>
+                {lightbox.galleryIndex != null && (
+                  <button type="button" className="research-pill" style={{ cursor: "pointer" }} onClick={() => removeImageMutation.mutate(lightbox.galleryIndex!)}>
+                    <Trash2 size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Remove
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

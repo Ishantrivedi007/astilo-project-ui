@@ -71,6 +71,22 @@ export const refreshResearchBrief = (id: number) =>
 export const toggleResearchStep = (id: number, index: number) =>
   apiClient.put<ResearchItem>(`/research/${id}`, { action: "toggle_step", index }).then((r) => r.data);
 
+export const addResearchStep = (id: number, text: string) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "add_step", text }).then((r) => r.data);
+
+export const updateResearchStep = (id: number, index: number, text: string) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "update_step", index, text }).then((r) => r.data);
+
+export const removeResearchStep = (id: number, index: number) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "remove_step", index }).then((r) => r.data);
+
+export interface AutoResearchResult extends ResearchItem {
+  autoResearchNoteId: number;
+}
+
+export const autoResearchStep = (id: number, index: number) =>
+  apiClient.put<AutoResearchResult>(`/research/${id}`, { action: "auto_research_step", index }).then((r) => r.data);
+
 export const deleteResearchItem = (id: number) => apiClient.delete(`/research/${id}`).then((r) => r.data);
 
 export const addResearchImage = (id: number, image: { url: string; caption?: string; source?: string }) =>

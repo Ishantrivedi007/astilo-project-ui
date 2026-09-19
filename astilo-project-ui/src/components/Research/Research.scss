@@ -100,7 +100,19 @@
   margin-bottom: 1.5rem;
 }
 
+.research-detail-thumb-btn {
+  flex-shrink: 0;
+  border-radius: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
 .research-detail-thumb {
+  display: block;
   width: 96px;
   height: 96px;
   border-radius: 0.8rem;
@@ -176,25 +188,69 @@
   gap: 0.6rem;
   font-size: 0.85rem;
   color: rgba(232, 236, 255, 0.75);
-  cursor: pointer;
   background: rgba(15, 18, 40, 0.35);
   border: 1px solid rgba(140, 160, 255, 0.12);
   border-radius: 0.6rem;
   padding: 0.55rem 0.75rem;
 
-  input {
+  input[type="checkbox"] {
     margin-top: 0.15rem;
+    flex-shrink: 0;
   }
 
-  &.done {
+  &.done .research-checklist-text {
     text-decoration: line-through;
     color: rgba(232, 236, 255, 0.4);
   }
 }
 
+.research-checklist-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.research-checklist-edit-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(127, 176, 255, 0.4);
+  border-radius: 0.4rem;
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.research-checklist-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 0.35rem;
+    color: rgba(232, 236, 255, 0.45);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: rgba(127, 176, 255, 0.14);
+      color: #fff;
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+  }
+}
+
 .research-data-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.6rem;
 }
 
@@ -202,19 +258,26 @@
   background: rgba(15, 18, 40, 0.35);
   border: 1px solid rgba(140, 160, 255, 0.12);
   border-radius: 0.6rem;
-  padding: 0.5rem 0.7rem;
+  padding: 0.55rem 0.7rem;
+  min-width: 0;
 
   dt {
-    font-size: 0.65rem;
+    font-size: 0.63rem;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
     color: rgba(232, 236, 255, 0.4);
-    margin-bottom: 0.15rem;
+    margin-bottom: 0.25rem;
+    line-height: 1.3;
+    overflow-wrap: break-word;
   }
 
   dd {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: #fff;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
 
