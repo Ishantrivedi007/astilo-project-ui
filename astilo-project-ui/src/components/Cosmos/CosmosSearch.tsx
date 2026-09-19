@@ -29,6 +29,7 @@ import CosmosField from "./CosmosField";
 import CosmosImagePreview from "./CosmosImagePreview";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import ResearchButton from "./ResearchButton";
+import AddToKanbanButton from "./AddToKanbanButton";
 import "./Cosmos.scss";
 
 type ResultGroup =
@@ -419,6 +420,7 @@ const AsteroidCard = ({ data, source }: { data: AsteroidData; source: string }) 
         data={data}
       />
       <ResearchButton objectType="asteroid" externalId={data.designation} title={data.name} source={source} sourceDataset="sbdb" data={data} />
+      <AddToKanbanButton objectType="asteroid" title={data.name} source={source} sourceDataset="sbdb" />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
     <dl className="cosmos-field-grid">
@@ -454,6 +456,12 @@ const ExoplanetCard = ({ data }: { data: ExoplanetData }) => (
         source={data._provenance.source}
         sourceDataset={data._provenance.sourceDataset}
         data={data}
+      />
+      <AddToKanbanButton
+        objectType="exoplanet"
+        title={data.name}
+        source={data._provenance.source}
+        sourceDataset={data._provenance.sourceDataset}
       />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
@@ -494,6 +502,7 @@ const StarCard = ({ data, source }: { data: StarData; source: string }) => (
         sourceDataset="gaiadr3.gaia_source"
         data={data}
       />
+      <AddToKanbanButton objectType="star" title={data.queriedName} source={source} sourceDataset="gaiadr3.gaia_source" />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.queriedName}</h3>
     <dl className="cosmos-field-grid">
@@ -559,6 +568,7 @@ const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
         data={data}
       />
       <ResearchButton objectType="galaxy" externalId={data.name} title={data.name} source={source} sourceDataset="basic" data={data} />
+      <AddToKanbanButton objectType="galaxy" title={data.name} source={source} sourceDataset="basic" />
     </div>
     <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
     <dl className="cosmos-field-grid">
@@ -592,6 +602,12 @@ const SupernovaCard = ({ data }: { data: SupernovaRemnantRow }) => (
         source="HEASARC"
         sourceDataset="Green's Supernova Remnant Catalog"
         data={data}
+      />
+      <AddToKanbanButton
+        objectType="supernova"
+        title={data.name}
+        source="HEASARC"
+        sourceDataset="Green's Supernova Remnant Catalog"
       />
     </div>
     <h3 className="mb-2 text-base font-bold">{data.name}</h3>

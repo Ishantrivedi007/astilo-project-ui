@@ -41,14 +41,20 @@ const ResearchButton = ({ objectType, externalId, title, source, sourceDataset, 
   if (state === "done") {
     return (
       <button type="button" className="cosmos-chip" onClick={() => navigate(`${AppRoute.nimrose}?section=notes`)}>
-        <FlaskConical size={12} /> Open research in Nimrose
+        <span className="inline-flex items-center gap-1">
+          <FlaskConical size={12} />
+          Open research in Nimrose
+        </span>
       </button>
     );
   }
 
   return (
     <button type="button" className="cosmos-chip" disabled={state === "working"} onClick={run}>
-      <FlaskConical size={12} /> {state === "working" ? "Setting up…" : "Research this object"}
+      <span className="inline-flex items-center gap-1">
+        <FlaskConical size={12} />
+        {state === "working" ? "Setting up…" : "Research this object"}
+      </span>
     </button>
   );
 };
