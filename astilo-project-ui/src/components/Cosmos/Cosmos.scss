@@ -106,6 +106,224 @@
     border-color: rgba(127, 176, 255, 0.6);
     color: #fff;
   }
+
+  &--active {
+    border-color: rgba(127, 176, 255, 0.7);
+    background: rgba(127, 176, 255, 0.14);
+    color: #fff;
+  }
+}
+
+.cosmos-orbit-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.cosmos-orbit-bodies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.cosmos-orbit-body-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+
+  input {
+    accent-color: #7fb0ff;
+  }
+}
+
+.cosmos-orbit-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  input,
+  select {
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(140, 160, 255, 0.22);
+    background: rgba(15, 18, 40, 0.55);
+    color: #e8ecff;
+    font-size: 0.8rem;
+  }
+}
+
+.cosmos-orbit-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(140, 160, 255, 0.16);
+  background: rgba(6, 8, 20, 0.6);
+}
+
+.cosmos-orbit-canvas {
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1;
+}
+
+.cosmos-orbit-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(140, 160, 255, 0.25);
+  background: rgba(127, 176, 255, 0.1);
+  color: #7fb0ff;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(127, 176, 255, 0.2);
+  }
+}
+
+.cosmos-orbit-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+
+  input[type="range"] {
+    accent-color: #7fb0ff;
+  }
+}
+
+.cosmos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.6);
+  overflow-y: auto;
+}
+
+.cosmos-imagelab-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.7rem;
+  margin-top: 1.2rem;
+}
+
+.cosmos-imagelab-thumb {
+  aspect-ratio: 1;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(140, 160, 255, 0.16);
+  background: rgba(16, 19, 42, 0.6);
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &:hover {
+    border-color: rgba(127, 176, 255, 0.5);
+    transform: translateY(-2px);
+  }
+}
+
+.cosmos-imagelab-noimg {
+  width: 100%;
+  height: 100%;
+  background: rgba(127, 176, 255, 0.05);
+}
+
+.cosmos-imagelab-detail {
+  width: 100%;
+  max-width: 640px;
+  margin: 5vh auto;
+  padding: 0;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  max-height: 88vh;
+  overflow-y: auto;
+
+  img {
+    width: 100%;
+    max-height: 360px;
+    object-fit: cover;
+  }
+}
+
+.cosmos-imagelab-detail-body {
+  padding: 1.25rem;
+
+  h3 {
+    margin: 0.6rem 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  p {
+    font-size: 0.85rem;
+    color: rgba(232, 236, 255, 0.7);
+    max-height: 160px;
+    overflow-y: auto;
+  }
+}
+
+.cosmos-compare-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  form {
+    margin: 0;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cosmos-compare-table-wrap {
+  overflow-x: auto;
+}
+
+.cosmos-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th,
+  td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid rgba(140, 160, 255, 0.14);
+    text-align: left;
+  }
+
+  thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(232, 236, 255, 0.5);
+  }
+
+  tbody th {
+    font-weight: 600;
+    color: rgba(232, 236, 255, 0.6);
+    white-space: nowrap;
+  }
+
+  tbody tr:hover td,
+  tbody tr:hover th {
+    background: rgba(127, 176, 255, 0.05);
+  }
 }
 
 .cosmos-nav-grid {

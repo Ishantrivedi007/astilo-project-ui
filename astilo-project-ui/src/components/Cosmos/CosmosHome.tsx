@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowLeftRight,
   CircleDot,
   Flame,
   Galaxy as Milky,
@@ -41,7 +42,9 @@ const NAV_TILES = [
   { label: "Supernovae", icon: Flame, href: `${AppRoute.cosmosSearch}?type=supernova` },
   { label: "Telescopes", icon: Telescope, href: `${AppRoute.cosmosSearch}?type=observation` },
   { label: "X-ray sources", icon: Zap, href: `${AppRoute.cosmosSearch}?type=high-energy` },
-  { label: "Image Library", icon: ImageIcon, href: `${AppRoute.cosmosSearch}?type=image` },
+  { label: "Image Lab", icon: ImageIcon, href: AppRoute.cosmosImageLab },
+  { label: "Compare", icon: ArrowLeftRight, href: AppRoute.cosmosCompare },
+  { label: "Orbit Explorer", icon: Rocket, href: AppRoute.cosmosOrbitExplorer },
   { label: "Space Weather", icon: Sun, href: AppRoute.cosmosSpaceWeather },
   { label: "Cosmos Library", icon: Sparkles, href: AppRoute.cosmosLibrary },
 ];
