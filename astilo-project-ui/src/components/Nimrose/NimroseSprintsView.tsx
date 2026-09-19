@@ -10,8 +10,11 @@ import {
   fetchBoardColumns,
   fetchSprints,
   fetchTickets,
+  TICKET_TYPE_ICON,
+  TICKET_TYPE_LABEL,
   updateSprint,
   type SprintStatus,
+  type TicketType,
 } from "../../lib/kanbanApi";
 import { useNimrosePrompt } from "./NimrosePromptDialog";
 
@@ -118,6 +121,10 @@ const NimroseSprintsView = () => {
           const pointsDone = sprintTickets
             .filter((t) => doneSlugs.has(t.status))
             .reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
+          const typeCounts = sprintTickets.reduce((acc, t) => {
+            acc[t.type] = (acc[t.type] ?? 0) + 1;
+            return acc;
+          }, {} as Record<TicketType, number>);
 
           return (
             <div key={sprint.id} className="glass-card nimrose-sprint-card">
@@ -182,6 +189,16 @@ const NimroseSprintsView = () => {
                     ` · ${sprintTickets.length - done} carried over`}
                 </p>
               </div>
+
+              {Object.keys(typeCounts).length > 0 && (
+                <div className="nimrose-full-task-meta" style={{ marginTop: "0.6rem" }}>
+                  {(Object.entries(typeCounts) as [TicketType, number][]).map(([type, count]) => (
+                    <span key={type} className="nimrose-chip" title={TICKET_TYPE_LABEL[type]}>
+                      {TICKET_TYPE_ICON[type]} {count}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

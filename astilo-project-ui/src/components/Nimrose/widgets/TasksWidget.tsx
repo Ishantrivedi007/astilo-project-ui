@@ -1,49 +1,38 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 
-interface LocalTask {
-  id: string;
-  title: string;
-  done: boolean;
-}
+import { createNimroseTask, deleteNimroseTask, fetchNimroseTasks, updateNimroseTask } from "../../../lib/nimroseApi";
 
-const STORAGE_KEY = "nimrose-quick-tasks-v1";
-
-const readTasks = (): LocalTask[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as LocalTask[]) : [];
-  } catch {
-    return [];
-  }
-};
-
+/** Backed by the real Nimrose Tasks API — the same data the full Tasks view
+ * shows, just a quick-capture slice of it here. Previously this was a
+ * localStorage-only scratchpad; moved to the backend so anything created
+ * here is actually saved, not just kept in this one browser. */
 const TasksWidget = () => {
-  const [tasks, setTasks] = useState<LocalTask[]>(readTasks);
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    } catch {
-      /* ignore */
-    }
-  }, [tasks]);
+  const tasksQuery = useQuery({ queryKey: ["nimrose", "tasks", "all"], queryFn: () => fetchNimroseTasks() });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "tasks"] });
+
+  const createMutation = useMutation({ mutationFn: createNimroseTask, onSuccess: invalidate });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Parameters<typeof updateNimroseTask>[1] }) => updateNimroseTask(id, patch),
+    onSuccess: invalidate,
+  });
+  const deleteMutation = useMutation({ mutationFn: deleteNimroseTask, onSuccess: invalidate });
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     const title = draft.trim();
     if (!title) return;
-    setTasks((prev) => [{ id: crypto.randomUUID(), title, done: false }, ...prev]);
+    createMutation.mutate({ title });
     setDraft("");
   };
 
-  const toggle = (id: string) =>
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-
-  const remove = (id: string) => setTasks((prev) => prev.filter((t) => t.id !== id));
-
-  const remaining = tasks.filter((t) => !t.done).length;
+  const tasks = tasksQuery.data ?? [];
+  const remaining = tasks.filter((t) => t.status !== "completed").length;
 
   return (
     <div>
@@ -58,18 +47,26 @@ const TasksWidget = () => {
           <Plus size={14} />
         </button>
       </form>
-      {tasks.length === 0 ? (
+      {tasksQuery.isLoading ? (
+        <p className="nimrose-widget-empty">Loading…</p>
+      ) : tasks.length === 0 ? (
         <p className="nimrose-widget-empty">No tasks yet.</p>
       ) : (
         <>
           <ul className="nimrose-task-list">
             {tasks.slice(0, 6).map((t) => (
-              <li key={t.id} className={t.done ? "nimrose-task--done" : ""}>
+              <li key={t.id} className={t.status === "completed" ? "nimrose-task--done" : ""}>
                 <label>
-                  <input type="checkbox" checked={t.done} onChange={() => toggle(t.id)} />
+                  <input
+                    type="checkbox"
+                    checked={t.status === "completed"}
+                    onChange={() =>
+                      updateMutation.mutate({ id: t.id, patch: { status: t.status === "completed" ? "inbox" : "completed" } })
+                    }
+                  />
                   <span>{t.title}</span>
                 </label>
-                <button type="button" onClick={() => remove(t.id)} aria-label="Delete task">
+                <button type="button" onClick={() => deleteMutation.mutate(t.id)} aria-label="Delete task">
                   <Trash2 size={12} />
                 </button>
               </li>

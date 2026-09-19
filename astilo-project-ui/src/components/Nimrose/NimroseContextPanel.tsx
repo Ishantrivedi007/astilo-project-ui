@@ -1,20 +1,8 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CheckSquare, Clock, Focus } from "lucide-react";
 
-interface LocalTask {
-  id: string;
-  done: boolean;
-}
-
-const readTaskCount = () => {
-  try {
-    const raw = localStorage.getItem("nimrose-quick-tasks-v1");
-    const tasks = raw ? (JSON.parse(raw) as LocalTask[]) : [];
-    return tasks.filter((t) => !t.done).length;
-  } catch {
-    return 0;
-  }
-};
+import { fetchNimroseTasks } from "../../lib/nimroseApi";
 
 const readFocusSessions = () => {
   try {
@@ -26,13 +14,21 @@ const readFocusSessions = () => {
 
 const NimroseContextPanel = () => {
   const [now, setNow] = useState(() => new Date());
-  const [taskCount, setTaskCount] = useState(readTaskCount);
   const [focusSessions, setFocusSessions] = useState(readFocusSessions);
+
+  // Tasks are backend-persisted (see widgets/TasksWidget.tsx) — refetch
+  // periodically rather than reading a localStorage snapshot that no
+  // longer reflects reality once tasks are shared across devices.
+  const tasksQuery = useQuery({
+    queryKey: ["nimrose", "tasks", "all"],
+    queryFn: () => fetchNimroseTasks(),
+    refetchInterval: 5000,
+  });
+  const taskCount = (tasksQuery.data ?? []).filter((t) => t.status !== "completed").length;
 
   useEffect(() => {
     const id = setInterval(() => {
       setNow(new Date());
-      setTaskCount(readTaskCount());
       setFocusSessions(readFocusSessions());
     }, 5000);
     return () => clearInterval(id);
@@ -53,7 +49,7 @@ const NimroseContextPanel = () => {
       </div>
       <div className="nimrose-context-stat">
         <Clock size={14} />
-        <span>Nimrose Desk — Phase 1</span>
+        <span>Nimrose Desk</span>
       </div>
     </aside>
   );

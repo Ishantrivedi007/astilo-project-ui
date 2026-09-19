@@ -15,6 +15,7 @@ import {
   fetchBoardColumns,
   fetchSprints,
   fetchTickets,
+  TICKET_TYPE_ICON,
   updateBoardColumn,
   updateTicket,
   type NimroseTicket,
@@ -22,16 +23,6 @@ import {
 } from "../../lib/kanbanApi";
 import NimroseTicketModal from "./NimroseTicketModal";
 import { useNimrosePrompt } from "./NimrosePromptDialog";
-
-const TYPE_ICON: Record<string, string> = {
-  feature: "✦",
-  bug: "🐞",
-  task: "☑",
-  improvement: "⬆",
-  research: "🔍",
-  design: "🎨",
-  documentation: "📄",
-};
 
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
@@ -417,7 +408,7 @@ const TicketCard = ({ ticket, overdue, onOpen }: { ticket: NimroseTicket; overdu
       <span className={`nimrose-priority nimrose-priority--${ticket.priority}`}>{ticket.priority}</span>
     </div>
     <p className="nimrose-ticket-card-title">
-      <span aria-hidden>{TYPE_ICON[ticket.type] ?? "☑"}</span> {ticket.title}
+      <span aria-hidden>{TICKET_TYPE_ICON[ticket.type] ?? "☑"}</span> {ticket.title}
     </p>
     {ticket.labels.length > 0 && (
       <div className="nimrose-ticket-card-labels">

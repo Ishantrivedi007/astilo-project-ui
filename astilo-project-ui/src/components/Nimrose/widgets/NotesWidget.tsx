@@ -1,44 +1,37 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 
-interface LocalNote {
-  id: string;
-  text: string;
-  createdAt: string;
-}
+import { createNimroseNote, deleteNimroseNote, fetchNimroseNotes } from "../../../lib/nimroseApi";
 
-const STORAGE_KEY = "nimrose-quick-notes-v1";
-
-const readNotes = (): LocalNote[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as LocalNote[]) : [];
-  } catch {
-    return [];
-  }
-};
-
+/** Backed by the real Nimrose Notes API (same notes the full Notes view
+ * shows) rather than a localStorage-only scratchpad — quick captures here
+ * are actually saved. Each jot becomes a short note; open the full Notes
+ * view to expand it with Markdown, folders, or tags. */
 const NotesWidget = () => {
-  const [notes, setNotes] = useState<LocalNote[]>(readNotes);
+  const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-    } catch {
-      /* ignore */
-    }
-  }, [notes]);
+  const notesQuery = useQuery({ queryKey: ["nimrose", "notes", null, null], queryFn: () => fetchNimroseNotes() });
+
+  const createMutation = useMutation({
+    mutationFn: createNimroseNote,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nimrose", "notes"] }),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: deleteNimroseNote,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nimrose", "notes"] }),
+  });
 
   const add = (e: React.FormEvent) => {
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    setNotes((prev) => [{ id: crypto.randomUUID(), text, createdAt: new Date().toISOString() }, ...prev]);
+    createMutation.mutate({ title: text.slice(0, 60), content: text });
     setDraft("");
   };
 
-  const remove = (id: string) => setNotes((prev) => prev.filter((n) => n.id !== id));
+  const notes = notesQuery.data ?? [];
 
   return (
     <div>
@@ -53,14 +46,16 @@ const NotesWidget = () => {
           <Plus size={14} />
         </button>
       </form>
-      {notes.length === 0 ? (
+      {notesQuery.isLoading ? (
+        <p className="nimrose-widget-empty">Loading…</p>
+      ) : notes.length === 0 ? (
         <p className="nimrose-widget-empty">No notes yet.</p>
       ) : (
         <ul className="nimrose-note-list">
           {notes.slice(0, 5).map((n) => (
             <li key={n.id}>
-              <span>{n.text}</span>
-              <button type="button" onClick={() => remove(n.id)} aria-label="Delete note">
+              <span>{n.title}</span>
+              <button type="button" onClick={() => deleteMutation.mutate(n.id)} aria-label="Delete note">
                 <Trash2 size={12} />
               </button>
             </li>

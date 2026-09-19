@@ -1,6 +1,36 @@
 import { API_BASE_URL, apiClient, getAuthToken } from "./apiClient";
 
-export type TicketType = "feature" | "bug" | "task" | "improvement" | "research" | "design" | "documentation";
+export type TicketType =
+  | "feature"
+  | "bug"
+  | "task"
+  | "improvement"
+  | "integration"
+  | "research"
+  | "design"
+  | "documentation";
+
+export const TICKET_TYPE_ICON: Record<TicketType, string> = {
+  feature: "✦",
+  bug: "🐞",
+  task: "☑",
+  improvement: "⬆",
+  integration: "🧩",
+  research: "🔍",
+  design: "🎨",
+  documentation: "📄",
+};
+
+export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
+  feature: "Feature",
+  bug: "Bug",
+  task: "Task",
+  improvement: "Improvement",
+  integration: "Integration",
+  research: "Research",
+  design: "Design",
+  documentation: "Documentation",
+};
 export type TicketPriority = "low" | "medium" | "high" | "critical";
 // A project's board columns are user-defined (see NimroseBoardColumn), so a
 // ticket's status is whatever slug that project currently has — not a

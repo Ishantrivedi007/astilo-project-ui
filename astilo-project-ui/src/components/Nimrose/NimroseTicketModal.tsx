@@ -16,6 +16,8 @@ import {
   fetchTicket,
   fetchTickets,
   removeTicketLink,
+  TICKET_TYPE_ICON,
+  TICKET_TYPE_LABEL,
   updateTicket,
   uploadTicketAttachment,
   type TicketLinkRelation,
@@ -23,7 +25,7 @@ import {
   type TicketType,
 } from "../../lib/kanbanApi";
 
-const TYPES: TicketType[] = ["feature", "bug", "task", "improvement", "research", "design", "documentation"];
+const TYPES = Object.keys(TICKET_TYPE_LABEL) as TicketType[];
 const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "critical"];
 const RELATIONS: TicketLinkRelation[] = ["blocks", "blocked_by", "depends_on", "related_to", "duplicate", "parent", "child"];
 
@@ -167,7 +169,10 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
         ) : (
           <>
             <div className="nimrose-modal-header">
-              <span className="nimrose-ticket-key">{ticket.key}</span>
+              <span className="nimrose-ticket-key">
+                <span aria-hidden>{TICKET_TYPE_ICON[ticket.type]}</span> {ticket.key}
+              </span>
+              <span className="nimrose-chip">{TICKET_TYPE_LABEL[ticket.type]}</span>
               <button
                 type="button"
                 className="nimrose-icon-btn"
@@ -202,7 +207,7 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
                 <select value={ticket.type} onChange={(e) => updateMutation.mutate({ type: e.target.value as TicketType })}>
                   {TYPES.map((t) => (
                     <option key={t} value={t}>
-                      {t}
+                      {TICKET_TYPE_ICON[t]} {TICKET_TYPE_LABEL[t]}
                     </option>
                   ))}
                 </select>

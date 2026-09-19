@@ -24,8 +24,6 @@ const writeLocal = (key: string, value: string) => {
 };
 
 const LOCAL_DATA_KEYS = [
-  { key: "nimrose-quick-tasks-v1", label: "Home widget quick tasks" },
-  { key: "nimrose-quick-notes-v1", label: "Home widget quick notes" },
   { key: "nimrose-focus-sessions-completed", label: "Focus session count" },
   { key: "nimrose-home-widgets-v1", label: "Home widget layout" },
 ];
