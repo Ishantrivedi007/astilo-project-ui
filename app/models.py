@@ -41,6 +41,7 @@ class User(Base):
     website = Column(String(255), nullable=True)
 
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
+    cosmos_saved_items = relationship("CosmosSavedItem", back_populates="user", cascade="all, delete-orphan")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     login_events = relationship("LoginEvent", back_populates="user", cascade="all, delete-orphan")
@@ -279,6 +280,60 @@ class LyricsCache(Base):
     source = Column(String(20))  # genius | lrclib
     hit_count = Column(Integer, default=1)
     fetched_at = Column(DateTime, default=utcnow)
+
+
+class CosmosCache(Base):
+    """Cached responses from external astronomy APIs (JPL, NASA Exoplanet
+    Archive, MAST, etc.) keyed by source + a hash of the request params, so
+    repeat lookups skip the (often slow) upstream call."""
+
+    __tablename__ = "cosmos_cache"
+
+    id = Column(Integer, primary_key=True)
+    cache_key = Column(String(255), unique=True, nullable=False)  # "<source>:<sha256 of params>"
+    source = Column(String(40), nullable=False)  # jpl_sbdb | jpl_horizons | jpl_cad | exoplanet_archive | mast | nasa_apod | nasa_neows | nasa_donki | nasa_images
+    payload_json = Column(JSON, nullable=False)
+    fetched_at = Column(DateTime, default=utcnow)
+
+
+class CosmosSavedItem(Base):
+    """A user's Cosmos Library entry — a planet, asteroid, exoplanet,
+    telescope image, etc. saved for later, with the source provenance kept
+    alongside it (never just the display fields) so the record stays
+    traceable back to where it came from."""
+
+    __tablename__ = "cosmos_saved_items"
+    __table_args__ = (UniqueConstraint("user_id", "object_type", "external_id", name="uq_cosmos_saved_item"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    object_type = Column(String(30), nullable=False)  # planet | asteroid | exoplanet | star | observation | image
+    external_id = Column(String(255), nullable=False)  # e.g. SBDB spkid, exoplanet pl_name, MAST obsid
+    collection = Column(String(40), nullable=False, default="favorites")  # favorites | research | discoveries | ...
+    title = Column(String(255))
+    source = Column(String(80))  # e.g. "JPL Small-Body Database", "NASA Exoplanet Archive"
+    source_dataset = Column(String(80))
+    image_url = Column(String(500))
+    data_json = Column(JSON)  # normalized snapshot at save time
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User", back_populates="cosmos_saved_items")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "objectType": self.object_type,
+            "externalId": self.external_id,
+            "collection": self.collection,
+            "title": self.title,
+            "source": self.source,
+            "sourceDataset": self.source_dataset,
+            "imageUrl": self.image_url,
+            "data": self.data_json,
+            "notes": self.notes,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
 
     def to_dict(self):
         return {

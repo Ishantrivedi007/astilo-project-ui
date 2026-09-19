@@ -21,6 +21,11 @@ class Config:
     TMDB_API_KEY = os.getenv("TMDB_API_KEY", "")
     GENIUS_ACCESS_TOKEN = os.getenv("GENIUS_ACCESS_TOKEN", "")
 
+    # Free signup at https://api.nasa.gov — raises the rate limit from
+    # DEMO_KEY's 30/hr, 50/day to 1000/hr. Only needed for APOD/NeoWs/DONKI;
+    # the JPL, Exoplanet Archive, and MAST adapters need no key at all.
+    NASA_API_KEY = os.getenv("NASA_API_KEY", "DEMO_KEY")
+
     # Absolute override for where downloaded songs are written (and checked
     # against). Defaults to the sibling astilo-project-ui/public/downloads
     # next to this backend — set this when the frontend being served lives

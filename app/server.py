@@ -2,6 +2,19 @@ import cherrypy
 
 from app.config import config
 from app.controllers.auth_controller import AuthController
+from app.controllers.cosmos_controller import (
+    ApodController,
+    AsteroidController,
+    CloseApproachController,
+    CosmosLibraryController,
+    DonkiController,
+    ExoplanetController,
+    HorizonsController,
+    NasaImagesController,
+    NeoWsController,
+    StarController,
+    TelescopeObservationController,
+)
 from app.controllers.favorites_controller import FavoritesController
 from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
@@ -62,6 +75,21 @@ def build_app():
     cherrypy.tree.mount(SongSearchController(), "/api/music/search", conf)
     cherrypy.tree.mount(SongPreviewController(), "/api/music/preview", conf)
     cherrypy.tree.mount(DownloadJobsController(), "/api/music/downloads", conf)
+
+    # Astilo Cosmos — server-side astronomy data adapters. Keyless sources
+    # (JPL, NASA Exoplanet Archive, MAST, NASA image library) work out of
+    # the box; APOD/NeoWs/DONKI use NASA_API_KEY (see app/config.py).
+    cherrypy.tree.mount(AsteroidController(), "/api/cosmos/asteroids", conf)
+    cherrypy.tree.mount(CloseApproachController(), "/api/cosmos/close-approaches", conf)
+    cherrypy.tree.mount(HorizonsController(), "/api/cosmos/horizons", conf)
+    cherrypy.tree.mount(ExoplanetController(), "/api/cosmos/exoplanets", conf)
+    cherrypy.tree.mount(TelescopeObservationController(), "/api/cosmos/observations", conf)
+    cherrypy.tree.mount(NasaImagesController(), "/api/cosmos/images", conf)
+    cherrypy.tree.mount(ApodController(), "/api/cosmos/apod", conf)
+    cherrypy.tree.mount(NeoWsController(), "/api/cosmos/neo", conf)
+    cherrypy.tree.mount(DonkiController(), "/api/cosmos/space-weather", conf)
+    cherrypy.tree.mount(StarController(), "/api/cosmos/stars", conf)
+    cherrypy.tree.mount(CosmosLibraryController(), "/api/cosmos/library", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
