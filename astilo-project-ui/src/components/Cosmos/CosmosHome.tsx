@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CircleDot, Orbit, Radar, Rocket, Sparkles, Star, Sun, Telescope } from "lucide-react";
+import {
+  CircleDot,
+  Image as ImageIcon,
+  Orbit,
+  Radar,
+  Rocket,
+  Sparkles,
+  Star,
+  Sun,
+  Telescope,
+  Zap,
+} from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { Reveal } from "../shared";
@@ -9,13 +20,15 @@ import { fetchApod } from "../../lib/cosmosApi";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
 
-const EXAMPLES = ["Apophis", "TRAPPIST-1", "Sirius", "Pillars of Creation"];
+const EXAMPLES = ["Apophis", "TRAPPIST-1", "Sirius", "Cygnus X-1", "Pillars of Creation"];
 
 const NAV_TILES = [
   { label: "Asteroids", icon: CircleDot, href: `${AppRoute.cosmosSearch}?type=asteroid` },
   { label: "Exoplanets", icon: Orbit, href: `${AppRoute.cosmosSearch}?type=exoplanet` },
   { label: "Stars", icon: Star, href: `${AppRoute.cosmosSearch}?type=star` },
   { label: "Telescopes", icon: Telescope, href: `${AppRoute.cosmosSearch}?type=observation` },
+  { label: "X-ray sources", icon: Zap, href: `${AppRoute.cosmosSearch}?type=high-energy` },
+  { label: "Image Library", icon: ImageIcon, href: `${AppRoute.cosmosSearch}?type=image` },
   { label: "Space Weather", icon: Sun, href: AppRoute.cosmosSpaceWeather },
   { label: "Cosmos Library", icon: Sparkles, href: AppRoute.cosmosLibrary },
 ];

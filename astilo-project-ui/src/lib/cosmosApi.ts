@@ -174,6 +174,21 @@ export async function fetchStar(name: string): Promise<CosmosEnvelope<StarData>>
   return data;
 }
 
+export interface HighEnergyObservationRow {
+  name: string;
+  ra: number;
+  dec: number;
+  obsid: string;
+  time: number;
+  exposure_a: number;
+  public_date: number;
+}
+
+export async function searchHighEnergyObservations(name: string, catalog = "numaster", limit = 10) {
+  const { data } = await cosmos.get(`/high-energy`, { params: { name, catalog, limit } });
+  return data as CosmosEnvelope<{ queriedName: string; catalog: string; count: number; results: HighEnergyObservationRow[] }>;
+}
+
 // -- Cosmos Library (requires auth; the axios instance below attaches the token) --
 
 export type CosmosObjectType = "planet" | "asteroid" | "exoplanet" | "star" | "observation" | "image";

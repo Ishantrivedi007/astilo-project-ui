@@ -10,9 +10,14 @@ import {
   fetchStar,
   saveCosmosItem,
   searchExoplanets,
+  searchHighEnergyObservations,
+  searchNasaImages,
   searchObservations,
   type AsteroidData,
+  type CosmosObjectType,
   type ExoplanetData,
+  type HighEnergyObservationRow,
+  type NasaImageData,
   type ObservationData,
   type StarData,
 } from "../../lib/cosmosApi";
@@ -20,13 +25,15 @@ import CosmosField from "./CosmosField";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
 
-type ResultGroup = "asteroid" | "exoplanet" | "star" | "observation";
+type ResultGroup = "asteroid" | "exoplanet" | "star" | "observation" | "image" | "high-energy";
 
 const TYPE_LABELS: Record<ResultGroup, string> = {
   asteroid: "Asteroids & comets",
   exoplanet: "Exoplanets",
   star: "Stars",
   observation: "Telescope observations",
+  image: "NASA image & video library",
+  "high-energy": "X-ray observations (HEASARC)",
 };
 
 const SaveButton = ({
@@ -37,7 +44,7 @@ const SaveButton = ({
   sourceDataset,
   data,
 }: {
-  objectType: "asteroid" | "exoplanet" | "star" | "observation";
+  objectType: CosmosObjectType;
   externalId: string;
   title: string;
   source: string;
@@ -83,6 +90,8 @@ const CosmosSearch = () => {
   const showExoplanets = !typeFilter || typeFilter === "exoplanet";
   const showStars = !typeFilter || typeFilter === "star";
   const showObservations = !typeFilter || typeFilter === "observation";
+  const showImages = !typeFilter || typeFilter === "image";
+  const showHighEnergy = !typeFilter || typeFilter === "high-energy";
 
   const asteroidQuery = useQuery({
     queryKey: ["cosmos", "asteroid", q],
@@ -112,11 +121,32 @@ const CosmosSearch = () => {
     retry: false,
   });
 
+  const imageQuery = useQuery({
+    queryKey: ["cosmos", "image", q],
+    queryFn: () => searchNasaImages(q, 12),
+    enabled: showImages && q.length > 1,
+    retry: false,
+  });
+
+  const highEnergyQuery = useQuery({
+    queryKey: ["cosmos", "high-energy", q],
+    queryFn: () => searchHighEnergyObservations(q),
+    enabled: showHighEnergy && q.length > 1,
+    retry: false,
+  });
+
   const loading =
-    asteroidQuery.isLoading || exoplanetQuery.isLoading || starQuery.isLoading || observationQuery.isLoading;
+    asteroidQuery.isLoading ||
+    exoplanetQuery.isLoading ||
+    starQuery.isLoading ||
+    observationQuery.isLoading ||
+    imageQuery.isLoading ||
+    highEnergyQuery.isLoading;
 
   const exoplanetResults = exoplanetQuery.data?.data.results ?? [];
   const observationResults = observationQuery.data?.data.results ?? [];
+  const imageResults = imageQuery.data?.data.results ?? [];
+  const highEnergyResults = highEnergyQuery.data?.data.results ?? [];
 
   const nothingFound = useMemo(() => {
     if (!q) return false;
@@ -125,9 +155,20 @@ const CosmosSearch = () => {
       !asteroidQuery.data &&
       exoplanetResults.length === 0 &&
       !starQuery.data &&
-      observationResults.length === 0
+      observationResults.length === 0 &&
+      imageResults.length === 0 &&
+      highEnergyResults.length === 0
     );
-  }, [q, loading, asteroidQuery.data, exoplanetResults, starQuery.data, observationResults]);
+  }, [
+    q,
+    loading,
+    asteroidQuery.data,
+    exoplanetResults,
+    starQuery.data,
+    observationResults,
+    imageResults,
+    highEnergyResults,
+  ]);
 
   return (
     <div className="cosmos-page">
@@ -194,6 +235,32 @@ const CosmosSearch = () => {
           <div className="cosmos-result-list">
             {observationResults.slice(0, 10).map((o, i) => (
               <ObservationCard key={`${o.observationId}-${i}`} data={o} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {showHighEnergy && highEnergyResults.length > 0 && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS["high-energy"]}</h2>
+          <p className="mb-2 text-xs text-white/40">
+            NuSTAR pointed observations near {q} — X-ray sources (like black holes) have no
+            optical image to search by, so these are mission observation logs, not photos.
+          </p>
+          <div className="cosmos-result-list">
+            {highEnergyResults.map((row, i) => (
+              <HighEnergyCard key={`${row.obsid}-${i}`} data={row} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {showImages && imageResults.length > 0 && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.image}</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {imageResults.map((img) => (
+              <NasaImageCard key={img.nasaId} data={img} />
             ))}
           </div>
         </>
@@ -316,6 +383,55 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
         className="mt-3 max-h-40 rounded-lg object-cover"
       />
     )}
+  </div>
+);
+
+const HighEnergyCard = ({ data }: { data: HighEnergyObservationRow }) => (
+  <div className="cosmos-card">
+    <div className="mb-2 flex flex-wrap items-center gap-2">
+      <CosmosSourceBadge source="HEASARC · NuSTAR" />
+      <SaveButton
+        objectType="observation"
+        externalId={data.obsid}
+        title={`${data.name} (${data.obsid})`}
+        source="HEASARC"
+        sourceDataset="NuSTAR Master Catalog"
+        data={data}
+      />
+    </div>
+    <h3 className="mb-2 text-base font-bold">{data.name}</h3>
+    <dl className="cosmos-field-grid">
+      <CosmosField label="Observation ID" value={data.obsid} />
+      <CosmosField label="RA" value={data.ra} unit="°" />
+      <CosmosField label="Dec" value={data.dec} unit="°" />
+      <CosmosField label="Exposure (FPMA)" value={Math.round(data.exposure_a)} unit="s" />
+      <CosmosField label="Start time (MJD)" value={data.time} />
+    </dl>
+  </div>
+);
+
+const NasaImageCard = ({ data }: { data: NasaImageData }) => (
+  <div className="cosmos-card p-2">
+    {data.previewUrl && (
+      <img
+        src={data.previewUrl}
+        alt={data.title}
+        loading="lazy"
+        className="mb-2 aspect-square w-full rounded-lg object-cover"
+      />
+    )}
+    <p className="line-clamp-2 text-xs font-semibold">{data.title}</p>
+    <div className="mt-1 flex items-center justify-between">
+      <CosmosSourceBadge source="NASA Images" />
+      <SaveButton
+        objectType="image"
+        externalId={data.nasaId}
+        title={data.title}
+        source="NASA Image and Video Library"
+        sourceDataset="search"
+        data={data}
+      />
+    </div>
   </div>
 );
 
