@@ -15,6 +15,7 @@ import {
   CalendarClock,
   Orbit,
   LineChart,
+  FlaskConical,
 } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Store", href: AppRoute.store, icon: ShoppingBag },
   { label: "Cosmos", href: AppRoute.cosmos, icon: Orbit },
   { label: "Markets", href: AppRoute.markets, icon: LineChart },
+  { label: "Research", href: AppRoute.research, icon: FlaskConical },
   { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },
 ];
 
