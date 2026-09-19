@@ -743,8 +743,9 @@ class NimroseNote(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String(255), nullable=False)
-    content = Column(Text, nullable=True)  # Markdown source, or HTML when content_format="html"
+    content = Column(Text, nullable=True)  # Markdown/HTML source, or a JSON string for sheet/slides kinds
     content_format = Column(String(10), nullable=False, default="markdown")  # markdown | html
+    kind = Column(String(10), nullable=False, default="note")  # note | sheet | slides — the Office suite's document type
     folder = Column(String(100), nullable=True)
     tags = Column(JSON, nullable=True)  # list[str]
     pinned = Column(Integer, nullable=False, default=0)  # 0/1 (sqlite has no real bool)
@@ -757,6 +758,7 @@ class NimroseNote(Base):
             "title": self.title,
             "content": self.content,
             "contentFormat": self.content_format or "markdown",
+            "kind": self.kind or "note",
             "folder": self.folder,
             "tags": self.tags or [],
             "pinned": bool(self.pinned),

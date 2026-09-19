@@ -34,6 +34,7 @@ def init_db():
     _migrate_cosmos_research_columns()
     _migrate_cosmos_research_images_column()
     _migrate_note_content_format_column()
+    _migrate_note_kind_column()
 
 
 def _migrate_board_column_wip_limit():
@@ -116,6 +117,22 @@ def _migrate_note_content_format_column():
             conn.exec_driver_sql(
                 "ALTER TABLE nimrose_notes ADD COLUMN IF NOT EXISTS content_format VARCHAR(10) DEFAULT 'markdown'"
             )
+        conn.commit()
+
+
+def _migrate_note_kind_column():
+    """create_all only creates missing tables, not columns on ones that
+    already exist — patch in "kind" for notes created before the Office
+    suite (sheet/slides document types) existed; they default to "note",
+    matching what they always were."""
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(nimrose_notes)")}
+            if "kind" not in existing:
+                conn.exec_driver_sql("ALTER TABLE nimrose_notes ADD COLUMN kind VARCHAR(10) DEFAULT 'note'")
+        else:
+            conn.exec_driver_sql("ALTER TABLE nimrose_notes ADD COLUMN IF NOT EXISTS kind VARCHAR(10) DEFAULT 'note'")
         conn.commit()
 
 

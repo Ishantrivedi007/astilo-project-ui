@@ -825,7 +825,7 @@ class NimroseNotesController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self, note_id=None, folder=None, tag=None, q=None):
+    def GET(self, note_id=None, folder=None, tag=None, q=None, kind=None):
         with get_session() as session:
             if note_id is not None:
                 note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
@@ -836,6 +836,8 @@ class NimroseNotesController:
             query = session.query(NimroseNote).filter_by(user_id=_user_id())
             if folder:
                 query = query.filter_by(folder=folder)
+            if kind:
+                query = query.filter_by(kind=kind)
             if q:
                 like = f"%{q}%"
                 query = query.filter((NimroseNote.title.ilike(like)) | (NimroseNote.content.ilike(like)))
@@ -857,6 +859,7 @@ class NimroseNotesController:
                 title=title,
                 content=body.get("content", ""),
                 content_format="html" if body.get("contentFormat") == "html" else "markdown",
+                kind=body.get("kind") if body.get("kind") in ("note", "sheet", "slides") else "note",
                 folder=body.get("folder") or None,
                 tags=body.get("tags") or [],
                 pinned=1 if body.get("pinned") else 0,
