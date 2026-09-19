@@ -308,3 +308,12 @@ export interface BreakdownData {
 
 export const fetchBreakdown = (projectId: number) =>
   apiClient.get<BreakdownData>("/nimrose/analytics/breakdown", { params: { project_id: projectId } }).then((r) => r.data);
+
+export interface AssignableUser {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export const fetchAssignableUsers = () =>
+  apiClient.get<AssignableUser[]>("/users", { params: { basic: 1 } }).then((r) => r.data);

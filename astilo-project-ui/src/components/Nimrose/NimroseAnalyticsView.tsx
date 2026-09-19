@@ -20,6 +20,25 @@ const interactive = {
   tooltip: { shared: true, intersect: false, followCursor: true },
 };
 
+// Bars, not the base theme's translucent-fill/thick-stroke line look — solid
+// fill so counts read as filled bars rather than color-outlined boxes.
+const solidBar = { stroke: { width: 0 }, fill: { type: "solid", opacity: 1 } };
+
+// Adds a "N tickets · NN% of total" tooltip/label instead of a bare count,
+// so each bucket also communicates its share of the whole breakdown.
+const withShare = (total: number) => ({
+  dataLabels: {
+    enabled: true,
+    style: { colors: ["#fff"], fontWeight: 600 },
+    formatter: (val: number) => (total > 0 ? `${val} (${Math.round((val / total) * 100)}%)` : `${val}`),
+  },
+  tooltip: {
+    y: {
+      formatter: (val: number) => (total > 0 ? `${val} ticket${val === 1 ? "" : "s"} · ${Math.round((val / total) * 100)}% of ${total}` : `${val}`),
+    },
+  },
+});
+
 const NimroseAnalyticsView = () => {
   const [projectId, setProjectId] = useState<number | null>(null);
   const [sprintId, setSprintId] = useState<number | null>(null);
@@ -142,6 +161,7 @@ const NimroseAnalyticsView = () => {
               series={[{ name: "Points completed", data: velocity.map((v) => v.pointsCompleted) }]}
               options={{
                 ...interactive,
+                ...solidBar,
                 colors: WARM_PALETTE,
                 dataLabels: { enabled: true, style: { colors: ["#fff"] } },
                 xaxis: { categories: velocity.map((v) => v.sprintName) },
@@ -179,8 +199,9 @@ const NimroseAnalyticsView = () => {
               series={[{ name: "Tickets", data: Object.values(breakdown.byPriority) }]}
               options={{
                 ...interactive,
+                ...solidBar,
+                ...withShare(breakdown.total),
                 colors: WARM_PALETTE,
-                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
                 xaxis: { categories: Object.keys(breakdown.byPriority) },
                 plotOptions: { bar: { horizontal: true, borderRadius: 5, distributed: true } },
                 legend: { show: false },
@@ -199,8 +220,9 @@ const NimroseAnalyticsView = () => {
               series={[{ name: "Tickets", data: Object.values(breakdown.byColumn) }]}
               options={{
                 ...interactive,
+                ...solidBar,
+                ...withShare(breakdown.total),
                 colors: WARM_PALETTE,
-                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
                 xaxis: { categories: Object.keys(breakdown.byColumn) },
                 plotOptions: { bar: { borderRadius: 6, distributed: true, columnWidth: "55%" } },
                 legend: { show: false },
@@ -219,8 +241,9 @@ const NimroseAnalyticsView = () => {
               series={[{ name: "Tickets", data: Object.values(breakdown.byAssignee) }]}
               options={{
                 ...interactive,
+                ...solidBar,
+                ...withShare(breakdown.total),
                 colors: WARM_PALETTE,
-                dataLabels: { enabled: true, style: { colors: ["#fff"] } },
                 xaxis: { categories: Object.keys(breakdown.byAssignee) },
                 plotOptions: { bar: { horizontal: true, borderRadius: 5, distributed: true } },
                 legend: { show: false },

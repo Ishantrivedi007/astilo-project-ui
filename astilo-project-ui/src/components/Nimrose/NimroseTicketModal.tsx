@@ -10,6 +10,7 @@ import {
   attachmentFileUrl,
   deleteTicket,
   deleteTicketAttachment,
+  fetchAssignableUsers,
   fetchBoardColumns,
   fetchTicketActivity,
   fetchTicketComments,
@@ -80,6 +81,7 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
     queryFn: () => fetchTicketActivity(ticketId),
   });
   const allTicketsQuery = useQuery({ queryKey: ["nimrose", "tickets", "all-for-link"], queryFn: () => fetchTickets() });
+  const usersQuery = useQuery({ queryKey: ["users", "basic"], queryFn: fetchAssignableUsers });
 
   const invalidateBoard = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "tickets"] });
   const invalidateTicket = () => {
@@ -245,11 +247,32 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
             <div className="nimrose-modal-field-row">
               <label>
                 Assignee
-                <input
-                  defaultValue={ticket.assignee ?? ""}
-                  placeholder="Unassigned"
-                  onBlur={(e) => updateMutation.mutate({ assignee: e.target.value.trim() || null })}
-                />
+                <div className="nimrose-assignee-field">
+                  <select
+                    value={ticket.assignee ?? ""}
+                    onChange={(e) => updateMutation.mutate({ assignee: e.target.value || null })}
+                  >
+                    <option value="">Unassigned</option>
+                    {usersQuery.data?.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name}
+                        {u.id === user?.id ? " (me)" : ""}
+                      </option>
+                    ))}
+                    {ticket.assignee && !usersQuery.data?.some((u) => u.name === ticket.assignee) && (
+                      <option value={ticket.assignee}>{ticket.assignee}</option>
+                    )}
+                  </select>
+                  {user?.name && ticket.assignee !== user.name && (
+                    <button
+                      type="button"
+                      className="nimrose-chip"
+                      onClick={() => updateMutation.mutate({ assignee: user.name })}
+                    >
+                      Assign to me
+                    </button>
+                  )}
+                </div>
               </label>
               <label>
                 Due date

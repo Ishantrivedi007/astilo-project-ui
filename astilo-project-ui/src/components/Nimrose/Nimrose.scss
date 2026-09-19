@@ -1330,6 +1330,25 @@
   }
 }
 
+.nimrose-assignee-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+
+  select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .nimrose-chip {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 0.65rem;
+    padding: 0.35rem 0.5rem;
+  }
+}
+
 .nimrose-modal-description-label {
   display: flex;
   flex-direction: column;
