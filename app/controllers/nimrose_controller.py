@@ -2,6 +2,7 @@ import datetime
 import re
 
 import cherrypy
+from sqlalchemy import func
 
 from app.db import get_session
 from app.notify import notify
@@ -16,6 +17,7 @@ from app.models import (
     NimroseBoardColumn,
     NimroseCalendarEvent,
     NimroseNote,
+    NimrosePhase,
     NimroseProject,
     NimroseSprint,
     NimroseTask,
@@ -77,7 +79,7 @@ class NimroseProjectsController:
             project = NimroseProject(user_id=_user_id(), name=name, color=body.get("color"), key_prefix=key_prefix)
             session.add(project)
             session.flush()
-            notify(session, _user_id(), "kanban", f"Project created: {project.name}", link="/nimrose?section=kanban")
+            notify(session, _user_id(), "kanban", f"Project created: {project.name}", link=f"/nimrose?section=kanban&project={project.id}")
             return project.to_dict()
 
     @cherrypy.tools.auth()
@@ -363,7 +365,10 @@ class NimroseSprintsController:
             )
             session.add(sprint)
             session.flush()
-            notify(session, _user_id(), "kanban", f"Sprint created: {sprint.name}", body=f"In {project.name}", link="/nimrose?section=sprints")
+            notify(
+                session, _user_id(), "kanban", f"Sprint created: {sprint.name}",
+                body=f"In {project.name}", link=f"/nimrose?section=sprints&project={project.id}&sprint={sprint.id}",
+            )
             return sprint.to_dict()
 
     @cherrypy.tools.auth()
@@ -410,6 +415,110 @@ class NimroseSprintsController:
             if not sprint:
                 raise cherrypy.HTTPError(404, "Sprint not found")
             session.delete(sprint)
+            return {"deleted": True}
+
+
+class NimrosePhasesController:
+    """Project delivery phases — full CRUD, mirroring Sprints, but for the
+    coarser "Phase 1 / Phase 2" grouping across a project's timeline."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, project_id=None):
+        with get_session() as session:
+            query = (
+                session.query(NimrosePhase)
+                .join(NimroseProject)
+                .filter(NimroseProject.user_id == _user_id())
+            )
+            if project_id:
+                query = query.filter(NimrosePhase.project_id == int(project_id))
+            phases = query.order_by(NimrosePhase.position.asc(), NimrosePhase.created_at.asc()).all()
+            return [p.to_dict() for p in phases]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self):
+        body = cherrypy.request.json or {}
+        name = (body.get("name") or "").strip()
+        project_id = body.get("projectId")
+        if not name or not project_id:
+            raise cherrypy.HTTPError(400, "name and projectId are required")
+
+        with get_session() as session:
+            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
+            if not project:
+                raise cherrypy.HTTPError(404, "Project not found")
+
+            max_position = (
+                session.query(func.max(NimrosePhase.position)).filter_by(project_id=project.id).scalar() or 0
+            )
+            phase = NimrosePhase(
+                project_id=project.id,
+                name=name,
+                description=body.get("description"),
+                start_date=body.get("startDate"),
+                end_date=body.get("endDate"),
+                status=body.get("status", "planned"),
+                position=max_position + 1,
+            )
+            session.add(phase)
+            session.flush()
+            notify(
+                session, _user_id(), "kanban", f"Phase created: {phase.name}",
+                body=f"In {project.name}", link=f"/nimrose?section=phases&project={project.id}&phase={phase.id}",
+            )
+            return phase.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, phase_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            phase = (
+                session.query(NimrosePhase)
+                .join(NimroseProject)
+                .filter(NimrosePhase.id == int(phase_id), NimroseProject.user_id == _user_id())
+                .first()
+            )
+            if not phase:
+                raise cherrypy.HTTPError(404, "Phase not found")
+
+            if "name" in body:
+                phase.name = (body["name"] or "").strip() or phase.name
+            if "description" in body:
+                phase.description = body["description"]
+            if "startDate" in body:
+                phase.start_date = body["startDate"]
+            if "endDate" in body:
+                phase.end_date = body["endDate"]
+            if "status" in body:
+                if body["status"] not in ("planned", "active", "completed"):
+                    raise cherrypy.HTTPError(400, "invalid phase status")
+                phase.status = body["status"]
+            if "position" in body:
+                phase.position = int(body["position"])
+
+            session.flush()
+            return phase.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, phase_id):
+        with get_session() as session:
+            phase = (
+                session.query(NimrosePhase)
+                .join(NimroseProject)
+                .filter(NimrosePhase.id == int(phase_id), NimroseProject.user_id == _user_id())
+                .first()
+            )
+            if not phase:
+                raise cherrypy.HTTPError(404, "Phase not found")
+            session.delete(phase)
             return {"deleted": True}
 
 
@@ -496,6 +605,7 @@ class NimroseTicketsController:
                 user_id=_user_id(),
                 project_id=project.id,
                 sprint_id=body.get("sprintId"),
+                phase_id=body.get("phaseId"),
                 ticket_key=_next_ticket_key(session, project),
                 title=title,
                 description=body.get("description"),
@@ -512,7 +622,10 @@ class NimroseTicketsController:
             session.add(ticket)
             session.flush()
             _log_activity(session, ticket.id, "created", f"Created as {ticket.ticket_key} in {status}")
-            notify(session, _user_id(), "kanban", f"Ticket created: {ticket.ticket_key}", body=title, link="/nimrose?section=kanban")
+            notify(
+                session, _user_id(), "kanban", f"Ticket created: {ticket.ticket_key}",
+                body=title, link=f"/nimrose?section=kanban&project={ticket.project_id}&ticket={ticket.id}",
+            )
             session.flush()
             return ticket.to_dict()
 
@@ -541,7 +654,7 @@ class NimroseTicketsController:
                 notify(
                     session, _user_id(), "kanban",
                     f"{ticket.ticket_key} moved to {body['status']}",
-                    body=ticket.title, link="/nimrose?section=kanban",
+                    body=ticket.title, link=f"/nimrose?section=kanban&project={ticket.project_id}&ticket={ticket.id}",
                 )
                 ticket.status = body["status"]
             if "priority" in body and body["priority"] != ticket.priority:
@@ -558,11 +671,13 @@ class NimroseTicketsController:
                 notify(
                     session, _user_id(), "kanban",
                     f"{ticket.ticket_key} assigned to {body['assignee'] or 'Unassigned'}",
-                    body=ticket.title, link="/nimrose?section=kanban",
+                    body=ticket.title, link=f"/nimrose?section=kanban&project={ticket.project_id}&ticket={ticket.id}",
                 )
                 ticket.assignee_name = body["assignee"]
             if "sprintId" in body:
                 ticket.sprint_id = body["sprintId"]
+            if "phaseId" in body:
+                ticket.phase_id = body["phaseId"]
             if "labels" in body:
                 ticket.labels = body["labels"] or []
             if "dueDate" in body:

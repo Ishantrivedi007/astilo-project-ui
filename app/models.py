@@ -416,6 +416,7 @@ class NimroseProject(Base):
     tasks = relationship("NimroseTask", back_populates="project")
     events = relationship("NimroseCalendarEvent", back_populates="project")
     sprints = relationship("NimroseSprint", back_populates="project", cascade="all, delete-orphan")
+    phases = relationship("NimrosePhase", back_populates="project", cascade="all, delete-orphan", order_by="NimrosePhase.position")
     tickets = relationship("NimroseTicket", back_populates="project", cascade="all, delete-orphan")
     board_columns = relationship(
         "NimroseBoardColumn", back_populates="project", cascade="all, delete-orphan",
@@ -560,6 +561,40 @@ class NimroseSprint(Base):
         }
 
 
+class NimrosePhase(Base):
+    """A project delivery phase (e.g. "Phase 1: Design", "Phase 2: Build")
+    — a coarser grouping than a Sprint, for organizing work across the
+    project's overall timeline rather than a fixed iteration window."""
+
+    __tablename__ = "nimrose_phases"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    start_date = Column(String(10), nullable=True)
+    end_date = Column(String(10), nullable=True)
+    status = Column(String(20), nullable=False, default="planned")  # planned | active | completed
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=utcnow)
+
+    project = relationship("NimroseProject", back_populates="phases")
+    tickets = relationship("NimroseTicket", back_populates="phase")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "name": self.name,
+            "description": self.description,
+            "startDate": self.start_date,
+            "endDate": self.end_date,
+            "status": self.status,
+            "position": self.position,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 TICKET_TYPES = ("feature", "bug", "task", "improvement", "integration", "research", "design", "documentation")
 TICKET_PRIORITIES = ("low", "medium", "high", "critical")
 TICKET_STATUSES = ("backlog", "todo", "in_progress", "review", "done")
@@ -591,6 +626,7 @@ class NimroseTicket(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
     sprint_id = Column(Integer, ForeignKey("nimrose_sprints.id"), nullable=True)
+    phase_id = Column(Integer, ForeignKey("nimrose_phases.id"), nullable=True)
     ticket_key = Column(String(30), nullable=False)  # e.g. "AST-1"
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -608,6 +644,7 @@ class NimroseTicket(Base):
 
     project = relationship("NimroseProject", back_populates="tickets")
     sprint = relationship("NimroseSprint", back_populates="tickets")
+    phase = relationship("NimrosePhase", back_populates="tickets")
     reporter = relationship("User", foreign_keys=[reporter_user_id])
     comments = relationship("NimroseTicketComment", back_populates="ticket", cascade="all, delete-orphan")
     activity = relationship(
@@ -627,6 +664,8 @@ class NimroseTicket(Base):
             "projectName": self.project.name if self.project else None,
             "sprintId": self.sprint_id,
             "sprintName": self.sprint.name if self.sprint else None,
+            "phaseId": self.phase_id,
+            "phaseName": self.phase.name if self.phase else None,
             "key": self.ticket_key,
             "title": self.title,
             "description": self.description,

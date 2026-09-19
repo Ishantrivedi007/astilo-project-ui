@@ -45,6 +45,7 @@ from app.controllers.nimrose_controller import (
     NimroseCalendarController,
     NimroseNotesController,
     NimroseProjectsController,
+    NimrosePhasesController,
     NimroseSprintsController,
     NimroseTasksController,
     NimroseTicketActivityController,
@@ -153,6 +154,7 @@ def build_app():
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)
     cherrypy.tree.mount(NimroseCalendarController(), "/api/nimrose/calendar-events", conf)
     cherrypy.tree.mount(NimroseSprintsController(), "/api/nimrose/sprints", conf)
+    cherrypy.tree.mount(NimrosePhasesController(), "/api/nimrose/phases", conf)
     cherrypy.tree.mount(NimroseTicketsController(), "/api/nimrose/tickets", conf)
     cherrypy.tree.mount(NimroseTicketCommentsController(), "/api/nimrose/ticket-comments", conf)
     cherrypy.tree.mount(NimroseTicketLinksController(), "/api/nimrose/ticket-links", conf)

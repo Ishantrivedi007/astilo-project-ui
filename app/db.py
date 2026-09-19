@@ -35,6 +35,7 @@ def init_db():
     _migrate_cosmos_research_images_column()
     _migrate_note_content_format_column()
     _migrate_note_kind_column()
+    _migrate_ticket_phase_column()
 
 
 def _migrate_board_column_wip_limit():
@@ -133,6 +134,20 @@ def _migrate_note_kind_column():
                 conn.exec_driver_sql("ALTER TABLE nimrose_notes ADD COLUMN kind VARCHAR(10) DEFAULT 'note'")
         else:
             conn.exec_driver_sql("ALTER TABLE nimrose_notes ADD COLUMN IF NOT EXISTS kind VARCHAR(10) DEFAULT 'note'")
+        conn.commit()
+
+
+def _migrate_ticket_phase_column():
+    """create_all creates the new nimrose_phases table automatically, but
+    not the phase_id column on the pre-existing nimrose_tickets table."""
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(nimrose_tickets)")}
+            if "phase_id" not in existing:
+                conn.exec_driver_sql("ALTER TABLE nimrose_tickets ADD COLUMN phase_id INTEGER")
+        else:
+            conn.exec_driver_sql("ALTER TABLE nimrose_tickets ADD COLUMN IF NOT EXISTS phase_id INTEGER")
         conn.commit()
 
 
