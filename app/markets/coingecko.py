@@ -1,6 +1,8 @@
 """CoinGecko's free public API (no key required for the endpoints used
 here) — crypto prices, market stats, and historical charts."""
 
+import re
+
 from app.cosmos.cache import cached_fetch
 from app.markets.http import envelope, markets_get
 
@@ -39,6 +41,12 @@ def market_chart(coin_id: str, range_: str = "1mo"):
 
     meta = cached_fetch("coingecko_meta", {"id": coin_id}, fetch_meta, ttl_seconds=6 * 3600) or {}
     market_data = meta.get("market_data") or {}
+    description = ((meta.get("description") or {}).get("en") or "").strip()
+    # Descriptions often include raw HTML anchor tags — strip them for plain
+    # display rather than rendering markup we didn't sanitize.
+    description = re.sub(r"<[^>]+>", "", description)
+    if len(description) > 600:
+        description = description[:600].rsplit(". ", 1)[0] + "."
 
     points = [{"t": int(t), "close": price, "open": None, "high": None, "low": None, "volume": None} for t, price in (raw.get("prices") or [])]
 
@@ -64,6 +72,12 @@ def market_chart(coin_id: str, range_: str = "1mo"):
         "fiftyTwoWeekLow": market_data.get("atl", {}).get("usd"),
         "logoUrl": (meta.get("image") or {}).get("large") or (meta.get("image") or {}).get("small"),
         "marketTime": None,
+        "founded": meta.get("genesis_date"),
+        "about": description or None,
+        "athPrice": market_data.get("ath", {}).get("usd"),
+        "athDate": market_data.get("ath_date", {}).get("usd"),
+        "atlPrice": market_data.get("atl", {}).get("usd"),
+        "atlDate": market_data.get("atl_date", {}).get("usd"),
         "range": range_,
         "interval": "auto",
         "points": points,

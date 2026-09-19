@@ -80,6 +80,31 @@ class NimroseProjectsController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, project_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
+            if not project:
+                raise cherrypy.HTTPError(404, "Project not found")
+
+            if "name" in body:
+                name = (body["name"] or "").strip()
+                if not name:
+                    raise cherrypy.HTTPError(400, "name can't be empty")
+                project.name = name
+            if "color" in body:
+                project.color = body["color"] or None
+            if "keyPrefix" in body:
+                prefix = (body["keyPrefix"] or "").strip().upper()
+                if prefix:
+                    project.key_prefix = prefix
+
+            session.flush()
+            return project.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
     def DELETE(self, project_id):
         with get_session() as session:
             project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()

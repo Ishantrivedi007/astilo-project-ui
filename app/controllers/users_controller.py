@@ -22,7 +22,7 @@ class UsersController:
                     # Any authenticated user can see the minimal roster (id/name/email)
                     # for pickers like ticket assignees — no profile/sensitive fields.
                     return [
-                        {"id": u.id, "name": u.name, "email": u.email}
+                        {"id": u.id, "name": u.name, "email": u.email, "avatar": u.avatar}
                         for u in session.query(User).order_by(User.name.asc()).all()
                     ]
                 if claims.get("role") != "admin":
