@@ -1,16 +1,20 @@
-"""Cosmos <-> Nimrose integration — "Research this object".
+"""Cosmos <-> Nimrose integration — the Research module.
 
-Turns a saved Cosmos object into a real Nimrose research workspace in one
-step: a project, a note pre-filled with the object's data and source
-provenance, a browser Space with a starting search tab, and a task —
-rather than making the user assemble all of that by hand.
+"Research this object" turns a saved Cosmos object into a full research
+workspace: an automated brief (real Wikipedia summary, key points, and a
+further-research checklist — stored structured on the CosmosSavedItem, not
+buried in a Note), a Nimrose project, a browser Space with a starting search
+tab, and a task. The brief can be regenerated on demand. Freeform documents
+(NimroseNotes scoped to the project) are managed separately via full CRUD
+from the dedicated Research page, not auto-written into note text.
 """
+
+import datetime
 
 import cherrypy
 
 from app.cosmos import wikipedia
 from app.db import get_session
-from app.research_brief import further_research, key_points_from_extract
 from app.models import (
     CosmosSavedItem,
     NimroseBrowserSpace,
@@ -19,6 +23,7 @@ from app.models import (
     NimroseProject,
     NimroseTask,
 )
+from app.research_brief import further_research, key_points_from_extract
 
 COSMOS_OBJECT_TYPES = ("planet", "asteroid", "exoplanet", "star", "observation", "image", "galaxy", "supernova")
 
@@ -27,57 +32,64 @@ def _user_id():
     return int(cherrypy.request.user["sub"])
 
 
-def _note_body(title: str, object_type: str, source: str | None, source_dataset: str | None, data: dict | None, wiki: dict | None) -> str:
-    lines = [f"# {title}", ""]
-    if source:
-        provenance = f"**Source:** {source}"
-        if source_dataset:
-            provenance += f" ({source_dataset})"
-        lines += [provenance, ""]
+def _build_brief(title: str, object_type: str, data: dict | None) -> dict:
+    try:
+        wiki = wikipedia.research_summary(title)
+    except Exception:
+        wiki = None
 
-    extract = wiki.get("data", {}).get("extract") if wiki else None
-    if extract:
-        w = wiki["data"]
-        lines.append("## Summary")
-        lines.append("")
-        lines.append(extract)
-        lines.append("")
-        if w.get("pageUrl"):
-            lines.append(f"_Source: [Wikipedia — {w.get('title')}]({w['pageUrl']})_")
-            lines.append("")
+    wiki_data = (wiki or {}).get("data") or {}
+    extract = wiki_data.get("extract")
 
-    key_points = key_points_from_extract(extract)
-    if key_points:
-        lines.append("## Key points")
-        lines.append("")
-        for point in key_points:
-            lines.append(f"- {point}")
-        lines.append("")
+    return {
+        "summary": extract,
+        "wikiTitle": wiki_data.get("title"),
+        "wikiUrl": wiki_data.get("pageUrl"),
+        "thumbnailUrl": wiki_data.get("thumbnailUrl"),
+        "keyPoints": key_points_from_extract(extract),
+        "nextSteps": [{"text": t, "done": False} for t in further_research(object_type, data)],
+        "dataSnapshot": {k: v for k, v in (data or {}).items() if not k.startswith("_") and v not in (None, "")},
+        "generatedAt": datetime.datetime.utcnow().isoformat() + "Z",
+    }
 
-    if data:
-        lines.append("## Data snapshot")
-        lines.append("")
-        for key, value in data.items():
-            if key.startswith("_") or value in (None, ""):
-                continue
-            label = "".join(f" {c}" if c.isupper() else c for c in key).strip().capitalize()
-            lines.append(f"- **{label}:** {value}")
-        lines.append("")
 
-    next_steps = further_research(object_type, data)
-    if next_steps:
-        lines.append("## What to research next")
-        lines.append("")
-        for step in next_steps:
-            lines.append(f"- [ ] {step}")
-        lines.append("")
-
-    lines += ["## Notes", "", "_Start writing here._"]
-    return "\n".join(lines)
+def _item_summary(session, item: CosmosSavedItem) -> dict:
+    d = item.to_dict()
+    project = session.get(NimroseProject, item.research_project_id) if item.research_project_id else None
+    doc_count = 0
+    if project:
+        doc_count = session.query(NimroseNote).filter_by(user_id=item.user_id, folder=project.name).count()
+    d["project"] = project.to_dict() if project else None
+    d["documentCount"] = doc_count
+    return d
 
 
 class ResearchController:
+    """The full Research module: GET (list or one item), POST (create/attach
+    a research workspace to a Cosmos object), PUT (refresh the brief or
+    toggle a checklist item), DELETE (tear down a research item and its
+    linked project/notes/tasks/Space)."""
+
     exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, item_id=None):
+        user_id = _user_id()
+        with get_session() as session:
+            if item_id is not None:
+                item = session.query(CosmosSavedItem).filter_by(id=int(item_id), user_id=user_id, collection="research").first()
+                if not item:
+                    raise cherrypy.HTTPError(404, "Research item not found")
+                return _item_summary(session, item)
+
+            items = (
+                session.query(CosmosSavedItem)
+                .filter_by(user_id=user_id, collection="research")
+                .order_by(CosmosSavedItem.created_at.desc())
+                .all()
+            )
+            return [_item_summary(session, item) for item in items]
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
@@ -98,8 +110,6 @@ class ResearchController:
         project_name = f"Research: {title}"[:150]
 
         with get_session() as session:
-            # 1. Save to the Cosmos Library under the "research" collection
-            # (or reuse the existing save if this object was already saved).
             cosmos_item = (
                 session.query(CosmosSavedItem)
                 .filter_by(user_id=user_id, object_type=object_type, external_id=external_id)
@@ -119,8 +129,9 @@ class ResearchController:
                 )
                 session.add(cosmos_item)
                 session.flush()
+            elif cosmos_item.collection != "research":
+                cosmos_item.collection = "research"
 
-            # 2. Find-or-create the research project.
             project = session.query(NimroseProject).filter_by(user_id=user_id, name=project_name).first()
             created_project = project is None
             if not project:
@@ -129,34 +140,17 @@ class ResearchController:
                 session.add(project)
                 session.flush()
 
-            # 3. A pre-filled research note (only on first run, so re-running
-            # "Research this object" doesn't stomp on notes already written).
-            note = None
+            cosmos_item.research_project_id = project.id
+            if not cosmos_item.research_brief_json:
+                cosmos_item.research_brief_json = _build_brief(title, object_type, data)
+
             if created_project:
-                try:
-                    wiki = wikipedia.research_summary(title)
-                except Exception:
-                    wiki = None
-
-                note = NimroseNote(
-                    user_id=user_id,
-                    title=project_name,
-                    content=_note_body(title, object_type, source, source_dataset, data, wiki),
-                    folder=project_name,
-                    tags=["cosmos", "research"],
-                )
-                session.add(note)
-
-                # 4. A browser Space with a starting search tab — real
-                # search engines, not a fabricated "source" URL we don't
-                # actually have for most object types.
                 space = NimroseBrowserSpace(user_id=user_id, name=project_name[:60], position=0)
                 session.add(space)
                 session.flush()
                 search_url = f"https://scholar.google.com/scholar?q={title.replace(' ', '+')}"
                 session.add(NimroseBrowserTab(space_id=space.id, url=search_url, title=f"{title} — Scholar search", position=0))
 
-                # 5. A starter task.
                 session.add(
                     NimroseTask(
                         user_id=user_id,
@@ -174,8 +168,67 @@ class ResearchController:
 
             return {
                 "createdNew": created_project,
-                "cosmosItem": cosmos_item.to_dict(),
-                "project": project.to_dict(),
-                "note": note.to_dict() if note else None,
+                "cosmosItem": _item_summary(session, cosmos_item),
                 "browserSpaceId": space.id if space else None,
             }
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, item_id):
+        """Body: {"action": "refresh"} to regenerate the brief, or
+        {"action": "toggle_step", "index": N} to check/uncheck a next-step."""
+        body = cherrypy.request.json or {}
+        action = body.get("action")
+        user_id = _user_id()
+
+        with get_session() as session:
+            item = session.query(CosmosSavedItem).filter_by(id=int(item_id), user_id=user_id, collection="research").first()
+            if not item:
+                raise cherrypy.HTTPError(404, "Research item not found")
+
+            if action == "refresh":
+                item.research_brief_json = _build_brief(item.title, item.object_type, item.data_json)
+            elif action == "toggle_step":
+                index = body.get("index")
+                brief = dict(item.research_brief_json or {})
+                steps = list(brief.get("nextSteps") or [])
+                if index is None or not (0 <= int(index) < len(steps)):
+                    raise cherrypy.HTTPError(400, "index is required and must reference an existing step")
+                steps[int(index)] = {**steps[int(index)], "done": not steps[int(index)].get("done")}
+                brief["nextSteps"] = steps
+                item.research_brief_json = brief
+            else:
+                raise cherrypy.HTTPError(400, "action must be 'refresh' or 'toggle_step'")
+
+            session.flush()
+            return _item_summary(session, item)
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, item_id):
+        """Removes the research item and its linked project (and that
+        project's notes/tasks/browser Space) — a full teardown, not just
+        unlinking, since a research project has no purpose without its
+        source object."""
+        user_id = _user_id()
+        with get_session() as session:
+            item = session.query(CosmosSavedItem).filter_by(id=int(item_id), user_id=user_id, collection="research").first()
+            if not item:
+                raise cherrypy.HTTPError(404, "Research item not found")
+
+            project = session.get(NimroseProject, item.research_project_id) if item.research_project_id else None
+            if project:
+                for note in session.query(NimroseNote).filter_by(user_id=user_id, folder=project.name).all():
+                    session.delete(note)
+                for task in session.query(NimroseTask).filter_by(user_id=user_id, project_id=project.id).all():
+                    session.delete(task)
+                space = session.query(NimroseBrowserSpace).filter_by(user_id=user_id, name=project.name[:60]).first()
+                if space:
+                    for tab in session.query(NimroseBrowserTab).filter_by(space_id=space.id).all():
+                        session.delete(tab)
+                    session.delete(space)
+                session.delete(project)
+
+            session.delete(item)
+            return {"deleted": True}

@@ -340,6 +340,14 @@ class CosmosSavedItem(Base):
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utcnow)
 
+    # Set only for collection="research" items — the linked Nimrose project
+    # (for its notes/tasks/browser Space) and the automated research brief
+    # (real Wikipedia-sourced summary + key points + further-research
+    # checklist — see app/research_brief.py), regenerable on demand rather
+    # than baked once into note text.
+    research_project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
+    research_brief_json = Column(JSON, nullable=True)
+
     user = relationship("User", back_populates="cosmos_saved_items")
 
     def to_dict(self):
@@ -354,6 +362,8 @@ class CosmosSavedItem(Base):
             "imageUrl": self.image_url,
             "data": self.data_json,
             "notes": self.notes,
+            "researchProjectId": self.research_project_id,
+            "researchBrief": self.research_brief_json,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
