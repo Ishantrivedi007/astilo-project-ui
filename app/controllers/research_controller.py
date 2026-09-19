@@ -10,6 +10,7 @@ import cherrypy
 
 from app.cosmos import wikipedia
 from app.db import get_session
+from app.research_brief import further_research, key_points_from_extract
 from app.models import (
     CosmosSavedItem,
     NimroseBrowserSpace,
@@ -26,22 +27,33 @@ def _user_id():
     return int(cherrypy.request.user["sub"])
 
 
-def _note_body(title: str, source: str | None, source_dataset: str | None, data: dict | None, wiki: dict | None) -> str:
+def _note_body(title: str, object_type: str, source: str | None, source_dataset: str | None, data: dict | None, wiki: dict | None) -> str:
     lines = [f"# {title}", ""]
     if source:
         provenance = f"**Source:** {source}"
         if source_dataset:
             provenance += f" ({source_dataset})"
         lines += [provenance, ""]
-    if wiki and wiki.get("data", {}).get("extract"):
+
+    extract = wiki.get("data", {}).get("extract") if wiki else None
+    if extract:
         w = wiki["data"]
         lines.append("## Summary")
         lines.append("")
-        lines.append(w["extract"])
+        lines.append(extract)
         lines.append("")
         if w.get("pageUrl"):
             lines.append(f"_Source: [Wikipedia — {w.get('title')}]({w['pageUrl']})_")
             lines.append("")
+
+    key_points = key_points_from_extract(extract)
+    if key_points:
+        lines.append("## Key points")
+        lines.append("")
+        for point in key_points:
+            lines.append(f"- {point}")
+        lines.append("")
+
     if data:
         lines.append("## Data snapshot")
         lines.append("")
@@ -51,6 +63,15 @@ def _note_body(title: str, source: str | None, source_dataset: str | None, data:
             label = "".join(f" {c}" if c.isupper() else c for c in key).strip().capitalize()
             lines.append(f"- **{label}:** {value}")
         lines.append("")
+
+    next_steps = further_research(object_type, data)
+    if next_steps:
+        lines.append("## What to research next")
+        lines.append("")
+        for step in next_steps:
+            lines.append(f"- [ ] {step}")
+        lines.append("")
+
     lines += ["## Notes", "", "_Start writing here._"]
     return "\n".join(lines)
 
@@ -120,7 +141,7 @@ class ResearchController:
                 note = NimroseNote(
                     user_id=user_id,
                     title=project_name,
-                    content=_note_body(title, source, source_dataset, data, wiki),
+                    content=_note_body(title, object_type, source, source_dataset, data, wiki),
                     folder=project_name,
                     tags=["cosmos", "research"],
                 )
