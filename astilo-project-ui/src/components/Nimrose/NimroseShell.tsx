@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { AppRoute } from "../../app/AppRoute";
@@ -9,6 +9,7 @@ import NimroseTasksView from "./NimroseTasksView";
 import NimroseCalendarView from "./NimroseCalendarView";
 import NimroseKanbanView from "./NimroseKanbanView";
 import NimroseSprintsView from "./NimroseSprintsView";
+import NimrosePhasesView from "./NimrosePhasesView";
 import NimroseBacklogView from "./NimroseBacklogView";
 import NimroseAnalyticsView from "./NimroseAnalyticsView";
 import NimroseNotesView from "./NimroseNotesView";
@@ -70,6 +71,7 @@ const NimroseShellInner = ({
         {active === "calendar" && <NimroseCalendarView />}
         {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
         {active === "sprints" && <NimroseSprintsView />}
+        {active === "phases" && <NimrosePhasesView />}
         {active === "backlog" && <NimroseBacklogView />}
         {active === "analytics" && <NimroseAnalyticsView />}
         {active === "notes" && <NimroseNotesView />}
@@ -94,20 +96,26 @@ const NimroseShellInner = ({
 };
 
 const VALID_SECTIONS = [
-  "home", "tasks", "calendar", "kanban", "projects", "sprints", "backlog", "analytics",
+  "home", "tasks", "calendar", "kanban", "projects", "sprints", "phases", "backlog", "analytics",
   "notes", "chat", "focus", "browser", "bookmarks", "saved", "settings",
 ];
 
 const NimroseShell = () => {
   // Lets other parts of the app deep-link into a specific Nimrose section,
-  // e.g. Cosmos's "Research this object" opening straight into Notes —
-  // only read once on mount, not kept in sync with the URL afterward,
-  // since section switches are otherwise local UI state (see NimroseSidebar).
+  // e.g. Cosmos's "Research this object" opening straight into Notes, or a
+  // notification linking into the exact project/sprint/phase/ticket it's
+  // about. Re-syncs whenever ?section= changes (not just on first mount) so
+  // clicking a notification while Nimrose is already open still switches
+  // section — project/sprint/ticket ids themselves are read by each view
+  // via its own useSearchParams, since those aren't shell-level state.
   const [searchParams] = useSearchParams();
-  const initialSection = searchParams.get("section");
+  const urlSection = searchParams.get("section");
   const [active, setActive] = useState(
-    initialSection && VALID_SECTIONS.includes(initialSection) ? initialSection : "home"
+    urlSection && VALID_SECTIONS.includes(urlSection) ? urlSection : "home"
   );
+  useEffect(() => {
+    if (urlSection && VALID_SECTIONS.includes(urlSection)) setActive(urlSection);
+  }, [urlSection]);
   const [collapsed, setCollapsed] = useState(readCollapsed);
 
   const toggleCollapsed = () => {

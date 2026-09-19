@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -24,7 +25,9 @@ const NimroseSprintsView = () => {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const { prompt } = useNimrosePrompt();
-  const [projectId, setProjectId] = useState<number | null>(null);
+  const [urlParams] = useSearchParams();
+  const [projectId, setProjectId] = useState<number | null>(() => Number(urlParams.get("project")) || null);
+  const highlightId = Number(urlParams.get("sprint")) || null;
 
   const projectsQuery = useQuery({ queryKey: ["nimrose", "projects"], queryFn: fetchNimroseProjects });
   const activeProjectId = projectId ?? projectsQuery.data?.[0]?.id ?? null;
@@ -127,7 +130,7 @@ const NimroseSprintsView = () => {
           }, {} as Record<TicketType, number>);
 
           return (
-            <div key={sprint.id} className="glass-card nimrose-sprint-card">
+            <div key={sprint.id} className={`glass-card nimrose-sprint-card ${highlightId === sprint.id ? "nimrose-sprint-card--highlight" : ""}`}>
               <div className="nimrose-modal-header">
                 <div>
                   <p className="nimrose-sprint-name">{sprint.name}</p>

@@ -10,6 +10,7 @@ import {
   Globe,
   Home,
   KanbanSquare,
+  Layers,
   ListTodo,
   MessageCircle,
   Notebook,
@@ -42,6 +43,7 @@ const SECTIONS: { heading: string; items: NimroseSection[] }[] = [
     items: [
       { id: "projects", label: "Projects", icon: FolderKanban },
       { id: "sprints", label: "Sprints", icon: ListTodo },
+      { id: "phases", label: "Phases", icon: Layers },
       { id: "backlog", label: "Backlog", icon: ListTodo },
       { id: "analytics", label: "Analytics", icon: BarChart3 },
     ],

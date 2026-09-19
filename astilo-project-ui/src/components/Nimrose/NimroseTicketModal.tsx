@@ -12,6 +12,7 @@ import {
   deleteTicketAttachment,
   fetchAssignableUsers,
   fetchBoardColumns,
+  fetchPhases,
   fetchSprints,
   fetchTicketActivity,
   fetchTicketComments,
@@ -90,6 +91,11 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
   const sprintsQuery = useQuery({
     queryKey: ["nimrose", "sprints", ticketQuery.data?.projectId],
     queryFn: () => fetchSprints(ticketQuery.data!.projectId),
+    enabled: !!ticketQuery.data,
+  });
+  const phasesQuery = useQuery({
+    queryKey: ["nimrose", "phases", ticketQuery.data?.projectId],
+    queryFn: () => fetchPhases(ticketQuery.data!.projectId),
     enabled: !!ticketQuery.data,
   });
 
@@ -318,6 +324,20 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
                   {sprintsQuery.data?.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.status})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Phase
+                <select
+                  value={ticket.phaseId ?? ""}
+                  onChange={(e) => updateMutation.mutate({ phaseId: e.target.value ? Number(e.target.value) : null })}
+                >
+                  <option value="">No phase</option>
+                  {phasesQuery.data?.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} ({p.status})
                     </option>
                   ))}
                 </select>

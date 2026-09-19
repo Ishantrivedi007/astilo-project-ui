@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare, Paperclip, Plus, Trash2 } from "lucide-react";
 
@@ -82,8 +83,9 @@ const NimroseKanbanView = () => {
   const { user } = useAuth();
   const { prompt, alertInfo } = useNimrosePrompt();
   const confirm = useConfirm();
+  const [urlParams] = useSearchParams();
 
-  const [projectId, setProjectId] = useState<number | null>(null);
+  const [projectId, setProjectId] = useState<number | null>(() => Number(urlParams.get("project")) || null);
   const [sprintId, setSprintId] = useState<number | "backlog" | null>(null);
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("manual");
@@ -91,7 +93,7 @@ const NimroseKanbanView = () => {
   const [typeFilter, setTypeFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState("");
-  const [openTicketId, setOpenTicketId] = useState<number | null>(null);
+  const [openTicketId, setOpenTicketId] = useState<number | null>(() => Number(urlParams.get("ticket")) || null);
   const [draftByColumn, setDraftByColumn] = useState<Record<string, string>>({});
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
@@ -104,6 +106,17 @@ const NimroseKanbanView = () => {
   useEffect(() => {
     setSavedFilters(activeProjectId ? readSavedFilters(activeProjectId) : []);
   }, [activeProjectId]);
+
+  // Re-applies a notification's deep link even if Kanban was already open
+  // (component doesn't remount, so the initial-state read above only fires
+  // once) — e.g. clicking a second ticket notification while already here.
+  useEffect(() => {
+    const p = Number(urlParams.get("project"));
+    const t = Number(urlParams.get("ticket"));
+    if (p) setProjectId(p);
+    if (t) setOpenTicketId(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlParams]);
 
   const sprintsQuery = useQuery({
     queryKey: ["nimrose", "sprints", activeProjectId],

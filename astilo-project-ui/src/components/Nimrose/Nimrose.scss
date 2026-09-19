@@ -2016,6 +2016,11 @@
   padding: 1rem 1.1rem;
 }
 
+.nimrose-sprint-card--highlight {
+  outline: 2px solid rgb(var(--accent-rgb) / 0.7);
+  outline-offset: 2px;
+}
+
 .nimrose-sprint-dates {
   display: flex;
   flex-wrap: wrap;

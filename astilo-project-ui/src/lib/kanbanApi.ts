@@ -75,6 +75,8 @@ export interface NimroseTicket {
   projectName: string | null;
   sprintId: number | null;
   sprintName: string | null;
+  phaseId: number | null;
+  phaseName: string | null;
   key: string;
   title: string;
   description: string | null;
@@ -137,6 +139,31 @@ export const updateSprint = (id: number, patch: Partial<Pick<NimroseSprint, "nam
 
 export const deleteSprint = (id: number) => apiClient.delete(`/nimrose/sprints/${id}`).then((r) => r.data);
 
+export type PhaseStatus = "planned" | "active" | "completed";
+
+export interface NimrosePhase {
+  id: number;
+  projectId: number;
+  name: string;
+  description: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  status: PhaseStatus;
+  position: number;
+  createdAt: string | null;
+}
+
+export const fetchPhases = (projectId?: number) =>
+  apiClient.get<NimrosePhase[]>("/nimrose/phases", { params: { project_id: projectId } }).then((r) => r.data);
+
+export const createPhase = (phase: { projectId: number; name: string; description?: string; startDate?: string; endDate?: string; status?: PhaseStatus }) =>
+  apiClient.post<NimrosePhase>("/nimrose/phases", phase).then((r) => r.data);
+
+export const updatePhase = (id: number, patch: Partial<Pick<NimrosePhase, "name" | "description" | "startDate" | "endDate" | "status" | "position">>) =>
+  apiClient.put<NimrosePhase>(`/nimrose/phases/${id}`, patch).then((r) => r.data);
+
+export const deletePhase = (id: number) => apiClient.delete(`/nimrose/phases/${id}`).then((r) => r.data);
+
 // -- Tickets --
 
 export interface TicketFilters {
@@ -177,6 +204,7 @@ export const createTicket = (ticket: {
   priority?: TicketPriority;
   status?: TicketStatus;
   sprintId?: number | null;
+  phaseId?: number | null;
   assignee?: string;
   labels?: string[];
   dueDate?: string;
@@ -194,6 +222,7 @@ export const updateTicket = (
     type: TicketType;
     assignee: string | null;
     sprintId: number | null;
+    phaseId: number | null;
     labels: string[];
     dueDate: string;
     storyPoints: number;
