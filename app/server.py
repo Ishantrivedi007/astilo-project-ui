@@ -52,7 +52,12 @@ from app.controllers.nimrose_controller import (
     NimroseTicketsController,
 )
 from app.controllers.nimrose_pulse_controller import NimrosePulseController
-from app.controllers.markets_controller import MarketsAssetController, MarketsSearchController, MarketsTopController
+from app.controllers.markets_controller import (
+    MarketsAssetController,
+    MarketsNewsController,
+    MarketsSearchController,
+    MarketsTopController,
+)
 from app.controllers.playlists_controller import PlaylistsController
 from app.controllers.research_controller import ResearchController
 from app.controllers.sessions_controller import SessionsController
@@ -132,6 +137,7 @@ def build_app():
     cherrypy.tree.mount(MarketsAssetController(), "/api/markets/asset", conf)
     cherrypy.tree.mount(MarketsSearchController(), "/api/markets/search", conf)
     cherrypy.tree.mount(MarketsTopController(), "/api/markets/top", conf)
+    cherrypy.tree.mount(MarketsNewsController(), "/api/markets/news", conf)
 
     cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)

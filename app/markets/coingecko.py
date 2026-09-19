@@ -62,6 +62,7 @@ def market_chart(coin_id: str, range_: str = "1mo"):
         "marketCap": market_data.get("market_cap", {}).get("usd"),
         "fiftyTwoWeekHigh": market_data.get("ath", {}).get("usd"),
         "fiftyTwoWeekLow": market_data.get("atl", {}).get("usd"),
+        "logoUrl": (meta.get("image") or {}).get("large") or (meta.get("image") or {}).get("small"),
         "marketTime": None,
         "range": range_,
         "interval": "auto",
@@ -79,7 +80,14 @@ def search(query: str, limit: int = 10):
     raw = cached_fetch("coingecko_search", {"query": query}, fetch, ttl_seconds=6 * 3600)
 
     results = [
-        {"symbol": c["id"], "name": c.get("name"), "exchange": "Crypto", "quoteType": "CRYPTOCURRENCY", "sector": None}
+        {
+            "symbol": c["id"],
+            "name": c.get("name"),
+            "exchange": "Crypto",
+            "quoteType": "CRYPTOCURRENCY",
+            "sector": None,
+            "logoUrl": c.get("large") or c.get("thumb"),
+        }
         for c in (raw.get("coins") or [])[:limit]
     ]
     return envelope("CoinGecko", "search", None, {"count": len(results), "results": results})
@@ -109,7 +117,7 @@ def top_coins(limit: int = 20):
             "price": c.get("current_price"),
             "changePercent": c.get("price_change_percentage_24h"),
             "marketCap": c.get("market_cap"),
-            "image": c.get("image"),
+            "logoUrl": c.get("image"),
         }
         for c in (raw or [])
     ]

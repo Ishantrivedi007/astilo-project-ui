@@ -57,6 +57,20 @@ class MarketsSearchController:
         return _guard(yahoo.search, q, int(limit))
 
 
+class MarketsNewsController:
+    """Real recent headlines for a symbol, via Yahoo Finance's public RSS
+    feed. Crypto tickers are looked up on Yahoo too (e.g. BTC-USD) since
+    CoinGecko's free tier has no news endpoint."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, symbol=None, limit=10):
+        if not symbol:
+            raise cherrypy.HTTPError(400, "symbol is required")
+        return _guard(yahoo.news, symbol, int(limit))
+
+
 class MarketsTopController:
     """Curated/trending lists to populate the Markets home page."""
 

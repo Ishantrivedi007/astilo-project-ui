@@ -5,12 +5,29 @@ same ones Yahoo Finance's own website calls and are widely used for
 personal/non-commercial tooling.
 """
 
+import re
+import xml.etree.ElementTree as ET
+
 from app.cosmos.cache import cached_fetch
 from app.markets.http import envelope, markets_get
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
 TRENDING_URL = "https://query1.finance.yahoo.com/v1/finance/trending/US"
+NEWS_RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline"
+
+# financialmodelingprep.com serves company logos free and keyless, keyed
+# directly by ticker (no domain-guessing) — but only for actual equities/
+# ETFs, not indices ("^GSPC"), futures ("GC=F"), or forex ("EURUSD=X").
+_PLAIN_TICKER = re.compile(r"^[A-Z]{1,6}(\.[A-Z]{1,2})?$")
+
+
+def _guess_logo_url(symbol: str, instrument_type: str | None) -> str | None:
+    if instrument_type not in ("EQUITY", "ETF") or not symbol:
+        return None
+    if not _PLAIN_TICKER.match(symbol.upper()):
+        return None
+    return f"https://images.financialmodelingprep.com/symbol/{symbol.upper()}.png"
 
 VALID_RANGES = ("1d", "5d", "1mo", "6mo", "1y", "5y", "max")
 RANGE_INTERVAL = {
@@ -87,6 +104,7 @@ def chart(symbol: str, range_: str = "1mo"):
         "volume": meta.get("regularMarketVolume"),
         "fiftyTwoWeekHigh": meta.get("fiftyTwoWeekHigh"),
         "fiftyTwoWeekLow": meta.get("fiftyTwoWeekLow"),
+        "logoUrl": _guess_logo_url(meta.get("symbol", symbol), meta.get("instrumentType")),
         "marketTime": (meta.get("regularMarketTime") or 0) * 1000 or None,
         "range": range_,
         "interval": interval,
@@ -117,9 +135,40 @@ def search(query: str, limit: int = 10):
                 "exchange": q.get("exchDisp"),
                 "quoteType": q.get("quoteType"),
                 "sector": q.get("sectorDisp"),
+                "logoUrl": _guess_logo_url(symbol, q.get("quoteType")),
             }
         )
     return envelope("Yahoo Finance", "search", None, {"count": len(results), "results": results})
+
+
+def news(symbol: str, limit: int = 10):
+    """Real per-ticker headlines from Yahoo Finance's public RSS feed — works
+    for equities, ETFs, commodities futures, and crypto tickers alike."""
+    params = {"s": symbol, "region": "US", "lang": "en-US"}
+
+    def fetch():
+        resp = markets_get(NEWS_RSS_URL, params=params)
+        resp.raise_for_status()
+        return resp.text
+
+    raw_xml = cached_fetch("yahoo_news", {"symbol": symbol}, fetch, ttl_seconds=1800)
+
+    articles = []
+    try:
+        root = ET.fromstring(raw_xml)
+        for item in root.findall("./channel/item")[:limit]:
+            articles.append(
+                {
+                    "title": (item.findtext("title") or "").strip(),
+                    "link": (item.findtext("link") or "").strip(),
+                    "description": (item.findtext("description") or "").strip(),
+                    "publishedAt": (item.findtext("pubDate") or "").strip(),
+                }
+            )
+    except ET.ParseError:
+        pass
+
+    return envelope("Yahoo Finance", "news_rss", symbol, {"count": len(articles), "results": articles})
 
 
 def trending():
