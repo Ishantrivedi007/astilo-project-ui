@@ -4,6 +4,7 @@ import re
 import cherrypy
 
 from app.db import get_session
+from app.notify import notify
 from app.models import (
     DEFAULT_BOARD_COLUMNS,
     TASK_PRIORITIES,
@@ -76,6 +77,7 @@ class NimroseProjectsController:
             project = NimroseProject(user_id=_user_id(), name=name, color=body.get("color"), key_prefix=key_prefix)
             session.add(project)
             session.flush()
+            notify(session, _user_id(), "kanban", f"Project created: {project.name}", link="/nimrose?section=kanban")
             return project.to_dict()
 
     @cherrypy.tools.auth()
@@ -264,6 +266,7 @@ class NimroseCalendarController:
             )
             session.add(event)
             session.flush()
+            notify(session, _user_id(), "calendar", f"Event added: {event.title}", body=event.start_at.isoformat(), link="/nimrose?section=calendar")
             return event.to_dict()
 
     @cherrypy.tools.auth()
@@ -360,6 +363,7 @@ class NimroseSprintsController:
             )
             session.add(sprint)
             session.flush()
+            notify(session, _user_id(), "kanban", f"Sprint created: {sprint.name}", body=f"In {project.name}", link="/nimrose?section=sprints")
             return sprint.to_dict()
 
     @cherrypy.tools.auth()
@@ -508,6 +512,7 @@ class NimroseTicketsController:
             session.add(ticket)
             session.flush()
             _log_activity(session, ticket.id, "created", f"Created as {ticket.ticket_key} in {status}")
+            notify(session, _user_id(), "kanban", f"Ticket created: {ticket.ticket_key}", body=title, link="/nimrose?section=kanban")
             session.flush()
             return ticket.to_dict()
 

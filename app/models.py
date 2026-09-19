@@ -939,3 +939,37 @@ DEFAULT_BOARD_COLUMNS = (
     ("Review", "review", False),
     ("Done", "done", True),
 )
+
+
+NOTIFICATION_MODULES = ("kanban", "research", "calendar", "nimrose", "cosmos", "markets")
+
+
+class Notification(Base):
+    """A real, persisted record of something that happened — created when
+    the event happens (a ticket/project/sprint/research item/calendar event
+    is added), not computed on the fly like Astilo Pulse's due-date
+    reminders. Read here, not inferred from other tables, so "read" state
+    is durable and a dedicated Notifications page can list/filter real
+    history instead of a live recomputation."""
+
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    module = Column(String(20), nullable=False)  # one of NOTIFICATION_MODULES
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=True)
+    link = Column(String(255), nullable=True)  # frontend route to open when clicked
+    read = Column(Integer, nullable=False, default=0)  # 0/1
+    created_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "module": self.module,
+            "title": self.title,
+            "body": self.body,
+            "link": self.link,
+            "read": bool(self.read),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }

@@ -16,6 +16,7 @@ import cherrypy
 
 from app.cosmos import wikipedia
 from app.db import get_session
+from app.notify import notify
 from app.models import (
     CosmosSavedItem,
     NimroseBrowserSpace,
@@ -243,6 +244,9 @@ class ResearchController:
                 )
             else:
                 space = session.query(NimroseBrowserSpace).filter_by(user_id=user_id, name=project_name[:60]).first()
+
+            if created_project:
+                notify(session, user_id, "research", f"Research added: {title}", link=f"/research/detail/{cosmos_item.id}")
 
             session.flush()
 

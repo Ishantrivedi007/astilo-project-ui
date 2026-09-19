@@ -53,6 +53,7 @@ from app.controllers.nimrose_controller import (
     NimroseTicketsController,
 )
 from app.controllers.nimrose_pulse_controller import NimrosePulseController
+from app.controllers.notifications_controller import NotificationsController
 from app.controllers.markets_controller import (
     MarketsAssetController,
     MarketsNewsController,
@@ -156,6 +157,7 @@ def build_app():
     cherrypy.tree.mount(NimroseVelocityController(), "/api/nimrose/analytics/velocity", conf)
     cherrypy.tree.mount(NimroseBreakdownController(), "/api/nimrose/analytics/breakdown", conf)
     cherrypy.tree.mount(NimrosePulseController(), "/api/nimrose/pulse", conf)
+    cherrypy.tree.mount(NotificationsController(), "/api/notifications", conf)
     cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)
     cherrypy.tree.mount(NimroseBrowserSpacesController(), "/api/nimrose/browser-spaces", conf)
     cherrypy.tree.mount(NimroseBrowserTabsController(), "/api/nimrose/browser-tabs", conf)
