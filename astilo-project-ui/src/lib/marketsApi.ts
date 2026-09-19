@@ -71,6 +71,22 @@ export async function searchMarkets(query: string, assetType: AssetType, limit =
   return data as MarketEnvelope<{ count: number; results: MarketSearchResult[] }>;
 }
 
+export interface RegionIndex {
+  country: string;
+  region: string;
+  name: string;
+  symbol: string;
+  indexName: string;
+  price: number | null;
+  changePercent: number | null;
+  currency: string | null;
+}
+
+export async function fetchMarketRegions() {
+  const { data } = await markets.get(`/regions`);
+  return data as MarketEnvelope<{ count: number; results: RegionIndex[] }>;
+}
+
 export interface TopCoin {
   symbol: string;
   name: string;

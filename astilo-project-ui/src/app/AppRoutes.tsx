@@ -35,6 +35,7 @@ const CosmosImageLab = lazy(() => import("../components/Cosmos/CosmosImageLab"))
 const CosmosOrbitExplorer = lazy(() => import("../components/Cosmos/CosmosOrbitExplorer"));
 const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
 const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetView"));
+const MarketsWorldMap = lazy(() => import("../components/Markets/MarketsWorldMap"));
 const ResearchHome = lazy(() => import("../components/Research/ResearchHome"));
 const ResearchDetail = lazy(() => import("../components/Research/ResearchDetail"));
 const OfficeHome = lazy(() => import("../components/Office/OfficeHome"));
@@ -164,6 +165,7 @@ const AppRoutes = () => (
       <Route path={AppRoute.cosmosOrbitExplorer} element={getAuthRoute(<CosmosOrbitExplorer />)} />
       <Route path={AppRoute.markets} element={getAuthRoute(<MarketsHome />)} />
       <Route path={AppRoute.marketsAsset} element={getAuthRoute(<MarketsAssetView />)} />
+      <Route path={AppRoute.marketsMap} element={getAuthRoute(<MarketsWorldMap />)} />
       <Route path={AppRoute.research} element={getAuthRoute(<ResearchHome />)} />
       <Route path={`${AppRoute.researchDetail}/:id`} element={getAuthRoute(<ResearchDetail />)} />
       <Route path={AppRoute.office} element={getAuthRoute(<OfficeHome />)} />

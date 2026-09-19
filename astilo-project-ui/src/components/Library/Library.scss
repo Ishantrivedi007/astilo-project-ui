@@ -246,6 +246,7 @@
 }
 
 .lib-page-sheet {
+  position: relative;
   width: min(720px, 90vw);
   height: min(78vh, 900px);
   background: #f3e8d3;
@@ -260,17 +261,56 @@
   line-height: 1.85;
   transform-style: preserve-3d;
   transform-origin: left center;
-  animation: lib-page-in 0.5s ease;
+  animation: lib-page-in 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lib-page-sheet::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, rgba(0, 0, 0, 0.22), transparent 22%);
+  opacity: 0;
+  animation: lib-page-sweep 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lib-page-sheet::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(135deg, transparent 50%, rgba(120, 90, 40, 0.35) 50%);
+  border-radius: 0 0 0.4rem 0;
+  pointer-events: none;
 }
 
 @keyframes lib-page-in {
-  from {
-    transform: rotateY(-25deg);
-    opacity: 0.4;
+  0% {
+    transform: rotateY(-70deg) translateX(-20px);
+    opacity: 0.2;
   }
-  to {
-    transform: rotateY(0deg);
+  60% {
     opacity: 1;
+  }
+  100% {
+    transform: rotateY(0deg) translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes lib-page-sweep {
+  0% {
+    opacity: 0.9;
+    transform: translateX(-100%);
+  }
+  70% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
   }
 }
 

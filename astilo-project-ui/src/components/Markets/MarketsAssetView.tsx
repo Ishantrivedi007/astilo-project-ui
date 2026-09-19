@@ -60,6 +60,47 @@ const useTrendInsights = (points: MarketPoint[]) =>
     };
   }, [points]);
 
+/** A real, computed statistical projection — ordinary least-squares linear
+ * regression of price vs. time index, extrapolated forward — not a model,
+ * not investment advice, and explicitly labeled as such wherever it's
+ * shown. Gives the "forecast" surface the user asked for without
+ * fabricating a number that looks more authoritative than it is. */
+const useLinearForecast = (points: MarketPoint[], volatilityPct: number | undefined) =>
+  useMemo(() => {
+    if (points.length < 5) return null;
+    const n = points.length;
+    const xs = points.map((_, i) => i);
+    const ys = points.map((p) => p.close);
+    const xMean = xs.reduce((a, b) => a + b, 0) / n;
+    const yMean = ys.reduce((a, b) => a + b, 0) / n;
+    let num = 0;
+    let den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (xs[i] - xMean) * (ys[i] - yMean);
+      den += (xs[i] - xMean) ** 2;
+    }
+    const slope = den === 0 ? 0 : num / den;
+    const intercept = yMean - slope * xMean;
+
+    const stepMs = n > 1 ? points[n - 1].t - points[n - 2].t : 86_400_000;
+    const horizon = Math.min(30, Math.max(5, Math.round(n * 0.2)));
+    const band = ((volatilityPct ?? 2) / 100) * yMean;
+
+    const projected = Array.from({ length: horizon }, (_, i) => {
+      const idx = n + i;
+      const t = points[n - 1].t + stepMs * (i + 1);
+      const value = intercept + slope * idx;
+      const spread = band * Math.sqrt(i + 1);
+      return { t, value, low: value - spread, high: value + spread };
+    });
+
+    const lastActual = ys[n - 1];
+    const endValue = projected[projected.length - 1].value;
+    const trendPct = lastActual !== 0 ? ((endValue - lastActual) / lastActual) * 100 : 0;
+
+    return { projected, trendPct, horizon };
+  }, [points, volatilityPct]);
+
 // Toolbar zoom/pan + crosshair tooltip, same "dynamic chart" treatment used
 // elsewhere in the app (Nimrose analytics), rather than a static line.
 const interactiveChart = {
@@ -107,6 +148,7 @@ const MarketsAssetView = () => {
   });
   const articles = newsQuery.data?.data.results ?? [];
   const insights = useTrendInsights(d?.points ?? []);
+  const forecast = useLinearForecast(d?.points ?? [], insights?.volatilityPct);
 
   // For stocks/ETFs there's no "about/founded" from Yahoo — reuse the
   // Research module's Wikipedia summary for the company itself. Crypto
@@ -188,11 +230,22 @@ const MarketsAssetView = () => {
                 ...(insights?.sma30
                   ? [{ name: "30-period avg", data: d.points.map((p, i) => [p.t, insights.sma30![i]]) as unknown as number[] }]
                   : []),
+                ...(forecast
+                  ? [
+                      {
+                        name: "Projected (linear trend)",
+                        data: [
+                          [d.points[d.points.length - 1].t, d.points[d.points.length - 1].close],
+                          ...forecast.projected.map((p) => [p.t, p.value]),
+                        ] as unknown as number[],
+                      },
+                    ]
+                  : []),
               ]}
               options={{
                 ...interactiveChart,
-                colors: [seriesColor, "#facc15", "#a78bfa"],
-                stroke: { curve: "smooth", width: [2, 1.5, 1.5], dashArray: [0, 4, 4] },
+                colors: [seriesColor, "#facc15", "#a78bfa", "#60a5fa"],
+                stroke: { curve: "smooth", width: [2, 1.5, 1.5, 2], dashArray: [0, 4, 4, 6] },
                 xaxis: { type: "datetime" },
                 yaxis: { labels: { formatter: (v: number) => v?.toFixed(2) } },
                 tooltip: { ...interactiveChart.tooltip, x: { format: "dd MMM yyyy HH:mm" } },
@@ -239,6 +292,39 @@ const MarketsAssetView = () => {
                 <div className="markets-stat">
                   <dt>Period low</dt>
                   <dd>{fmtNum(insights.periodLow)}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          {forecast && (
+            <div style={{ marginTop: "1.5rem" }}>
+              <h2 className="markets-section-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <TrendingUp size={16} /> Statistical projection ({forecast.horizon} periods ahead)
+              </h2>
+              <p className="markets-unavailable" style={{ marginBottom: "0.6rem" }}>
+                A linear-regression extrapolation of this range's own price trend, with an uncertainty band that
+                widens with this asset's own recent volatility — not a prediction, model, or investment advice.
+                Markets can and do reverse trend without warning.
+              </p>
+              <dl className="markets-stats-grid">
+                <div className="markets-stat">
+                  <dt>Projected direction</dt>
+                  <dd style={{ color: forecast.trendPct >= 0 ? "#4ade80" : "#f87171" }}>
+                    {forecast.trendPct >= 0 ? "+" : ""}
+                    {forecast.trendPct.toFixed(2)}% if the current trend held
+                  </dd>
+                </div>
+                <div className="markets-stat">
+                  <dt>Projected value ({forecast.horizon}-period end)</dt>
+                  <dd>{fmtNum(forecast.projected[forecast.projected.length - 1].value)}</dd>
+                </div>
+                <div className="markets-stat">
+                  <dt>Uncertainty band (end)</dt>
+                  <dd>
+                    {fmtNum(forecast.projected[forecast.projected.length - 1].low)} –{" "}
+                    {fmtNum(forecast.projected[forecast.projected.length - 1].high)}
+                  </dd>
                 </div>
               </dl>
             </div>

@@ -33,6 +33,7 @@ export const AppRoute = {
   cosmosOrbitExplorer: "/cosmos/orbit-explorer",
   markets: "/markets",
   marketsAsset: "/markets/asset",
+  marketsMap: "/markets/map",
   research: "/research",
   researchDetail: "/research/detail",
   office: "/office",

@@ -56,6 +56,12 @@ export const searchArchivePdfs = (q: string, page = 1) =>
 export const resolveArchivePdfUrl = (identifier: string) =>
   library.get<{ pdfUrl: string }>("/pdf-url", { params: { identifier } }).then((r) => r.data.pdfUrl);
 
+/** archive.org's real download URL 302-redirects to a storage node that
+ * doesn't send CORS headers, so pdf.js can't fetch it directly from the
+ * browser — route it through our own backend, which re-streams it from
+ * our origin instead. */
+export const proxiedPdfUrl = (pdfUrl: string) => `${API_BASE}/library/pdf-proxy?url=${encodeURIComponent(pdfUrl)}`;
+
 // -- Open Library (broadest catalog; public items expose an Internet
 // Archive identifier reusable with resolveArchivePdfUrl) --
 

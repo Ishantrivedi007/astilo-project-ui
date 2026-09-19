@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { LineChart, Search } from "lucide-react";
+import { Globe2, LineChart, Search } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
@@ -106,6 +106,10 @@ const MarketsHome = () => {
         Stocks, ETFs/funds, indices, commodities, and forex via Yahoo Finance's public data — crypto via
         CoinGecko. Both free and keyless. Every quote shows its real source and when it was fetched.
       </p>
+
+      <button type="button" className="markets-chip mb-4 inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsMap)}>
+        <Globe2 size={12} /> World map — which markets are up or down today
+      </button>
 
       <form onSubmit={submit}>
         <div className="markets-search-row">

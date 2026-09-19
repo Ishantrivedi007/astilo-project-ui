@@ -382,3 +382,57 @@
     color: #fff;
   }
 }
+
+.markets-map-wrap {
+  position: relative;
+  border: 1px solid rgba(140, 160, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  background: radial-gradient(ellipse at center, rgba(40, 50, 90, 0.25), rgba(10, 10, 16, 0.4));
+  margin-bottom: 1.5rem;
+}
+
+.markets-map-tooltip {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(12, 12, 20, 0.92);
+  border: 1px solid rgba(140, 160, 255, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  min-width: 180px;
+  pointer-events: none;
+}
+
+.markets-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.6rem;
+  font-size: 0.68rem;
+  color: rgba(232, 236, 255, 0.6);
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+}
+
+.markets-map-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}

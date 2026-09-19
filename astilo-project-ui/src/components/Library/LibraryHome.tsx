@@ -9,6 +9,7 @@ import {
   addToLibrary,
   fetchLibraryCategories,
   fetchMyLibrary,
+  proxiedPdfUrl,
   removeFromLibrary,
   resolveArchivePdfUrl,
   searchArchivePdfs,
@@ -39,6 +40,7 @@ const LibraryHome = () => {
   const [submitted, setSubmitted] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [resolvingPdf, setResolvingPdf] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const categoriesQuery = useQuery({ queryKey: ["library", "categories"], queryFn: fetchLibraryCategories });
   const searchQuery = useQuery({
@@ -91,13 +93,13 @@ const LibraryHome = () => {
 
   const openPdfReader = async (item: ArchivePdfResult) => {
     setResolvingPdf(item.identifier);
+    setPdfError(null);
     try {
       const pdfUrl = await resolveArchivePdfUrl(item.identifier);
-      const p = new URLSearchParams({ pdfUrl, title: item.title, cover: item.coverUrl });
+      const p = new URLSearchParams({ pdfUrl: proxiedPdfUrl(pdfUrl), title: item.title, cover: item.coverUrl });
       navigate(`${AppRoute.libraryReader}?${p.toString()}`);
     } catch {
-      // Handled by the disabled/loading state resetting below; a toast
-      // would be nicer but this keeps scope tight for a rare failure path.
+      setPdfError(`"${item.title}" doesn't have a freely-downloadable PDF (it's lending-library restricted) — try another result.`);
     } finally {
       setResolvingPdf(null);
     }
@@ -106,15 +108,14 @@ const LibraryHome = () => {
   const openOpenLibraryPdf = async (item: OpenLibraryResult) => {
     if (!item.iaIdentifier) return;
     setResolvingPdf(item.iaIdentifier);
+    setPdfError(null);
     try {
       const pdfUrl = await resolveArchivePdfUrl(item.iaIdentifier);
-      const p = new URLSearchParams({ pdfUrl, title: item.title });
+      const p = new URLSearchParams({ pdfUrl: proxiedPdfUrl(pdfUrl), title: item.title });
       if (item.coverUrl) p.set("cover", item.coverUrl);
       navigate(`${AppRoute.libraryReader}?${p.toString()}`);
     } catch {
-      // Public Internet Archive access doesn't always carry a freely
-      // downloadable PDF (some are read-online-only) — the item just stays
-      // unopenable rather than showing a broken link.
+      setPdfError(`"${item.title}" doesn't have a freely-downloadable PDF (it's lending-library restricted) — try another result.`);
     } finally {
       setResolvingPdf(null);
     }
@@ -158,6 +159,8 @@ const LibraryHome = () => {
               <LibraryIcon size={12} style={{ display: "inline", verticalAlign: "-2px" }} /> Open Library
             </button>
           </div>
+
+          {pdfError && <p className="lib-empty" style={{ color: "#e08a6a" }}>{pdfError}</p>}
 
           <form onSubmit={submit}>
             <div className="lib-search-row">
