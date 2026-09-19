@@ -245,14 +245,37 @@
   perspective: 1800px;
 }
 
+.lib-page-stage {
+  position: relative;
+}
+
+.lib-page-stage::before {
+  // A soft "gutter" shadow down the middle of the reading area, like the
+  // crease at the center of an open book, so even a single page reads as
+  // part of a book rather than a floating card.
+  content: "";
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  left: 50%;
+  width: 120px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.28), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .lib-page-sheet {
   position: relative;
+  z-index: 1;
   width: min(720px, 90vw);
   height: min(78vh, 900px);
   background: #f3e8d3;
-  background-image: radial-gradient(circle at 10% 10%, rgba(0, 0, 0, 0.04), transparent 40%);
+  background-image:
+    radial-gradient(circle at 10% 10%, rgba(0, 0, 0, 0.04), transparent 40%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.1  0 0 0 0 0.08  0 0 0 0 0.04  0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
   border-radius: 0.4rem;
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(120, 90, 40, 0.15);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(120, 90, 40, 0.15), inset 0 0 3px rgba(120, 90, 40, 0.4);
   padding: 3rem 3.2rem;
   overflow-y: auto;
   color: #2a2015;
@@ -262,6 +285,44 @@
   transform-style: preserve-3d;
   transform-origin: left center;
   animation: lib-page-in 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  cursor: default;
+}
+
+.lib-page-turn-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 15%;
+  z-index: 2;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: linear-gradient(90deg, rgba(120, 90, 40, 0.08), transparent);
+  }
+
+  &.lib-page-turn-zone--next {
+    right: 0;
+    transform: scaleX(-1);
+  }
+
+  &.lib-page-turn-zone--prev {
+    left: 0;
+  }
+}
+
+.lib-page-folio {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 0.7rem;
+  color: rgba(42, 32, 21, 0.45);
+  font-style: italic;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .lib-page-sheet::before {

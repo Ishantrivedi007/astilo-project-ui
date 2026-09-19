@@ -107,6 +107,16 @@ const PdfBookView = ({ pdfUrl, startPage = 0, onPageChange }: Props) => {
   const goPrev = () => setPageIndex((p) => Math.max(0, p - 1));
   const goNext = () => setPageIndex((p) => Math.min(pageCount - 1, p + 1));
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageCount]);
+
   if (error) {
     return (
       <p className="lib-empty" style={{ margin: "auto" }}>
@@ -135,7 +145,10 @@ const PdfBookView = ({ pdfUrl, startPage = 0, onPageChange }: Props) => {
       <div className="lib-page-stage">
         {loading && <p className="lib-empty">Loading the real PDF pages…</p>}
         <div className="lib-page-sheet lib-page-sheet--pdf" key={pageIndex}>
+          {pageIndex > 0 && <div className="lib-page-turn-zone lib-page-turn-zone--prev" onClick={goPrev} title="Previous page" />}
           <canvas ref={canvasRef} className="lib-pdf-canvas" />
+          <span className="lib-page-folio">{pageIndex + 1}</span>
+          {pageIndex < pageCount - 1 && <div className="lib-page-turn-zone lib-page-turn-zone--next" onClick={goNext} title="Next page" />}
         </div>
         <div className="lib-page-nav">
           <button type="button" onClick={goPrev} disabled={pageIndex === 0}>

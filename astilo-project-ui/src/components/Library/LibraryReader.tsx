@@ -87,6 +87,20 @@ const LibraryReader = () => {
     }
   };
 
+  const atStart = pageIndex === 0 && chapterIndex === 0;
+  const atEnd = pageIndex === pages.length - 1 && chapterIndex === chapters.length - 1;
+
+  useEffect(() => {
+    if (showIntro || pdfUrl) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showIntro, pdfUrl, pageIndex, chapterIndex, pages.length, chapters.length]);
+
   if (!textUrl && !pdfUrl) {
     return (
       <div className="lib-reader-page">
@@ -155,16 +169,19 @@ const LibraryReader = () => {
 
           <div className="lib-page-stage">
             <div className="lib-page-sheet" key={`${chapterIndex}-${pageIndex}`}>
+              {!atStart && <div className="lib-page-turn-zone lib-page-turn-zone--prev" onClick={goPrev} title="Previous page" />}
               <h3>{chapter?.heading}</h3>
               {page.split(/\n\s*\n/).map((para, i) => (
                 <p key={i}>{para}</p>
               ))}
+              <span className="lib-page-folio">{pageIndex + 1}</span>
+              {!atEnd && <div className="lib-page-turn-zone lib-page-turn-zone--next" onClick={goNext} title="Next page" />}
             </div>
             <div className="lib-page-nav">
-              <button type="button" onClick={goPrev} disabled={pageIndex === 0 && chapterIndex === 0}>
+              <button type="button" onClick={goPrev} disabled={atStart}>
                 <ChevronLeft size={14} style={{ display: "inline", verticalAlign: "-2px" }} /> Prev
               </button>
-              <button type="button" onClick={goNext} disabled={pageIndex === pages.length - 1 && chapterIndex === chapters.length - 1}>
+              <button type="button" onClick={goNext} disabled={atEnd}>
                 Next <ChevronRight size={14} style={{ display: "inline", verticalAlign: "-2px" }} />
               </button>
             </div>
