@@ -31,6 +31,8 @@ export const AppRoute = {
   cosmosCompare: "/cosmos/compare",
   cosmosImageLab: "/cosmos/image-lab",
   cosmosOrbitExplorer: "/cosmos/orbit-explorer",
+  markets: "/markets",
+  marketsAsset: "/markets/asset",
   customize: "/customize",
   profile: "/profile",
   admin: "/admin",
