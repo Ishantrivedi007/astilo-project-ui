@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Pencil, Pin, Plus, Trash2 } from "lucide-react";
+import { Eye, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 
-import { useConfirm } from "../shared";
+import { RichTextEditor, useConfirm } from "../shared";
 import {
   createNimroseNote,
   deleteNimroseNote,
@@ -18,6 +18,8 @@ const NimroseNotesView = () => {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [richDraft, setRichDraft] = useState("");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const notesQuery = useQuery({
     queryKey: ["nimrose", "notes", activeFolder, search],
@@ -52,6 +54,20 @@ const NimroseNotesView = () => {
   const notes = notesQuery.data ?? [];
   const folders = useMemo(() => [...new Set(notes.map((n) => n.folder).filter(Boolean))] as string[], [notes]);
   const selected = notes.find((n) => n.id === selectedId) ?? null;
+  const isRich = selected?.contentFormat === "html";
+
+  useEffect(() => {
+    setRichDraft(selected?.content ?? "");
+  }, [selected?.id]);
+
+  const scheduleRichSave = (html: string) => {
+    setRichDraft(html);
+    if (!selected) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      updateMutation.mutate({ id: selected.id, patch: { content: html } });
+    }, 800);
+  };
 
   return (
     <div>
@@ -60,13 +76,29 @@ const NimroseNotesView = () => {
           <p className="nimrose-eyebrow">Workspace</p>
           <h1 className="nimrose-page-title">Notes</h1>
         </div>
-        <button
-          type="button"
-          className="nimrose-chip"
-          onClick={() => createMutation.mutate({ title: "Untitled note", content: "", folder: activeFolder ?? undefined })}
-        >
-          <Plus size={12} /> New note
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="nimrose-chip"
+            onClick={() => createMutation.mutate({ title: "Untitled note", content: "", folder: activeFolder ?? undefined })}
+          >
+            <Plus size={12} /> New note
+          </button>
+          <button
+            type="button"
+            className="nimrose-chip"
+            onClick={() =>
+              createMutation.mutate({
+                title: "Untitled document",
+                content: "",
+                contentFormat: "html",
+                folder: activeFolder ?? undefined,
+              })
+            }
+          >
+            <FileText size={12} /> New rich document
+          </button>
+        </div>
       </div>
 
       <div className="nimrose-notes-layout">
@@ -109,6 +141,7 @@ const NimroseNotesView = () => {
                 }}
               >
                 {n.pinned && <Pin size={11} />}
+                {n.contentFormat === "html" && <FileText size={11} />}
                 <span className="nimrose-note-list-title">{n.title}</span>
                 <span className="nimrose-widget-footnote">
                   {n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}
@@ -141,14 +174,16 @@ const NimroseNotesView = () => {
                 >
                   <Pin size={14} fill={selected.pinned ? "currentColor" : "none"} />
                 </button>
-                <button
-                  type="button"
-                  className="nimrose-icon-btn"
-                  onClick={() => setMode(mode === "edit" ? "preview" : "edit")}
-                  aria-label={mode === "edit" ? "Preview" : "Edit"}
-                >
-                  {mode === "edit" ? <Eye size={14} /> : <Pencil size={14} />}
-                </button>
+                {!isRich && (
+                  <button
+                    type="button"
+                    className="nimrose-icon-btn"
+                    onClick={() => setMode(mode === "edit" ? "preview" : "edit")}
+                    aria-label={mode === "edit" ? "Preview" : "Edit"}
+                  >
+                    {mode === "edit" ? <Eye size={14} /> : <Pencil size={14} />}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="nimrose-icon-btn"
@@ -185,7 +220,9 @@ const NimroseNotesView = () => {
                 />
               </div>
 
-              {mode === "edit" ? (
+              {isRich ? (
+                <RichTextEditor value={richDraft} onChange={scheduleRichSave} placeholder="Start writing…" />
+              ) : mode === "edit" ? (
                 <textarea
                   className="nimrose-notes-textarea"
                   defaultValue={selected.content ?? ""}

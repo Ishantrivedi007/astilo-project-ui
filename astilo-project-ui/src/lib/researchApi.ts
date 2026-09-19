@@ -19,6 +19,13 @@ export interface ResearchBrief {
   generatedAt: string;
 }
 
+export interface ResearchImage {
+  url: string;
+  caption: string | null;
+  source: string | null;
+  addedAt: string;
+}
+
 export interface ResearchItem {
   id: number;
   objectType: CosmosObjectType;
@@ -35,6 +42,7 @@ export interface ResearchItem {
   createdAt: string | null;
   project: NimroseProject | null;
   documentCount: number;
+  images: ResearchImage[];
 }
 
 export interface ResearchCreateResult {
@@ -64,3 +72,9 @@ export const toggleResearchStep = (id: number, index: number) =>
   apiClient.put<ResearchItem>(`/research/${id}`, { action: "toggle_step", index }).then((r) => r.data);
 
 export const deleteResearchItem = (id: number) => apiClient.delete(`/research/${id}`).then((r) => r.data);
+
+export const addResearchImage = (id: number, image: { url: string; caption?: string; source?: string }) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "add_image", ...image }).then((r) => r.data);
+
+export const removeResearchImage = (id: number, index: number) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "remove_image", index }).then((r) => r.data);

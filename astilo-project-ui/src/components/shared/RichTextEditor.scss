@@ -1,0 +1,138 @@
+.rte-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rte-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-wrap: wrap;
+  background: rgba(15, 18, 40, 0.4);
+  border: 1px solid rgba(140, 160, 255, 0.15);
+  border-radius: 0.6rem;
+  padding: 0.35rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 0.4rem;
+    color: rgba(232, 236, 255, 0.65);
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(127, 176, 255, 0.14);
+      color: #fff;
+    }
+  }
+}
+
+.rte-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(140, 160, 255, 0.2);
+  margin: 0 0.2rem;
+}
+
+.rte-panel {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  background: rgba(15, 18, 40, 0.5);
+  border: 1px solid rgba(140, 160, 255, 0.2);
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+
+  input,
+  select {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.4rem;
+    border: 1px solid rgba(140, 160, 255, 0.2);
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+    font-size: 0.78rem;
+  }
+
+  button {
+    padding: 0.35rem 0.65rem;
+    border-radius: 0.4rem;
+    background: rgba(127, 176, 255, 0.18);
+    color: #fff;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &[aria-label="Cancel"] {
+      background: transparent;
+      padding: 0.35rem;
+    }
+  }
+}
+
+.rte-panel--chart {
+  select {
+    flex: none;
+    width: 90px;
+  }
+}
+
+.rte-editable {
+  min-height: 280px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(140, 160, 255, 0.15);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: rgba(232, 236, 255, 0.9);
+  overflow-y: auto;
+
+  &:focus {
+    outline: none;
+    border-color: rgba(127, 176, 255, 0.5);
+  }
+
+  &:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(232, 236, 255, 0.3);
+  }
+
+  h1, h2, h3 {
+    color: #fff;
+    margin: 0.6em 0 0.3em;
+  }
+
+  p {
+    margin: 0 0 0.6em;
+  }
+
+  ul, ol {
+    margin: 0 0 0.6em 1.2em;
+  }
+
+  a {
+    color: #7fb0ff;
+  }
+
+  img {
+    display: block;
+    margin: 0.5em 0;
+  }
+
+  figure {
+    margin: 0.5em 0;
+  }
+
+  figcaption {
+    font-size: 0.75rem;
+    color: rgba(232, 236, 255, 0.5);
+    margin-top: 0.3rem;
+  }
+}
