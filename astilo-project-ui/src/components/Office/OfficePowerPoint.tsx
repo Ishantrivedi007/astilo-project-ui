@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, ChevronRight, Play, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, MoveDown, MoveUp, Play, Plus, Trash2, X } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { RichTextEditor, useConfirm } from "../shared";
@@ -105,6 +105,70 @@ const OfficePowerPoint = () => {
     setActiveSlide((cur) => Math.min(cur, next.length - 1));
   };
 
+  const moveSlide = (i: number, direction: -1 | 1) => {
+    const j = i + direction;
+    if (j < 0 || j >= deck.length) return;
+    const next = [...deck];
+    [next[i], next[j]] = [next[j], next[i]];
+    scheduleSave(next);
+    setActiveSlide(j);
+  };
+
+  const downloadDeck = () => {
+    if (!selected) return;
+    const slidesHtml = deck
+      .map(
+        (s, i) => `<section class="slide" ${i === 0 ? "" : 'style="display:none"'}>
+  <h2>${s.title.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</h2>
+  <div class="slide-body">${s.contentHtml}</div>
+</section>`
+      )
+      .join("\n");
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${selected.title}</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #14162c; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+  .slide { width: min(1100px, 90vw); aspect-ratio: 16/9; padding: 3rem; box-sizing: border-box; overflow-y: auto; }
+  .slide h2 { font-size: 2rem; margin-bottom: 1rem; }
+  .slide img { max-width: 100%; }
+  .nav { margin-top: 1.5rem; display: flex; gap: 1rem; align-items: center; color: #aaa; font-family: sans-serif; }
+  button { background: rgba(127,176,255,0.18); border: none; color: #fff; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+${slidesHtml}
+<div class="nav">
+  <button onclick="go(-1)">&larr; Prev</button>
+  <span id="pos">1 / ${deck.length}</span>
+  <button onclick="go(1)">Next &rarr;</button>
+</div>
+<script>
+  let i = 0;
+  const slides = document.querySelectorAll('.slide');
+  function go(d) {
+    slides[i].style.display = 'none';
+    i = Math.max(0, Math.min(slides.length - 1, i + d));
+    slides[i].style.display = 'block';
+    document.getElementById('pos').textContent = (i + 1) + ' / ' + slides.length;
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1); });
+</script>
+</body>
+</html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selected.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "presentation"}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const slide = deck[activeSlide];
 
   return (
@@ -152,6 +216,9 @@ const OfficePowerPoint = () => {
               <button type="button" className="nimrose-chip" onClick={() => setPresenting(true)}>
                 <Play size={12} /> Present
               </button>
+              <button type="button" className="nimrose-chip" onClick={downloadDeck}>
+                <Download size={12} /> Download presentation
+              </button>
               <button
                 type="button"
                 className="nimrose-chip"
@@ -168,17 +235,37 @@ const OfficePowerPoint = () => {
               <div className="office-slide-thumbs">
                 {deck.map((s, i) => (
                   <button key={i} type="button" className={`office-slide-thumb ${activeSlide === i ? "active" : ""}`} onClick={() => setActiveSlide(i)}>
-                    <span className="thumb-num" style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span className="thumb-num" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       {i + 1}
-                      {deck.length > 1 && (
-                        <X
-                          size={11}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeSlide(i);
-                          }}
-                        />
-                      )}
+                      <span style={{ display: "flex", gap: "0.3rem" }}>
+                        {i > 0 && (
+                          <MoveUp
+                            size={11}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveSlide(i, -1);
+                            }}
+                          />
+                        )}
+                        {i < deck.length - 1 && (
+                          <MoveDown
+                            size={11}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveSlide(i, 1);
+                            }}
+                          />
+                        )}
+                        {deck.length > 1 && (
+                          <X
+                            size={11}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeSlide(i);
+                            }}
+                          />
+                        )}
+                      </span>
                     </span>
                     <span className="thumb-title">{s.title || "Untitled slide"}</span>
                   </button>

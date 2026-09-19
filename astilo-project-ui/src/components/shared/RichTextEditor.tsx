@@ -12,6 +12,7 @@ import {
   ListOrdered,
   Pilcrow,
   Strikethrough,
+  Table as TableIcon,
   Underline,
   X,
 } from "lucide-react";
@@ -19,6 +20,11 @@ import { sanitizeHtml } from "../../lib/sanitizeHtml";
 import "./RichTextEditor.scss";
 
 type ChartType = "bar" | "line" | "pie";
+
+const DEFAULT_TABLE_HTML =
+  "<table><tbody>" +
+  Array.from({ length: 3 }, () => `<tr>${Array.from({ length: 3 }, () => "<td>&nbsp;</td>").join("")}</tr>`).join("") +
+  "</tbody></table><p></p>";
 
 const buildChartUrl = (type: ChartType, labels: string[], values: number[], label: string) => {
   const config = {
@@ -115,6 +121,9 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
         </button>
         <button type="button" onClick={() => exec("insertOrderedList")} aria-label="Numbered list">
           <ListOrdered size={14} />
+        </button>
+        <button type="button" onClick={() => insertHtml(DEFAULT_TABLE_HTML)} aria-label="Insert table">
+          <TableIcon size={14} />
         </button>
         <span className="rte-sep" />
         <button type="button" onClick={() => setPanel(panel === "link" ? null : "link")} aria-label="Insert link">

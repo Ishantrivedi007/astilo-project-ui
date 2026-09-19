@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Eye, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, FileDown, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 
 import { RichTextEditor, useConfirm } from "../shared";
 import {
@@ -9,7 +9,7 @@ import {
   fetchNimroseNotes,
   updateNimroseNote,
 } from "../../lib/nimroseApi";
-import { downloadDocument } from "../../lib/downloadDoc";
+import { downloadAsWord, downloadDocument } from "../../lib/downloadDoc";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 const NimroseNotesView = () => {
@@ -185,6 +185,15 @@ const NimroseNotesView = () => {
                     {mode === "edit" ? <Eye size={14} /> : <Pencil size={14} />}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="nimrose-icon-btn"
+                  onClick={() => downloadAsWord(selected)}
+                  aria-label="Download as Word"
+                  title="Download as .doc (opens in Word)"
+                >
+                  <FileDown size={14} />
+                </button>
                 <button
                   type="button"
                   className="nimrose-icon-btn"

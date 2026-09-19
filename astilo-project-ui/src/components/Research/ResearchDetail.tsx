@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   ExternalLink,
+  FileDown,
   FileText,
   FlaskConical,
   ImagePlus,
@@ -41,7 +42,7 @@ import {
 import { searchNasaImages, type NasaImageData } from "../../lib/cosmosApi";
 import { searchWebImages, type WebImageResult } from "../../lib/webImagesApi";
 import MarkdownRenderer from "../Nimrose/MarkdownRenderer";
-import { downloadDocument } from "../../lib/downloadDoc";
+import { downloadAsWord, downloadDocument } from "../../lib/downloadDoc";
 import "./Research.scss";
 
 const fieldLabel = (key: string) => key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
@@ -583,8 +584,17 @@ const ResearchDetail = () => {
                     type="button"
                     className="research-pill"
                     style={{ cursor: "pointer" }}
+                    onClick={() => downloadAsWord(selectedDoc)}
+                    title="Download as .doc (opens in Word)"
+                  >
+                    <FileDown size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    className="research-pill"
+                    style={{ cursor: "pointer" }}
                     onClick={() => downloadDocument(selectedDoc)}
-                    title="Download as a local file"
+                    title="Download as .html/.md"
                   >
                     <Download size={12} />
                   </button>

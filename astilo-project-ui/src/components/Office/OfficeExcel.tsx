@@ -6,7 +6,7 @@ import { ArrowLeft, Columns3, Download, Plus, Rows3, Trash2 } from "lucide-react
 import { AppRoute } from "../../app/AppRoute";
 import { useConfirm } from "../shared";
 import { createNimroseNote, deleteNimroseNote, fetchNimroseNotes, updateNimroseNote } from "../../lib/nimroseApi";
-import { a1, cellKey, colLetter, emptySheet, evalCell, sheetToCsv, type SheetData } from "./sheetUtils";
+import { a1, cellKey, colLetter, emptySheet, evalCell, sheetToCsv, sheetToXlsHtml, type SheetData } from "./sheetUtils";
 import "../Nimrose/Nimrose.scss";
 import "./Office.scss";
 
@@ -76,18 +76,21 @@ const OfficeExcel = () => {
   const addRow = () => scheduleSave({ ...sheet, rows: sheet.rows + 1 });
   const addCol = () => scheduleSave({ ...sheet, cols: sheet.cols + 1 });
 
-  const downloadCsv = () => {
+  const downloadBlob = (content: string, mime: string, ext: string) => {
     if (!selected) return;
-    const blob = new Blob([sheetToCsv(sheet)], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([content], { type: `${mime};charset=utf-8` });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${selected.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "sheet"}.csv`;
+    a.download = `${selected.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "sheet"}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   };
+
+  const downloadCsv = () => downloadBlob(sheetToCsv(sheet), "text/csv", "csv");
+  const downloadXls = () => selected && downloadBlob(sheetToXlsHtml(sheet, selected.title), "application/vnd.ms-excel", "xls");
 
   return (
     <div className="office-page">
@@ -141,6 +144,9 @@ const OfficeExcel = () => {
                 <button type="button" className="nimrose-chip" onClick={addCol}>
                   <Columns3 size={12} /> Add column
                 </button>
+                <button type="button" className="nimrose-chip" onClick={downloadXls}>
+                  <Download size={12} /> Download .xls
+                </button>
                 <button type="button" className="nimrose-chip" onClick={downloadCsv}>
                   <Download size={12} /> Download CSV
                 </button>
@@ -156,7 +162,7 @@ const OfficeExcel = () => {
                 </button>
               </div>
               <p className="nimrose-widget-footnote" style={{ marginBottom: "0.5rem" }}>
-                Type a value, or a formula like <code>=SUM(A1:A5)</code>.
+                Type a value, or a formula: <code>=SUM</code>, <code>=AVERAGE</code>, <code>=MIN</code>, <code>=MAX</code>, <code>=COUNT</code> (A1:A5).
               </p>
 
               <div className="office-sheet-scroll">

@@ -42,3 +42,46 @@ ${doc.content ?? ""}
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+/** Real Word-openable file (the same MHTML-in-.doc technique Word's own
+ * "Save as Web Page" used) — opens as an actual Word document with your
+ * formatting intact, not just an .html file renamed. Markdown notes are
+ * rendered as plain paragraphs first since Word has no Markdown support. */
+export function downloadAsWord(doc: { title: string; content: string | null; contentFormat: "markdown" | "html" }) {
+  const body =
+    doc.contentFormat === "html"
+      ? doc.content ?? ""
+      : (doc.content ?? "")
+          .split("\n")
+          .map((line) => `<p>${escapeHtml(line)}</p>`)
+          .join("\n");
+
+  const content = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(doc.title)}</title>
+<!--[if gte mso 9]><xml>
+<w:WordDocument><w:View>Print</w:View></w:WordDocument>
+</xml><![endif]-->
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; line-height: 1.7; color: #1a1a1a; }
+  h1, h2, h3 { font-family: Calibri, Arial, sans-serif; }
+  img { max-width: 100%; }
+</style>
+</head>
+<body>
+<h1>${escapeHtml(doc.title)}</h1>
+${body}
+</body>
+</html>`;
+
+  const blob = new Blob([content], { type: "application/msword;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${slugify(doc.title)}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

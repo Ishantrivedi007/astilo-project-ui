@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, Eye, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Eye, FileDown, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { RichTextEditor, useConfirm } from "../shared";
@@ -11,7 +11,7 @@ import {
   fetchNimroseNotes,
   updateNimroseNote,
 } from "../../lib/nimroseApi";
-import { downloadDocument } from "../../lib/downloadDoc";
+import { downloadAsWord, downloadDocument } from "../../lib/downloadDoc";
 import MarkdownRenderer from "../Nimrose/MarkdownRenderer";
 import "../Nimrose/Nimrose.scss";
 import "./Office.scss";
@@ -147,7 +147,10 @@ const OfficeWord = () => {
                     {mode === "edit" ? <Eye size={14} /> : <Pencil size={14} />}
                   </button>
                 )}
-                <button type="button" className="nimrose-icon-btn" onClick={() => downloadDocument(selected)} aria-label="Download" title="Download as a local file">
+                <button type="button" className="nimrose-icon-btn" onClick={() => downloadAsWord(selected)} aria-label="Download as Word" title="Download as .doc (opens in Word)">
+                  <FileDown size={14} />
+                </button>
+                <button type="button" className="nimrose-icon-btn" onClick={() => downloadDocument(selected)} aria-label="Download" title="Download as .html/.md">
                   <Download size={14} />
                 </button>
                 <button
