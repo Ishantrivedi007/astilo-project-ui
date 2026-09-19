@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCheck, MessageCircle, Pencil, Send, Trash2 } from "lucide-react";
+import { Check, CheckCheck, MessageCircle, Palette, Pencil, QrCode, Send, Trash2, UserPlus, X } from "lucide-react";
 
 import { useAuth } from "../../auth/AuthProvider";
 import { useConfirm } from "../shared";
+import { useNimrosePrompt } from "../Nimrose/NimrosePromptDialog";
 import {
+  addMyContact,
   deleteDirectMessage,
   editDirectMessage,
-  fetchContacts,
   fetchConversations,
   fetchDirectMessages,
+  fetchMyContacts,
+  qrCodeUrl,
+  removeMyContact,
+  renameMyContact,
   sendDirectMessage,
   startConversation,
   type DirectMessage,
@@ -22,17 +27,6 @@ const initials = (name: string) =>
 
 const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "");
 
-const lastSeenLabel = (iso: string | null) => {
-  if (!iso) return "Never signed in";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.round(diffMs / 60000);
-  if (mins < 2) return "Online just now";
-  if (mins < 60) return `Last seen ${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `Last seen ${hours}h ago`;
-  return `Last seen ${new Date(iso).toLocaleDateString()}`;
-};
-
 const Avatar = ({ name, avatar, size = 38 }: { name: string; avatar?: string | null; size?: number }) =>
   avatar ? (
     <img src={avatar} alt={name} className="msgr-avatar" style={{ width: size, height: size }} />
@@ -42,19 +36,40 @@ const Avatar = ({ name, avatar, size = 38 }: { name: string; avatar?: string | n
     </span>
   );
 
+const BACKGROUNDS: { id: string; label: string; css: string }[] = [
+  { id: "default", label: "Default", css: "" },
+  { id: "midnight", label: "Midnight", css: "linear-gradient(160deg, #0f1228, #1a1030)" },
+  { id: "forest", label: "Forest", css: "linear-gradient(160deg, #0f2418, #0a3324)" },
+  { id: "sunset", label: "Sunset", css: "linear-gradient(160deg, #2b1420, #3a1a12)" },
+  { id: "ocean", label: "Ocean", css: "linear-gradient(160deg, #0a1e2e, #0d2b3f)" },
+];
+const BG_KEY = "messenger-background";
+const readBg = () => {
+  try {
+    return localStorage.getItem(BG_KEY) ?? "default";
+  } catch {
+    return "default";
+  }
+};
+
 const MessengerHome = () => {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const { prompt } = useNimrosePrompt();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"chats" | "contacts">("chats");
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [addContactValue, setAddContactValue] = useState("");
+  const [showQr, setShowQr] = useState(false);
+  const [showThemes, setShowThemes] = useState(false);
+  const [bg, setBg] = useState(readBg);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const conversationsQuery = useQuery({ queryKey: ["messenger", "conversations"], queryFn: fetchConversations, refetchInterval: 5000 });
-  const contactsQuery = useQuery({ queryKey: ["messenger", "contacts"], queryFn: fetchContacts });
+  const myContactsQuery = useQuery({ queryKey: ["messenger", "my-contacts"], queryFn: fetchMyContacts });
 
   const conversations = conversationsQuery.data ?? [];
   const activeConv = conversations.find((c) => c.id === activeConvId) ?? null;
@@ -83,6 +98,24 @@ const MessengerHome = () => {
       setActiveConvId(res.id);
       setTab("chats");
     },
+  });
+
+  const addContactMutation = useMutation({
+    mutationFn: (lookup: string) => addMyContact(lookup),
+    onSuccess: () => {
+      setAddContactValue("");
+      queryClient.invalidateQueries({ queryKey: ["messenger", "my-contacts"] });
+    },
+  });
+
+  const renameContactMutation = useMutation({
+    mutationFn: ({ id, nickname }: { id: number; nickname: string | null }) => renameMyContact(id, nickname),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messenger", "my-contacts"] }),
+  });
+
+  const removeContactMutation = useMutation({
+    mutationFn: (id: number) => removeMyContact(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messenger", "my-contacts"] }),
   });
 
   const sendMutation = useMutation({
@@ -119,6 +152,8 @@ const MessengerHome = () => {
   };
 
   const contactFor = (conv: (typeof conversations)[number]) => conv.participants[0];
+  const activeBg = BACKGROUNDS.find((b) => b.id === bg) ?? BACKGROUNDS[0];
+  const myConnectCode = user?.email ? `astilo-connect:${user.email}` : "";
 
   return (
     <div className="msgr-page">
@@ -130,6 +165,9 @@ const MessengerHome = () => {
             Messenger
           </h1>
         </div>
+        <button type="button" className="nimrose-chip" onClick={() => setShowQr(true)}>
+          <QrCode size={12} /> My QR code
+        </button>
       </div>
 
       <div className="msgr-layout">
@@ -142,6 +180,27 @@ const MessengerHome = () => {
               Contacts
             </button>
           </div>
+
+          {tab === "contacts" && (
+            <form
+              className="msgr-add-contact"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (addContactValue.trim()) addContactMutation.mutate(addContactValue.trim());
+              }}
+            >
+              <input
+                value={addContactValue}
+                onChange={(e) => setAddContactValue(e.target.value)}
+                placeholder="Email, phone, or QR code…"
+                aria-label="Add contact by email or phone"
+              />
+              <button type="submit" className="nimrose-chip" disabled={addContactMutation.isPending}>
+                <UserPlus size={12} />
+              </button>
+            </form>
+          )}
+          {addContactMutation.isError && <p className="msgr-empty" style={{ color: "#f87171", padding: "0 0.6rem" }}>No Astilo user found with that email or phone.</p>}
 
           <div className="msgr-list">
             {tab === "chats" &&
@@ -166,17 +225,41 @@ const MessengerHome = () => {
               ))}
 
             {tab === "contacts" &&
-              (contactsQuery.data?.length === 0 ? (
-                <p className="msgr-empty">No other Astilo users yet.</p>
+              (myContactsQuery.data?.length === 0 ? (
+                <p className="msgr-empty">No contacts yet — add one by email, phone, or QR code above.</p>
               ) : (
-                contactsQuery.data?.map((c) => (
-                  <button key={c.id} type="button" className="msgr-list-item" onClick={() => startConvMutation.mutate(c.id)}>
-                    <Avatar name={c.name} avatar={c.avatar} />
-                    <span className="msgr-list-body">
-                      <span className="msgr-list-name">{c.name}</span>
-                      <span className="msgr-list-preview">{lastSeenLabel(c.lastSeen)}</span>
+                myContactsQuery.data?.map((c) => (
+                  <div key={c.id} className="msgr-contact-row">
+                    <button type="button" className="msgr-list-item" style={{ flex: 1 }} onClick={() => startConvMutation.mutate(c.contactId)}>
+                      <Avatar name={c.name} avatar={c.avatar} />
+                      <span className="msgr-list-body">
+                        <span className="msgr-list-name">{c.name}</span>
+                        <span className="msgr-list-preview">{c.email}</span>
+                      </span>
+                    </button>
+                    <span className="msgr-contact-actions">
+                      <button
+                        type="button"
+                        aria-label="Rename contact"
+                        onClick={async () => {
+                          const name = await prompt({ title: "Nickname", defaultValue: c.nickname ?? c.realName });
+                          if (name !== null) renameContactMutation.mutate({ id: c.id, nickname: name.trim() || null });
+                        }}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Remove contact"
+                        onClick={async () => {
+                          const ok = await confirm({ title: "Remove contact?", message: `Remove ${c.name} from your contacts?`, confirmLabel: "Remove", danger: true });
+                          if (ok) removeContactMutation.mutate(c.id);
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </span>
-                  </button>
+                  </div>
                 ))
               ))}
           </div>
@@ -189,13 +272,37 @@ const MessengerHome = () => {
             <>
               <div className="msgr-thread-header">
                 <Avatar name={activeConv.name} avatar={contactFor(activeConv)?.avatar} size={34} />
-                <div>
+                <div style={{ flex: 1 }}>
                   <h2>{activeConv.name}</h2>
-                  <p>{lastSeenLabel(contactsQuery.data?.find((c) => c.id === contactFor(activeConv)?.id)?.lastSeen ?? null)}</p>
                 </div>
+                <button type="button" className="nimrose-icon-btn" onClick={() => setShowThemes((s) => !s)} aria-label="Chat background">
+                  <Palette size={15} />
+                </button>
               </div>
 
-              <div className="msgr-messages" ref={scrollRef}>
+              {showThemes && (
+                <div className="msgr-theme-row">
+                  {BACKGROUNDS.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      className={`msgr-theme-swatch ${bg === b.id ? "active" : ""}`}
+                      style={{ background: b.css || "rgba(15,18,40,0.6)" }}
+                      title={b.label}
+                      onClick={() => {
+                        setBg(b.id);
+                        try {
+                          localStorage.setItem(BG_KEY, b.id);
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="msgr-messages" ref={scrollRef} style={activeBg.css ? { background: activeBg.css } : undefined}>
                 {messages.length === 0 && <p className="msgr-empty">No messages yet. Say hello!</p>}
                 {messages.map((m) => {
                   const mine = m.senderId === user?.id;
@@ -254,6 +361,20 @@ const MessengerHome = () => {
           )}
         </div>
       </div>
+
+      {showQr && (
+        <div className="msgr-qr-overlay" onClick={() => setShowQr(false)}>
+          <div className="msgr-qr-modal" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="msgr-qr-close" onClick={() => setShowQr(false)} aria-label="Close">
+              <X size={16} />
+            </button>
+            <h3>Your connect code</h3>
+            <p>Others can add you by scanning this, or pasting the code below into "Add contact".</p>
+            {myConnectCode && <img src={qrCodeUrl(myConnectCode)} alt="Your Astilo connect QR code" />}
+            <code>{myConnectCode}</code>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
