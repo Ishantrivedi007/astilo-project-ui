@@ -268,6 +268,27 @@
   font-weight: 700;
 }
 
+.research-image-source-toggle {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+
+  button {
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(140, 160, 255, 0.2);
+    color: rgba(232, 236, 255, 0.55);
+    font-size: 0.72rem;
+    cursor: pointer;
+
+    &.active {
+      background: rgba(127, 176, 255, 0.16);
+      border-color: rgba(127, 176, 255, 0.5);
+      color: #fff;
+    }
+  }
+}
+
 .research-image-add-row {
   display: flex;
   gap: 0.4rem;

@@ -35,6 +35,7 @@ export const AppRoute = {
   marketsAsset: "/markets/asset",
   research: "/research",
   researchDetail: "/research/detail",
+  wordpad: "/wordpad",
   customize: "/customize",
   profile: "/profile",
   admin: "/admin",

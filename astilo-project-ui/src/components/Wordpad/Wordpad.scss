@@ -1,0 +1,17 @@
+.wordpad-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.wordpad-group-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--ink-muted-rgb));
+  margin: 0.8rem 0 0.3rem;
+
+  &:first-child {
+    margin-top: 0;
+  }
+}

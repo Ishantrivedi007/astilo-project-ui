@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Eye, FileText, Pencil, Pin, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, FileText, NotebookPen, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 
 import { RichTextEditor, useConfirm } from "../shared";
 import {
@@ -10,27 +10,41 @@ import {
   updateNimroseNote,
 } from "../../lib/nimroseApi";
 import { downloadDocument } from "../../lib/downloadDoc";
-import MarkdownRenderer from "./MarkdownRenderer";
+import MarkdownRenderer from "../Nimrose/MarkdownRenderer";
+import "../Nimrose/Nimrose.scss";
+import "./Wordpad.scss";
 
-const NimroseNotesView = () => {
+/** Astilo Wordpad — a standalone document editor tab (separate from the
+ * Notes list view, though both read/write the same NimroseNote records):
+ * full CRUD, a rich WYSIWYG mode alongside Markdown, and local file
+ * download. Everything here also shows up in Notes and vice versa — same
+ * underlying records, this is just a dedicated writing-focused view. */
+const WordpadHome = () => {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const [activeFolder, setActiveFolder] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [richDraft, setRichDraft] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const notesQuery = useQuery({
-    queryKey: ["nimrose", "notes", activeFolder, search],
-    queryFn: () => fetchNimroseNotes({ folder: activeFolder ?? undefined, q: search || undefined }),
-  });
+  const docsQuery = useQuery({ queryKey: ["nimrose", "notes", "all-wordpad"], queryFn: () => fetchNimroseNotes() });
+  const docs = docsQuery.data ?? [];
+  const selected = docs.find((d) => d.id === selectedId) ?? null;
+  const isRich = selected?.contentFormat === "html";
+
+  useEffect(() => {
+    setRichDraft(selected?.content ?? "");
+  }, [selected?.id]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "notes"] });
 
   const createMutation = useMutation({
-    mutationFn: createNimroseNote,
+    mutationFn: (contentFormat: "markdown" | "html") =>
+      createNimroseNote({
+        title: contentFormat === "html" ? "Untitled document" : "Untitled note",
+        content: "",
+        contentFormat,
+      }),
     onSuccess: (note) => {
       invalidate();
       setSelectedId(note.id);
@@ -39,8 +53,7 @@ const NimroseNotesView = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: number; patch: Parameters<typeof updateNimroseNote>[1] }) =>
-      updateNimroseNote(id, patch),
+    mutationFn: ({ id, patch }: { id: number; patch: Parameters<typeof updateNimroseNote>[1] }) => updateNimroseNote(id, patch),
     onSuccess: invalidate,
   });
 
@@ -52,15 +65,6 @@ const NimroseNotesView = () => {
     },
   });
 
-  const notes = notesQuery.data ?? [];
-  const folders = useMemo(() => [...new Set(notes.map((n) => n.folder).filter(Boolean))] as string[], [notes]);
-  const selected = notes.find((n) => n.id === selectedId) ?? null;
-  const isRich = selected?.contentFormat === "html";
-
-  useEffect(() => {
-    setRichDraft(selected?.content ?? "");
-  }, [selected?.id]);
-
   const scheduleRichSave = (html: string) => {
     setRichDraft(html);
     if (!selected) return;
@@ -70,68 +74,38 @@ const NimroseNotesView = () => {
     }, 800);
   };
 
+  const grouped = useMemo(() => {
+    const rich = docs.filter((d) => d.contentFormat === "html");
+    const md = docs.filter((d) => d.contentFormat !== "html");
+    return { rich, md };
+  }, [docs]);
+
   return (
-    <div>
+    <div className="wordpad-page">
       <div className="nimrose-home-header">
         <div>
-          <p className="nimrose-eyebrow">Workspace</p>
-          <h1 className="nimrose-page-title">Notes</h1>
+          <p className="nimrose-eyebrow">Astilo</p>
+          <h1 className="nimrose-page-title">
+            <NotebookPen size={22} style={{ display: "inline", verticalAlign: "-4px", marginRight: 8 }} />
+            Wordpad
+          </h1>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            className="nimrose-chip"
-            onClick={() => createMutation.mutate({ title: "Untitled note", content: "", folder: activeFolder ?? undefined })}
-          >
+          <button type="button" className="nimrose-chip" onClick={() => createMutation.mutate("markdown")}>
             <Plus size={12} /> New note
           </button>
-          <button
-            type="button"
-            className="nimrose-chip"
-            onClick={() =>
-              createMutation.mutate({
-                title: "Untitled document",
-                content: "",
-                contentFormat: "html",
-                folder: activeFolder ?? undefined,
-              })
-            }
-          >
-            <FileText size={12} /> New rich document
+          <button type="button" className="nimrose-chip" onClick={() => createMutation.mutate("html")}>
+            <FileText size={12} /> New document
           </button>
         </div>
       </div>
 
       <div className="nimrose-notes-layout">
         <div className="nimrose-notes-sidebar">
-          <input
-            className="nimrose-notes-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search notes…"
-            aria-label="Search notes"
-          />
-          <button
-            type="button"
-            className={`nimrose-sidebar-item ${activeFolder === null ? "nimrose-sidebar-item--active" : ""}`}
-            onClick={() => setActiveFolder(null)}
-          >
-            All notes
-          </button>
-          {folders.map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`nimrose-sidebar-item ${activeFolder === f ? "nimrose-sidebar-item--active" : ""}`}
-              onClick={() => setActiveFolder(f)}
-            >
-              {f}
-            </button>
-          ))}
-
+          <p className="wordpad-group-label">Rich documents ({grouped.rich.length})</p>
           <div className="nimrose-notes-list">
-            {notes.length === 0 && <p className="nimrose-widget-empty">No notes yet.</p>}
-            {notes.map((n) => (
+            {grouped.rich.length === 0 && <p className="nimrose-widget-empty">None yet.</p>}
+            {grouped.rich.map((n) => (
               <button
                 key={n.id}
                 type="button"
@@ -142,11 +116,28 @@ const NimroseNotesView = () => {
                 }}
               >
                 {n.pinned && <Pin size={11} />}
-                {n.contentFormat === "html" && <FileText size={11} />}
                 <span className="nimrose-note-list-title">{n.title}</span>
-                <span className="nimrose-widget-footnote">
-                  {n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}
-                </span>
+                <span className="nimrose-widget-footnote">{n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}</span>
+              </button>
+            ))}
+          </div>
+
+          <p className="wordpad-group-label">Notes ({grouped.md.length})</p>
+          <div className="nimrose-notes-list">
+            {grouped.md.length === 0 && <p className="nimrose-widget-empty">None yet.</p>}
+            {grouped.md.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                className={`nimrose-note-list-item ${selectedId === n.id ? "nimrose-note-list-item--active" : ""}`}
+                onClick={() => {
+                  setSelectedId(n.id);
+                  setMode("edit");
+                }}
+              >
+                {n.pinned && <Pin size={11} />}
+                <span className="nimrose-note-list-title">{n.title}</span>
+                <span className="nimrose-widget-footnote">{n.updatedAt ? new Date(n.updatedAt).toLocaleDateString() : ""}</span>
               </button>
             ))}
           </div>
@@ -154,7 +145,7 @@ const NimroseNotesView = () => {
 
         <div className="nimrose-notes-editor glass-card">
           {!selected ? (
-            <p className="nimrose-widget-empty">Select a note, or create a new one.</p>
+            <p className="nimrose-widget-empty">Select a document, or create a new one.</p>
           ) : (
             <>
               <div className="nimrose-notes-editor-toolbar">
@@ -165,7 +156,7 @@ const NimroseNotesView = () => {
                     const title = e.target.value.trim();
                     if (title && title !== selected.title) updateMutation.mutate({ id: selected.id, patch: { title } });
                   }}
-                  aria-label="Note title"
+                  aria-label="Document title"
                 />
                 <button
                   type="button"
@@ -198,15 +189,10 @@ const NimroseNotesView = () => {
                   type="button"
                   className="nimrose-icon-btn"
                   onClick={async () => {
-                    const ok = await confirm({
-                      title: "Delete note?",
-                      message: `Delete "${selected.title}"?`,
-                      confirmLabel: "Delete",
-                      danger: true,
-                    });
+                    const ok = await confirm({ title: "Delete document?", message: `Delete "${selected.title}"?`, confirmLabel: "Delete", danger: true });
                     if (ok) deleteMutation.mutate(selected.id);
                   }}
-                  aria-label="Delete note"
+                  aria-label="Delete document"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -252,4 +238,4 @@ const NimroseNotesView = () => {
   );
 };
 
-export default NimroseNotesView;
+export default WordpadHome;

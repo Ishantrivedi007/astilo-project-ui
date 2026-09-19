@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Eye, ExternalLink, FileText, ImagePlus, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, Download, Eye, ExternalLink, FileText, ImagePlus, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { RichTextEditor, useConfirm } from "../shared";
@@ -20,7 +20,9 @@ import {
   toggleResearchStep,
 } from "../../lib/researchApi";
 import { searchNasaImages, type NasaImageData } from "../../lib/cosmosApi";
+import { searchWebImages, type WebImageResult } from "../../lib/webImagesApi";
 import MarkdownRenderer from "../Nimrose/MarkdownRenderer";
+import { downloadDocument } from "../../lib/downloadDoc";
 import "./Research.scss";
 
 const fieldLabel = (key: string) => key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
@@ -37,6 +39,7 @@ const ResearchDetail = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [imageSearch, setImageSearch] = useState("");
   const [imageSearchSubmitted, setImageSearchSubmitted] = useState("");
+  const [imageSource, setImageSource] = useState<"nasa" | "web">("nasa");
   const [manualImageUrl, setManualImageUrl] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -57,12 +60,19 @@ const ResearchDetail = () => {
     setRichDraft(selectedDoc?.content ?? "");
   }, [selectedDoc?.id]);
 
-  const imageSearchQuery = useQuery({
-    queryKey: ["research", "image-search", imageSearchSubmitted],
+  const nasaImageQuery = useQuery({
+    queryKey: ["research", "image-search", "nasa", imageSearchSubmitted],
     queryFn: () => searchNasaImages(imageSearchSubmitted, 12),
-    enabled: !!imageSearchSubmitted,
+    enabled: !!imageSearchSubmitted && imageSource === "nasa",
     retry: false,
   });
+  const webImageQuery = useQuery({
+    queryKey: ["research", "image-search", "web", imageSearchSubmitted],
+    queryFn: () => searchWebImages(imageSearchSubmitted, 12),
+    enabled: !!imageSearchSubmitted && imageSource === "web",
+    retry: false,
+  });
+  const imageSearchLoading = imageSource === "nasa" ? nasaImageQuery.isLoading : webImageQuery.isLoading;
 
   const invalidateItem = () => queryClient.invalidateQueries({ queryKey: ["research", "item", itemId] });
   const invalidateDocs = () => queryClient.invalidateQueries({ queryKey: ["research", "docs", folder] });
@@ -136,7 +146,8 @@ const ResearchDetail = () => {
   const dataFields = Object.entries(item.data ?? {}).filter(([k, v]) => !k.startsWith("_") && v !== null && v !== "");
   const images = item.images ?? [];
   const lightboxImage = lightboxIndex != null ? images[lightboxIndex] : null;
-  const searchResults = imageSearchQuery.data?.data.results ?? [];
+  const nasaResults = nasaImageQuery.data?.data.results ?? [];
+  const webResults = webImageQuery.data?.data.results ?? [];
   const alreadyAdded = (url: string) => images.some((img) => img.url === url);
 
   const submitImageSearch = (e: React.FormEvent) => {
@@ -272,20 +283,37 @@ const ResearchDetail = () => {
           </button>
         </form>
 
-        <form className="research-image-add-row" onSubmit={submitImageSearch}>
-          <input value={imageSearch} onChange={(e) => setImageSearch(e.target.value)} placeholder={`Search NASA's image library for "${item.title}"…`} />
+        <div className="research-image-source-toggle">
+          <button type="button" className={imageSource === "nasa" ? "active" : ""} onClick={() => setImageSource("nasa")}>
+            NASA library
+          </button>
+          <button type="button" className={imageSource === "web" ? "active" : ""} onClick={() => setImageSource("web")}>
+            Search the web
+          </button>
+        </div>
+
+        <form
+          className="research-image-add-row"
+          onSubmit={submitImageSearch}
+        >
+          <input
+            value={imageSearch}
+            onChange={(e) => setImageSearch(e.target.value)}
+            placeholder={imageSource === "nasa" ? `Search NASA's image library for "${item.title}"…` : `Search the web (Openverse) for "${item.title}"…`}
+          />
           <button type="submit" className="research-pill" style={{ cursor: "pointer" }}>
             <Search size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Search
           </button>
         </form>
 
-        {imageSearchQuery.isLoading && <p className="research-empty">Searching…</p>}
-        {imageSearchSubmitted && !imageSearchQuery.isLoading && searchResults.length === 0 && (
+        {imageSearchLoading && <p className="research-empty">Searching…</p>}
+
+        {imageSource === "nasa" && imageSearchSubmitted && !nasaImageQuery.isLoading && nasaResults.length === 0 && (
           <p className="research-empty">No images found for "{imageSearchSubmitted}".</p>
         )}
-        {searchResults.length > 0 && (
+        {imageSource === "nasa" && nasaResults.length > 0 && (
           <div className="research-image-grid">
-            {searchResults
+            {nasaResults
               .filter((r: NasaImageData) => r.previewUrl)
               .map((r: NasaImageData) => (
                 <button
@@ -301,6 +329,38 @@ const ResearchDetail = () => {
                 </button>
               ))}
           </div>
+        )}
+
+        {imageSource === "web" && imageSearchSubmitted && !webImageQuery.isLoading && webResults.length === 0 && (
+          <p className="research-empty">No images found for "{imageSearchSubmitted}".</p>
+        )}
+        {imageSource === "web" && webResults.length > 0 && (
+          <div className="research-image-grid">
+            {webResults.map((r: WebImageResult) => (
+              <button
+                key={r.id}
+                type="button"
+                className="research-image-thumb research-image-thumb--pickable"
+                disabled={alreadyAdded(r.url)}
+                onClick={() =>
+                  addImageMutation.mutate({
+                    url: r.url,
+                    caption: `${r.title}${r.creator ? ` — ${r.creator}` : ""}${r.license ? ` (${r.license.toUpperCase()})` : ""}`,
+                    source: `Openverse / ${r.provider ?? "web"}`,
+                  })
+                }
+                title={alreadyAdded(r.url) ? "Already added" : `Add "${r.title}" (${r.license ?? "unknown license"})`}
+              >
+                <img src={r.thumbnailUrl} alt={r.title} loading="lazy" />
+                {!alreadyAdded(r.url) && <span className="research-image-thumb-add">+</span>}
+              </button>
+            ))}
+          </div>
+        )}
+        {imageSource === "web" && webResults.length > 0 && (
+          <p className="research-empty" style={{ marginTop: "0.4rem" }}>
+            Images from Openverse are openly licensed but not public domain — check each one's license before reuse.
+          </p>
         )}
       </div>
 
@@ -373,6 +433,15 @@ const ResearchDetail = () => {
                       {mode === "edit" ? <Eye size={12} /> : <Pencil size={12} />}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    className="research-pill"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => downloadDocument(selectedDoc)}
+                    title="Download as a local file"
+                  >
+                    <Download size={12} />
+                  </button>
                   <button
                     type="button"
                     className="research-pill"
