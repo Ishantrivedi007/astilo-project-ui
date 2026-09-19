@@ -21,6 +21,7 @@ import {
 
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
+import NotificationBell from "../Notifications/NotificationBell";
 
 interface NavItem {
   label: string;
@@ -120,6 +121,7 @@ const Sidebar = () => {
         </nav>
 
         <div className="sidebar-footer">
+          <NotificationBell />
           <button
             onClick={() => navigate(AppRoute.customize)}
             title="Customize"

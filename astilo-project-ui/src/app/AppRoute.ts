@@ -36,6 +36,7 @@ export const AppRoute = {
   research: "/research",
   researchDetail: "/research/detail",
   wordpad: "/wordpad",
+  notifications: "/notifications",
   customize: "/customize",
   profile: "/profile",
   admin: "/admin",

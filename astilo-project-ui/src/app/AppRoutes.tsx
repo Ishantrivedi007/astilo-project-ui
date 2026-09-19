@@ -38,6 +38,7 @@ const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetVi
 const ResearchHome = lazy(() => import("../components/Research/ResearchHome"));
 const ResearchDetail = lazy(() => import("../components/Research/ResearchDetail"));
 const WordpadHome = lazy(() => import("../components/Wordpad/WordpadHome"));
+const NotificationsView = lazy(() => import("../components/Notifications/NotificationsView"));
 const Customize = lazy(() => import("../components/Customize/Customize"));
 const Home = lazy(() => import("../components/Home/Home"));
 const Login = lazy(() => import("../components/Login/Login"));
@@ -160,6 +161,7 @@ const AppRoutes = () => (
       <Route path={AppRoute.research} element={getAuthRoute(<ResearchHome />)} />
       <Route path={`${AppRoute.researchDetail}/:id`} element={getAuthRoute(<ResearchDetail />)} />
       <Route path={AppRoute.wordpad} element={getAuthRoute(<WordpadHome />)} />
+      <Route path={AppRoute.notifications} element={getAuthRoute(<NotificationsView />)} />
       <Route path={AppRoute.customize} element={getAuthRoute(<Customize />)} />
       <Route path={AppRoute.profile} element={getAuthRoute(<Profile />)} />
       <Route
