@@ -10,6 +10,9 @@ from app.cosmos.http import cosmos_get, envelope
 
 SEARCH_URL = "https://en.wikipedia.org/w/api.php"
 SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
+ACTION_API_URL = "https://en.wikipedia.org/w/api.php"
+# 1200 is the Wikipedia Action API's hard cap on exchars per request.
+MAX_EXTRACT_CHARS = 1200
 
 _HEADERS = {"User-Agent": "AstiloCosmos/1.0 (personal research app; contact: astilo-app@example.com)"}
 
@@ -57,18 +60,52 @@ def summary(title: str) -> dict | None:
     }
 
 
+def detailed_extract(title: str) -> str | None:
+    """Fetches a longer plain-text extract (multiple paragraphs, up to
+    Wikipedia's 1200-char-per-request cap on the Action API) rather than
+    just the short lead-section summary the REST endpoint gives — still the
+    real article text, just more of it."""
+    params = {
+        "action": "query",
+        "prop": "extracts",
+        "explaintext": 1,
+        "exchars": MAX_EXTRACT_CHARS,
+        "titles": title,
+        "format": "json",
+    }
+
+    def fetch():
+        resp = cosmos_get(ACTION_API_URL, params=params, timeout=10, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("wikipedia_extract", {"title": title}, fetch, ttl_seconds=7 * 24 * 3600)
+    pages = raw.get("query", {}).get("pages") or {}
+    for page in pages.values():
+        extract = page.get("extract")
+        if extract:
+            return extract.strip()
+    return None
+
+
 def research_summary(query: str) -> dict:
     """Searches Wikipedia for `query` and returns the best-matching article's
-    summary, wrapped with source provenance. Used to give Cosmos objects a
-    real, understandable, non-fabricated research summary."""
+    summary (short lead + a longer multi-paragraph extract), wrapped with
+    source provenance. Used to give Cosmos objects a real, understandable,
+    non-fabricated research summary."""
     titles = search_titles(query, limit=3)
     for title in titles:
         result = summary(title)
         if result and result.get("extract"):
+            try:
+                result["detailedExtract"] = detailed_extract(title)
+            except Exception:
+                result["detailedExtract"] = None
             return envelope("Wikipedia", "rest_v1/page/summary", title, result, None)
     return envelope("Wikipedia", "rest_v1/page/summary", query, {
         "title": None,
         "extract": None,
+        "detailedExtract": None,
         "description": None,
         "thumbnailUrl": None,
         "pageUrl": None,

@@ -40,13 +40,15 @@ def _build_brief(title: str, object_type: str, data: dict | None) -> dict:
 
     wiki_data = (wiki or {}).get("data") or {}
     extract = wiki_data.get("extract")
+    detailed = wiki_data.get("detailedExtract") or extract
 
     return {
         "summary": extract,
+        "detailedSummary": detailed,
         "wikiTitle": wiki_data.get("title"),
         "wikiUrl": wiki_data.get("pageUrl"),
         "thumbnailUrl": wiki_data.get("thumbnailUrl"),
-        "keyPoints": key_points_from_extract(extract),
+        "keyPoints": key_points_from_extract(detailed, max_points=8),
         "nextSteps": [{"text": t, "done": False} for t in further_research(object_type, data)],
         "dataSnapshot": {k: v for k, v in (data or {}).items() if not k.startswith("_") and v not in (None, "")},
         "generatedAt": datetime.datetime.utcnow().isoformat() + "Z",

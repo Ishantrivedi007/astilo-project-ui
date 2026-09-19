@@ -70,8 +70,17 @@ _SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z(])")
 def key_points_from_extract(extract: str | None, max_points: int = 5) -> list[str]:
     if not extract:
         return []
-    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(extract) if s.strip()]
-    return sentences[:max_points]
+    # Multi-paragraph extracts come back with real newlines between
+    # paragraphs — flatten those before sentence-splitting.
+    flat = extract.replace("\n", " ")
+    sentences = [s.strip() for s in _SENTENCE_SPLIT.split(flat) if s.strip()]
+    points = sentences[:max_points]
+    # Wikipedia's char-capped extract can cut off mid-sentence (sometimes
+    # marked with a trailing "..."); drop a trailing fragment that isn't a
+    # genuine complete sentence rather than show a truncated one.
+    if points and (points[-1].endswith("...") or not points[-1].endswith((".", "!", "?", "…"))):
+        points = points[:-1]
+    return points
 
 
 def further_research(object_type: str, data: dict | None) -> list[str]:
