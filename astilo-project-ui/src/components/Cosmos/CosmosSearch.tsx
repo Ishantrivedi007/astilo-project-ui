@@ -94,11 +94,34 @@ const SaveButton = ({
   );
 };
 
+const DEFAULT_QUERY_BY_TYPE: Record<ResultGroup, string> = {
+  asteroid: "Apophis",
+  exoplanet: "TRAPPIST-1",
+  star: "Sirius",
+  observation: "M16",
+  image: "nebula",
+  "high-energy": "Cygnus X-1",
+  galaxy: "Andromeda Galaxy",
+  supernova: "Crab Nebula",
+};
+
 const CosmosSearch = () => {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const q = params.get("q")?.trim() ?? "";
+  const [params, setParams] = useSearchParams();
+  const [inputValue, setInputValue] = useState(params.get("q") ?? "");
+  const typedQuery = params.get("q")?.trim() ?? "";
   const typeFilter = params.get("type") as ResultGroup | null;
+  // A category tile (e.g. "Galaxies") links here with only ?type=, no
+  // search term — fall back to a known-good example so the page shows real
+  // data immediately instead of sitting blank until the user types something.
+  const usingDefault = !typedQuery && !!typeFilter;
+  const q = typedQuery || (typeFilter ? DEFAULT_QUERY_BY_TYPE[typeFilter] : "");
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = inputValue.trim();
+    if (trimmed) setParams(typeFilter ? { q: trimmed, type: typeFilter } : { q: trimmed });
+  };
 
   const showAsteroids = !typeFilter || typeFilter === "asteroid";
   const showExoplanets = !typeFilter || typeFilter === "exoplanet";
@@ -219,10 +242,27 @@ const CosmosSearch = () => {
 
       <p className="cosmos-eyebrow">✦ Universal Cosmos search</p>
       <h1 className="cosmos-title" style={{ fontSize: "1.75rem" }}>
-        {q ? `Results for "${q}"` : typeFilter ? TYPE_LABELS[typeFilter] : "Search the universe"}
+        {typeFilter ? TYPE_LABELS[typeFilter] : q ? `Results for "${q}"` : "Search the universe"}
       </h1>
 
-      {!q && (
+      <form className="cosmos-search-form" onSubmit={submitSearch}>
+        <input
+          className="cosmos-search-input"
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder={typeFilter ? `Search within ${TYPE_LABELS[typeFilter].toLowerCase()}…` : "Search planets, stars, asteroids, exoplanets, missions…"}
+          aria-label="Search the universe"
+        />
+      </form>
+
+      {usingDefault && (
+        <p className="cosmos-tagline">
+          Showing an example ("{q}") — search above for a specific {TYPE_LABELS[typeFilter!].toLowerCase()}.
+        </p>
+      )}
+
+      {!q && !typeFilter && (
         <p className="cosmos-tagline">
           Enter an object name from Cosmos Home to search across JPL, the NASA Exoplanet Archive,
           ESA Gaia, and MAST.
@@ -430,13 +470,17 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
       <CosmosField label="RA" value={data.raDeg} unit="°" />
       <CosmosField label="Dec" value={data.decDeg} unit="°" />
     </dl>
-    {data.previewImageUrl && (
+    {data.previewImageUrl ? (
       <img
         src={data.previewImageUrl}
         alt={data.target ?? "Observation preview"}
         loading="lazy"
         className="mt-3 max-h-40 rounded-lg object-cover"
       />
+    ) : (
+      <p className="mt-3 cosmos-unavailable text-xs">
+        No preview image in MAST's metadata for this observation.
+      </p>
     )}
   </div>
 );
