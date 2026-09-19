@@ -313,6 +313,7 @@ export interface AssignableUser {
   id: number;
   name: string;
   email: string;
+  avatar?: string | null;
 }
 
 export const fetchAssignableUsers = () =>

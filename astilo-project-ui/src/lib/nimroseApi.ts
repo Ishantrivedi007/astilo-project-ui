@@ -55,6 +55,9 @@ export const fetchNimroseProjects = () =>
 export const createNimroseProject = (name: string, color?: string) =>
   apiClient.post<NimroseProject>("/nimrose/projects", { name, color }).then((r) => r.data);
 
+export const updateNimroseProject = (id: number, patch: Partial<{ name: string; color: string | null; keyPrefix: string }>) =>
+  apiClient.put<NimroseProject>(`/nimrose/projects/${id}`, patch).then((r) => r.data);
+
 export const deleteNimroseProject = (id: number) =>
   apiClient.delete(`/nimrose/projects/${id}`).then((r) => r.data);
 

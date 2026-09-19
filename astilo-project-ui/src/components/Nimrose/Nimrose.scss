@@ -1221,6 +1221,28 @@
   font-weight: 700;
 }
 
+.nimrose-ticket-avatar-wrap {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+.nimrose-user-avatar-img {
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.nimrose-user-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: rgb(var(--accent-rgb));
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 .nimrose-kanban-add {
   margin-top: 0.5rem;
 

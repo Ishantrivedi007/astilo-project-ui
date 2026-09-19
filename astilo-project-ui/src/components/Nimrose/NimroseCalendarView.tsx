@@ -1,18 +1,10 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
-import { useConfirm } from "../shared";
-import {
-  createNimroseCalendarEvent,
-  deleteNimroseCalendarEvent,
-  fetchNimroseCalendarEvents,
-  fetchNimroseProjects,
-  fetchNimroseTasks,
-  type NimroseCalendarEvent,
-} from "../../lib/nimroseApi";
+import { fetchNimroseCalendarEvents, type NimroseCalendarEvent } from "../../lib/nimroseApi";
+import CalendarEventModal from "./CalendarEventModal";
 
-const CATEGORIES = ["meeting", "deadline", "personal", "reminder", "other"];
 type ViewMode = "agenda" | "week" | "month";
 
 const groupByDay = (events: NimroseCalendarEvent[]) => {
@@ -40,58 +32,17 @@ const startOfWeek = (d: Date) => {
   return copy;
 };
 
+type ModalState = { mode: "create"; defaultStartAt: string } | { mode: "edit"; event: NimroseCalendarEvent } | null;
+
 const NimroseCalendarView = () => {
-  const queryClient = useQueryClient();
-  const confirm = useConfirm();
-  const [title, setTitle] = useState("");
-  const [startAt, setStartAt] = useState("");
-  const [category, setCategory] = useState("meeting");
-  const [relatedTaskId, setRelatedTaskId] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("agenda");
   const [cursor, setCursor] = useState(() => new Date());
+  const [modal, setModal] = useState<ModalState>(null);
 
   const eventsQuery = useQuery({
     queryKey: ["nimrose", "calendar-events"],
     queryFn: () => fetchNimroseCalendarEvents(),
   });
-
-  const tasksQuery = useQuery({
-    queryKey: ["nimrose", "tasks", "all"],
-    queryFn: () => fetchNimroseTasks(),
-  });
-
-  useQuery({ queryKey: ["nimrose", "projects"], queryFn: fetchNimroseProjects });
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "calendar-events"] });
-
-  const createMutation = useMutation({
-    mutationFn: createNimroseCalendarEvent,
-    onSuccess: invalidate,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteNimroseCalendarEvent,
-    onSuccess: invalidate,
-  });
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = title.trim();
-    if (!trimmed || !startAt) return;
-    createMutation.mutate({
-      title: trimmed,
-      startAt: new Date(startAt).toISOString(),
-      category,
-      relatedTaskId: relatedTaskId ? Number(relatedTaskId) : undefined,
-    });
-    setTitle("");
-    setStartAt("");
-  };
-
-  const removeEvent = async (event: NimroseCalendarEvent) => {
-    const ok = await confirm({ title: "Delete event?", message: `Delete "${event.title}"?`, confirmLabel: "Delete", danger: true });
-    if (ok) deleteMutation.mutate(event.id);
-  };
 
   const events = eventsQuery.data ?? [];
   const eventsByDay = useMemo(() => groupByDay(events), [events]);
@@ -123,6 +74,12 @@ const NimroseCalendarView = () => {
     setCursor(next);
   };
 
+  const openCreateAt = (day: Date, hour = 9) => {
+    const d = new Date(day);
+    d.setHours(hour, 0, 0, 0);
+    setModal({ mode: "create", defaultStartAt: d.toISOString() });
+  };
+
   return (
     <div>
       <div className="nimrose-home-header">
@@ -130,48 +87,24 @@ const NimroseCalendarView = () => {
           <p className="nimrose-eyebrow">Workspace</p>
           <h1 className="nimrose-page-title">Calendar</h1>
         </div>
-        <div className="nimrose-status-tabs" style={{ marginBottom: 0 }}>
-          {(["agenda", "week", "month"] as ViewMode[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              className={`nimrose-chip ${viewMode === v ? "nimrose-chip--active" : ""}`}
-              onClick={() => setViewMode(v)}
-            >
-              {v[0].toUpperCase() + v.slice(1)}
-            </button>
-          ))}
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div className="nimrose-status-tabs" style={{ marginBottom: 0 }}>
+            {(["agenda", "week", "month"] as ViewMode[]).map((v) => (
+              <button
+                key={v}
+                type="button"
+                className={`nimrose-chip ${viewMode === v ? "nimrose-chip--active" : ""}`}
+                onClick={() => setViewMode(v)}
+              >
+                {v[0].toUpperCase() + v.slice(1)}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="nimrose-chip" onClick={() => openCreateAt(new Date())}>
+            <Plus size={12} /> New event
+          </button>
         </div>
       </div>
-
-      <form className="nimrose-task-form glass-card" onSubmit={submit}>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event title" aria-label="Event title" />
-        <input
-          type="datetime-local"
-          value={startAt}
-          onChange={(e) => setStartAt(e.target.value)}
-          aria-label="Start date/time"
-          required
-        />
-        <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category">
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select value={relatedTaskId} onChange={(e) => setRelatedTaskId(e.target.value)} aria-label="Related task">
-          <option value="">No linked task</option>
-          {tasksQuery.data?.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
-        <button type="submit" disabled={createMutation.isPending}>
-          <Plus size={14} /> Add
-        </button>
-      </form>
 
       {eventsQuery.isLoading && <p className="nimrose-widget-empty">Loading events…</p>}
 
@@ -189,21 +122,19 @@ const NimroseCalendarView = () => {
               </p>
               <ul className="nimrose-agenda-list">
                 {dayEvents.map((event) => (
-                  <li key={event.id} className="glass-card nimrose-agenda-item">
-                    <div className="nimrose-agenda-time">
+                  <li key={event.id} className="glass-card nimrose-agenda-item" onClick={() => setModal({ mode: "edit", event })} style={{ cursor: "pointer" }}>
+                    <div className="nimrose-agenda-time" style={event.color ? { color: event.color } : undefined}>
                       {new Date(event.startAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                     </div>
                     <div className="nimrose-agenda-body">
                       <p>{event.title}</p>
                       <div className="nimrose-full-task-meta">
                         {event.category && <span className="nimrose-chip">{event.category}</span>}
+                        {event.location && <span className="nimrose-chip">📍 {event.location}</span>}
                         {event.projectName && <span className="nimrose-chip">{event.projectName}</span>}
                         {event.relatedTaskTitle && <span className="nimrose-chip">↳ {event.relatedTaskTitle}</span>}
                       </div>
                     </div>
-                    <button type="button" className="nimrose-icon-btn" onClick={() => removeEvent(event)} aria-label="Delete event">
-                      <Trash2 size={14} />
-                    </button>
                   </li>
                 ))}
               </ul>
@@ -244,10 +175,24 @@ const NimroseCalendarView = () => {
             const inMonth = d.getMonth() === cursor.getMonth();
             const isToday = key === toDayKey(new Date());
             return (
-              <div key={key} className={`nimrose-cal-month-cell ${inMonth ? "" : "nimrose-cal-month-cell--out"} ${isToday ? "nimrose-cal-month-cell--today" : ""}`}>
+              <div
+                key={key}
+                className={`nimrose-cal-month-cell ${inMonth ? "" : "nimrose-cal-month-cell--out"} ${isToday ? "nimrose-cal-month-cell--today" : ""}`}
+                onClick={() => openCreateAt(d)}
+              >
                 <span className="nimrose-cal-month-daynum">{d.getDate()}</span>
                 {dayEvents.slice(0, 3).map((e) => (
-                  <button key={e.id} type="button" className="nimrose-cal-event-chip" onClick={() => removeEvent(e)} title="Click to delete">
+                  <button
+                    key={e.id}
+                    type="button"
+                    className="nimrose-cal-event-chip"
+                    style={e.color ? { borderColor: e.color, color: e.color } : undefined}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setModal({ mode: "edit", event: e });
+                    }}
+                    title="Click to edit"
+                  >
                     {e.title}
                   </button>
                 ))}
@@ -265,7 +210,7 @@ const NimroseCalendarView = () => {
             const dayEvents = (eventsByDay.get(key) ?? []).slice().sort((a, b) => a.startAt.localeCompare(b.startAt));
             const isToday = key === toDayKey(new Date());
             return (
-              <div key={key} className={`nimrose-cal-week-col ${isToday ? "nimrose-cal-week-col--today" : ""}`}>
+              <div key={key} className={`nimrose-cal-week-col ${isToday ? "nimrose-cal-week-col--today" : ""}`} onClick={() => openCreateAt(d)}>
                 <p className="nimrose-cal-week-head">
                   {d.toLocaleDateString(undefined, { weekday: "short" })} <span>{d.getDate()}</span>
                 </p>
@@ -273,14 +218,19 @@ const NimroseCalendarView = () => {
                   <p className="nimrose-widget-footnote">—</p>
                 ) : (
                   dayEvents.map((e) => (
-                    <div key={e.id} className="nimrose-cal-week-event">
+                    <div
+                      key={e.id}
+                      className="nimrose-cal-week-event"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setModal({ mode: "edit", event: e });
+                      }}
+                      style={e.color ? { borderLeftColor: e.color } : undefined}
+                    >
                       <span className="nimrose-widget-footnote">
                         {new Date(e.startAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                       </span>
                       <p>{e.title}</p>
-                      <button type="button" onClick={() => removeEvent(e)} aria-label="Delete event">
-                        <Trash2 size={10} />
-                      </button>
                     </div>
                   ))
                 )}
@@ -288,6 +238,14 @@ const NimroseCalendarView = () => {
             );
           })}
         </div>
+      )}
+
+      {modal && (
+        <CalendarEventModal
+          event={modal.mode === "edit" ? modal.event : null}
+          defaultStartAt={modal.mode === "create" ? modal.defaultStartAt : undefined}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   );

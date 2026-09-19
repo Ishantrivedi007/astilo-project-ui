@@ -33,6 +33,12 @@ export interface MarketAssetData {
   fiftyTwoWeekLow: number | null;
   logoUrl: string | null;
   marketTime: number | null;
+  founded?: string | null;
+  about?: string | null;
+  athPrice?: number | null;
+  athDate?: string | null;
+  atlPrice?: number | null;
+  atlDate?: string | null;
   range: string;
   interval: string;
   points: MarketPoint[];

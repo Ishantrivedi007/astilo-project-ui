@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { File as FileIcon, Link2, Paperclip, Send, Trash2, X } from "lucide-react";
 
@@ -12,6 +12,7 @@ import {
   deleteTicketAttachment,
   fetchAssignableUsers,
   fetchBoardColumns,
+  fetchSprints,
   fetchTicketActivity,
   fetchTicketComments,
   fetchTicket,
@@ -25,6 +26,8 @@ import {
   type TicketPriority,
   type TicketType,
 } from "../../lib/kanbanApi";
+import UserAvatar from "./UserAvatar";
+import { RichTextEditor } from "../shared";
 
 const TYPES = Object.keys(TICKET_TYPE_LABEL) as TicketType[];
 const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "critical"];
@@ -64,7 +67,9 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
   const [commentDraft, setCommentDraft] = useState("");
   const [linkKey, setLinkKey] = useState("");
   const [linkRelation, setLinkRelation] = useState<TicketLinkRelation>("blocks");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const descSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ticketQuery = useQuery({ queryKey: ["nimrose", "ticket", ticketId], queryFn: () => fetchTicket(ticketId) });
   const columnsQuery = useQuery({
@@ -82,6 +87,11 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
   });
   const allTicketsQuery = useQuery({ queryKey: ["nimrose", "tickets", "all-for-link"], queryFn: () => fetchTickets() });
   const usersQuery = useQuery({ queryKey: ["users", "basic"], queryFn: fetchAssignableUsers });
+  const sprintsQuery = useQuery({
+    queryKey: ["nimrose", "sprints", ticketQuery.data?.projectId],
+    queryFn: () => fetchSprints(ticketQuery.data!.projectId),
+    enabled: !!ticketQuery.data,
+  });
 
   const invalidateBoard = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "tickets"] });
   const invalidateTicket = () => {
@@ -144,6 +154,18 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
   });
 
   const ticket = ticketQuery.data;
+
+  useEffect(() => {
+    setDescriptionDraft(ticket?.description ?? "");
+  }, [ticket?.id]);
+
+  const scheduleDescriptionSave = (html: string) => {
+    setDescriptionDraft(html);
+    if (descSaveTimer.current) clearTimeout(descSaveTimer.current);
+    descSaveTimer.current = setTimeout(() => {
+      updateMutation.mutate({ description: html });
+    }, 800);
+  };
 
   const submitComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,6 +270,13 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
               <label>
                 Assignee
                 <div className="nimrose-assignee-field">
+                  {ticket.assignee && (
+                    <UserAvatar
+                      name={ticket.assignee}
+                      avatarUrl={usersQuery.data?.find((u) => u.name === ticket.assignee)?.avatar}
+                      size={22}
+                    />
+                  )}
                   <select
                     value={ticket.assignee ?? ""}
                     onChange={(e) => updateMutation.mutate({ assignee: e.target.value || null })}
@@ -275,6 +304,23 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
                 </div>
               </label>
               <label>
+                Sprint
+                <select
+                  value={ticket.sprintId ?? ""}
+                  onChange={(e) => updateMutation.mutate({ sprintId: e.target.value ? Number(e.target.value) : null })}
+                >
+                  <option value="">No sprint</option>
+                  {sprintsQuery.data?.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.status})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="nimrose-modal-field-row">
+              <label>
                 Due date
                 <input
                   type="date"
@@ -295,11 +341,7 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
 
             <label className="nimrose-modal-description-label">
               Description
-              <textarea
-                defaultValue={ticket.description ?? ""}
-                placeholder="Add a description…"
-                onBlur={(e) => updateMutation.mutate({ description: e.target.value })}
-              />
+              <RichTextEditor value={descriptionDraft} onChange={scheduleDescriptionSave} placeholder="Add a description — text, links, images…" />
             </label>
 
             <div className="nimrose-modal-section">

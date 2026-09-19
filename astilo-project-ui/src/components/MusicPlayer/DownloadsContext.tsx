@@ -25,10 +25,17 @@ export const DownloadsProvider = ({ children }: { children: ReactNode }) => {
   const dismissedRef = useRef<Set<string>>(new Set());
   const seenDoneRef = useRef<Set<string>>(new Set());
 
+  // Fast-polls only while a job is actually in flight; otherwise checks in
+  // rarely (a safety net in case a status update was ever missed) instead
+  // of hitting the API every second forever regardless of activity.
   const { data: jobs = [] } = useQuery({
     queryKey: DOWNLOAD_JOBS_QUERY_KEY,
     queryFn: fetchDownloadJobs,
-    refetchInterval: 1000,
+    refetchInterval: (query) => {
+      const current = query.state.data ?? [];
+      const hasActive = current.some((j) => j.status === "starting" || j.status === "downloading" || j.status === "processing");
+      return hasActive ? 1000 : 60_000;
+    },
   });
 
   // React to jobs finishing so the library refreshes and a toast fires
