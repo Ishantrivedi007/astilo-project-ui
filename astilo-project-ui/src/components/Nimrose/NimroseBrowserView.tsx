@@ -46,6 +46,7 @@ interface TabNav {
 }
 
 const LOAD_TIMEOUT_MS = 7000;
+export const DEFAULT_NEW_TAB_URL_KEY = "nimrose-default-new-tab-url";
 
 const NimroseBrowserView = () => {
   const queryClient = useQueryClient();
@@ -178,7 +179,14 @@ const NimroseBrowserView = () => {
 
   const addTab = async () => {
     if (!spaceId) return;
-    const url = await prompt({ title: "New tab", placeholder: "https://…", defaultValue: "https://" });
+    const defaultUrl = (() => {
+      try {
+        return localStorage.getItem(DEFAULT_NEW_TAB_URL_KEY) || "https://";
+      } catch {
+        return "https://";
+      }
+    })();
+    const url = await prompt({ title: "New tab", placeholder: "https://…", defaultValue: defaultUrl });
     if (url?.trim()) createTabMutation.mutate({ url: normalizeUrl(url) });
   };
 

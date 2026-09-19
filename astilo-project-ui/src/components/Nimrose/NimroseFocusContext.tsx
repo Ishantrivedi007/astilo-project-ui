@@ -8,10 +8,20 @@ export const FOCUS_PRESETS = [
 
 const SESSIONS_KEY = "nimrose-focus-sessions-completed";
 const ACTIVE_TASK_KEY = "nimrose-focus-active-task";
+export const DEFAULT_PRESET_KEY = "nimrose-default-focus-preset";
 
 const readCompleted = () => {
   try {
     return Number(localStorage.getItem(SESSIONS_KEY) ?? "0") || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const readDefaultPresetIndex = () => {
+  try {
+    const stored = Number(localStorage.getItem(DEFAULT_PRESET_KEY));
+    return stored >= 0 && stored < FOCUS_PRESETS.length ? stored : 0;
   } catch {
     return 0;
   }
@@ -46,9 +56,9 @@ const FocusContext = createContext<FocusContextValue | null>(null);
  * (and stays in sync) whether the user is looking at the Home widget or the
  * dedicated Focus Mode view — switching sidebar sections doesn't reset it. */
 export const NimroseFocusProvider = ({ children }: { children: ReactNode }) => {
-  const [presetIndex, setPresetIndex] = useState(0);
+  const [presetIndex, setPresetIndex] = useState(readDefaultPresetIndex);
   const [phase, setPhase] = useState<"focus" | "break">("focus");
-  const [secondsLeft, setSecondsLeft] = useState(FOCUS_PRESETS[0].focusMin * 60);
+  const [secondsLeft, setSecondsLeft] = useState(() => FOCUS_PRESETS[readDefaultPresetIndex()].focusMin * 60);
   const [running, setRunning] = useState(false);
   const [completed, setCompleted] = useState(readCompleted);
   const [activeTaskTitle, setActiveTaskTitleState] = useState(readActiveTask);

@@ -1634,6 +1634,49 @@
 }
 
 // -------------------------------------------------------------------------
+// Sprints
+// -------------------------------------------------------------------------
+
+.nimrose-sprint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nimrose-sprint-card {
+  padding: 1rem 1.1rem;
+}
+
+// -------------------------------------------------------------------------
+// Settings
+// -------------------------------------------------------------------------
+
+.nimrose-settings-section {
+  padding: 1.1rem;
+  margin-bottom: 0.9rem;
+}
+
+.nimrose-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+
+  input,
+  select {
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.82rem;
+    min-width: 200px;
+  }
+}
+
+// -------------------------------------------------------------------------
 // Browser shell + Spaces
 // -------------------------------------------------------------------------
 

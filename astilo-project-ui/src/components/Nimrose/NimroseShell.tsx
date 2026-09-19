@@ -1,21 +1,26 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import NimroseSidebar, { NIMROSE_SECTIONS } from "./NimroseSidebar";
+import { AppRoute } from "../../app/AppRoute";
+import NimroseSidebar from "./NimroseSidebar";
 import NimroseContextPanel from "./NimroseContextPanel";
 import NimroseHome from "./NimroseHome";
 import NimroseTasksView from "./NimroseTasksView";
 import NimroseCalendarView from "./NimroseCalendarView";
 import NimroseKanbanView from "./NimroseKanbanView";
+import NimroseSprintsView from "./NimroseSprintsView";
+import NimroseBacklogView from "./NimroseBacklogView";
 import NimroseNotesView from "./NimroseNotesView";
 import NimroseFocusView from "./NimroseFocusView";
 import NimroseBrowserView from "./NimroseBrowserView";
+import NimroseBookmarksView from "./NimroseBookmarksView";
+import NimroseSettingsView from "./NimroseSettingsView";
 import NimroseCommandPalette from "./NimroseCommandPalette";
 import { NimroseFocusProvider, useNimroseFocus } from "./NimroseFocusContext";
 import { NimrosePromptProvider } from "./NimrosePromptDialog";
 import "./Nimrose.scss";
 
 const COLLAPSE_KEY = "nimrose-sidebar-collapsed";
-const BUILT_SECTIONS = ["home", "tasks", "calendar", "kanban", "projects", "notes", "focus", "browser"];
 
 const readCollapsed = () => {
   try {
@@ -23,22 +28,6 @@ const readCollapsed = () => {
   } catch {
     return false;
   }
-};
-
-const allSections = NIMROSE_SECTIONS.flatMap((s) => s.items);
-
-const ComingSoonSection = ({ id }: { id: string }) => {
-  const section = allSections.find((s) => s.id === id);
-  return (
-    <div className="nimrose-coming-soon glass-card">
-      <p className="nimrose-eyebrow">Nimrose Desk</p>
-      <h2 className="nimrose-page-title">{section?.label ?? id}</h2>
-      <p className="nimrose-coming-soon-body">
-        {section?.label} is planned for a later Nimrose phase. Home, Calendar, Tasks, Kanban,
-        Notes and Focus are live — check back as the rest come online.
-      </p>
-    </div>
-  );
 };
 
 const NimroseShellInner = ({
@@ -52,23 +41,39 @@ const NimroseShellInner = ({
   collapsed: boolean;
   toggleCollapsed: () => void;
 }) => {
+  const navigate = useNavigate();
   const { immersive } = useNimroseFocus();
   const isImmersiveFocus = active === "focus" && immersive;
+
+  const handleSelect = (id: string) => {
+    // Themes isn't a Nimrose-internal view — Nimrose follows the app's
+    // existing theme system rather than duplicating a picker, so this just
+    // hands off to the real Customize page.
+    if (id === "themes") {
+      navigate(AppRoute.customize);
+      return;
+    }
+    setActive(id);
+  };
 
   return (
     <div className={`nimrose-shell ${isImmersiveFocus ? "nimrose-shell--immersive" : ""}`}>
       {!isImmersiveFocus && (
-        <NimroseSidebar active={active} onSelect={setActive} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+        <NimroseSidebar active={active} onSelect={handleSelect} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
       )}
       <main className="nimrose-workspace">
         {active === "home" && <NimroseHome />}
         {active === "tasks" && <NimroseTasksView />}
         {active === "calendar" && <NimroseCalendarView />}
         {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
+        {active === "sprints" && <NimroseSprintsView />}
+        {active === "backlog" && <NimroseBacklogView />}
         {active === "notes" && <NimroseNotesView />}
         {active === "focus" && <NimroseFocusView />}
         {active === "browser" && <NimroseBrowserView />}
-        {!BUILT_SECTIONS.includes(active) && <ComingSoonSection id={active} />}
+        {active === "bookmarks" && <NimroseBookmarksView />}
+        {active === "saved" && <NimroseBookmarksView readLaterOnly />}
+        {active === "settings" && <NimroseSettingsView />}
       </main>
       {!isImmersiveFocus && <NimroseContextPanel />}
       <NimroseCommandPalette onNavigate={setActive} />
