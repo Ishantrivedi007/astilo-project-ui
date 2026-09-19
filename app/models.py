@@ -47,6 +47,9 @@ class User(Base):
     nimrose_calendar_events = relationship("NimroseCalendarEvent", back_populates="user", cascade="all, delete-orphan")
     nimrose_tickets = relationship("NimroseTicket", cascade="all, delete-orphan", foreign_keys="NimroseTicket.user_id")
     nimrose_notes = relationship("NimroseNote", cascade="all, delete-orphan")
+    nimrose_browser_spaces = relationship("NimroseBrowserSpace", cascade="all, delete-orphan")
+    nimrose_bookmarks = relationship("NimroseBookmark", cascade="all, delete-orphan")
+    nimrose_history_entries = relationship("NimroseHistoryEntry", cascade="all, delete-orphan")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     login_events = relationship("LoginEvent", back_populates="user", cascade="all, delete-orphan")
@@ -737,4 +740,102 @@ class NimroseNote(Base):
             "pinned": bool(self.pinned),
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+DEFAULT_BROWSER_SPACES = ("Work", "Research", "Entertainment", "Shopping", "Personal")
+
+
+class NimroseBrowserSpace(Base):
+    """A browser Space — its own tab set and bookmarks, per the spec's
+    "each Space maintains its own tabs/bookmarks where technically
+    possible." History is kept global (per user) rather than per-space,
+    since a page visited from one Space is still something the user did."""
+
+    __tablename__ = "nimrose_browser_spaces"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(60), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=utcnow)
+
+    tabs = relationship("NimroseBrowserTab", back_populates="space", cascade="all, delete-orphan", order_by="NimroseBrowserTab.position")
+    bookmarks = relationship("NimroseBookmark", back_populates="space", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "position": self.position,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseBrowserTab(Base):
+    __tablename__ = "nimrose_browser_tabs"
+
+    id = Column(Integer, primary_key=True)
+    space_id = Column(Integer, ForeignKey("nimrose_browser_spaces.id"), nullable=False)
+    url = Column(String(1000), nullable=False)
+    title = Column(String(255), nullable=True)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=utcnow)
+
+    space = relationship("NimroseBrowserSpace", back_populates="tabs")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "spaceId": self.space_id,
+            "url": self.url,
+            "title": self.title,
+            "position": self.position,
+        }
+
+
+class NimroseBookmark(Base):
+    """A saved page. `read_later` doubles this table as the spec's Reading
+    List, rather than standing up a separate entity for what's really the
+    same shape (a saved URL + title) with one extra flag."""
+
+    __tablename__ = "nimrose_bookmarks"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    space_id = Column(Integer, ForeignKey("nimrose_browser_spaces.id"), nullable=True)
+    url = Column(String(1000), nullable=False)
+    title = Column(String(255), nullable=True)
+    read_later = Column(Integer, nullable=False, default=0)  # 0/1
+    created_at = Column(DateTime, default=utcnow)
+
+    space = relationship("NimroseBrowserSpace", back_populates="bookmarks")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "spaceId": self.space_id,
+            "spaceName": self.space.name if self.space else None,
+            "url": self.url,
+            "title": self.title,
+            "readLater": bool(self.read_later),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseHistoryEntry(Base):
+    __tablename__ = "nimrose_history_entries"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    url = Column(String(1000), nullable=False)
+    title = Column(String(255), nullable=True)
+    visited_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "url": self.url,
+            "title": self.title,
+            "visitedAt": self.visited_at.isoformat() if self.visited_at else None,
         }
