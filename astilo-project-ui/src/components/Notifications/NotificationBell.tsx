@@ -39,6 +39,8 @@ const NotificationBell = () => {
   };
 
   const rect = anchorRef.current?.getBoundingClientRect();
+  const panelTop = rect ? Math.min(rect.top, window.innerHeight - 200) : 60;
+  const panelMaxHeight = Math.max(200, window.innerHeight - panelTop - 20);
 
   return (
     <>
@@ -62,8 +64,9 @@ const NotificationBell = () => {
             <div
               className="notif-panel"
               style={{
-                top: rect ? Math.min(rect.top, window.innerHeight - 420) : 60,
+                top: panelTop,
                 left: rect ? rect.right + 10 : 60,
+                maxHeight: panelMaxHeight,
               }}
             >
             <div className="notif-panel-header">

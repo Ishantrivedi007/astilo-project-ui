@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCheck, MessageCircle, Palette, Pencil, QrCode, Send, Trash2, UserPlus, X } from "lucide-react";
 
@@ -362,19 +363,21 @@ const MessengerHome = () => {
         </div>
       </div>
 
-      {showQr && (
-        <div className="msgr-qr-overlay" onClick={() => setShowQr(false)}>
-          <div className="msgr-qr-modal" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="msgr-qr-close" onClick={() => setShowQr(false)} aria-label="Close">
-              <X size={16} />
-            </button>
-            <h3>Your connect code</h3>
-            <p>Others can add you by scanning this, or pasting the code below into "Add contact".</p>
-            {myConnectCode && <img src={qrCodeUrl(myConnectCode)} alt="Your Astilo connect QR code" />}
-            <code>{myConnectCode}</code>
-          </div>
-        </div>
-      )}
+      {showQr &&
+        createPortal(
+          <div className="msgr-qr-overlay" onClick={() => setShowQr(false)}>
+            <div className="msgr-qr-modal" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="msgr-qr-close" onClick={() => setShowQr(false)} aria-label="Close">
+                <X size={16} />
+              </button>
+              <h3>Your connect code</h3>
+              <p>Others can add you by scanning this, or pasting the code below into "Add contact".</p>
+              {myConnectCode && <img src={qrCodeUrl(myConnectCode)} alt="Your Astilo connect QR code" />}
+              <code>{myConnectCode}</code>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
