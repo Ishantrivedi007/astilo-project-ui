@@ -180,7 +180,7 @@ const CosmosSearch = () => {
 
   const exoplanetQuery = useQuery({
     queryKey: ["cosmos", "exoplanet", q],
-    queryFn: () => searchExoplanets({ name: q, limit: 10 }),
+    queryFn: () => searchExoplanets({ name: q, limit: 24 }),
     enabled: showExoplanets && q.length > 1,
     retry: false,
   });
@@ -194,21 +194,21 @@ const CosmosSearch = () => {
 
   const observationQuery = useQuery({
     queryKey: ["cosmos", "observation", q],
-    queryFn: () => searchObservations(q, undefined, 10),
+    queryFn: () => searchObservations(q, undefined, 24),
     enabled: showObservations && q.length > 1,
     retry: false,
   });
 
   const imageQuery = useQuery({
     queryKey: ["cosmos", "image", q],
-    queryFn: () => searchNasaImages(q, 12),
+    queryFn: () => searchNasaImages(q, 24),
     enabled: showImages && q.length > 1,
     retry: false,
   });
 
   const highEnergyQuery = useQuery({
     queryKey: ["cosmos", "high-energy", q],
-    queryFn: () => searchHighEnergyObservations(q),
+    queryFn: () => searchHighEnergyObservations(q, "numaster", 24),
     enabled: showHighEnergy && q.length > 1,
     retry: false,
   });
@@ -222,7 +222,7 @@ const CosmosSearch = () => {
 
   const supernovaQuery = useQuery({
     queryKey: ["cosmos", "supernova", q],
-    queryFn: () => searchSupernovae(q),
+    queryFn: () => searchSupernovae(q, 24),
     enabled: showSupernovae && q.length > 1,
     retry: false,
   });
@@ -349,7 +349,7 @@ const CosmosSearch = () => {
         <>
           <h2 className="cosmos-section-title">{TYPE_LABELS.observation}</h2>
           <div className="cosmos-result-list">
-            {observationResults.slice(0, 10).map((o, i) => (
+            {observationResults.map((o, i) => (
               <ObservationCard key={`${o.observationId}-${i}`} data={o} />
             ))}
           </div>
