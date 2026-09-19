@@ -826,6 +826,7 @@ class NimroseNotesController:
                 user_id=_user_id(),
                 title=title,
                 content=body.get("content", ""),
+                content_format="html" if body.get("contentFormat") == "html" else "markdown",
                 folder=body.get("folder") or None,
                 tags=body.get("tags") or [],
                 pinned=1 if body.get("pinned") else 0,
@@ -848,6 +849,8 @@ class NimroseNotesController:
                 note.title = (body["title"] or "").strip() or "Untitled note"
             if "content" in body:
                 note.content = body["content"]
+            if "contentFormat" in body:
+                note.content_format = "html" if body["contentFormat"] == "html" else "markdown"
             if "folder" in body:
                 note.folder = body["folder"] or None
             if "tags" in body:

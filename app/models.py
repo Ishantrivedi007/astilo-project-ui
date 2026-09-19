@@ -347,6 +347,7 @@ class CosmosSavedItem(Base):
     # than baked once into note text.
     research_project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
     research_brief_json = Column(JSON, nullable=True)
+    research_images_json = Column(JSON, nullable=True)  # list[{url, caption, source}] user-curated gallery
 
     user = relationship("User", back_populates="cosmos_saved_items")
 
@@ -364,6 +365,7 @@ class CosmosSavedItem(Base):
             "notes": self.notes,
             "researchProjectId": self.research_project_id,
             "researchBrief": self.research_brief_json,
+            "images": self.research_images_json or [],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -741,7 +743,8 @@ class NimroseNote(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String(255), nullable=False)
-    content = Column(Text, nullable=True)  # Markdown source
+    content = Column(Text, nullable=True)  # Markdown source, or HTML when content_format="html"
+    content_format = Column(String(10), nullable=False, default="markdown")  # markdown | html
     folder = Column(String(100), nullable=True)
     tags = Column(JSON, nullable=True)  # list[str]
     pinned = Column(Integer, nullable=False, default=0)  # 0/1 (sqlite has no real bool)
@@ -753,6 +756,7 @@ class NimroseNote(Base):
             "id": self.id,
             "title": self.title,
             "content": self.content,
+            "contentFormat": self.content_format or "markdown",
             "folder": self.folder,
             "tags": self.tags or [],
             "pinned": bool(self.pinned),

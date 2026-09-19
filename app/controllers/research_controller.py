@@ -55,6 +55,28 @@ def _build_brief(title: str, object_type: str, data: dict | None) -> dict:
     }
 
 
+def _ensure_project(session, item: CosmosSavedItem) -> NimroseProject:
+    """Attaches a Nimrose project to a research item that doesn't have one
+    yet — covers items created before research_project_id existed, so
+    "New document" etc. work for them too instead of silently no-opping."""
+    if item.research_project_id:
+        project = session.get(NimroseProject, item.research_project_id)
+        if project:
+            return project
+
+    project_name = f"Research: {item.title}"[:150]
+    project = session.query(NimroseProject).filter_by(user_id=item.user_id, name=project_name).first()
+    if not project:
+        prefix = "".join(c for c in item.title.upper() if c.isalpha())[:3] or "RES"
+        project = NimroseProject(user_id=item.user_id, name=project_name, key_prefix=prefix)
+        session.add(project)
+        session.flush()
+
+    item.research_project_id = project.id
+    session.flush()
+    return project
+
+
 def _item_summary(session, item: CosmosSavedItem) -> dict:
     d = item.to_dict()
     project = session.get(NimroseProject, item.research_project_id) if item.research_project_id else None
@@ -83,6 +105,7 @@ class ResearchController:
                 item = session.query(CosmosSavedItem).filter_by(id=int(item_id), user_id=user_id, collection="research").first()
                 if not item:
                     raise cherrypy.HTTPError(404, "Research item not found")
+                _ensure_project(session, item)
                 return _item_summary(session, item)
 
             items = (
@@ -178,8 +201,11 @@ class ResearchController:
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
     def PUT(self, item_id):
-        """Body: {"action": "refresh"} to regenerate the brief, or
-        {"action": "toggle_step", "index": N} to check/uncheck a next-step."""
+        """Body: {"action": "refresh"} to regenerate the brief,
+        {"action": "toggle_step", "index": N} to check/uncheck a next-step,
+        {"action": "add_image", "url": ..., "caption": ..., "source": ...}
+        to add to the image gallery, or
+        {"action": "remove_image", "index": N} to remove one."""
         body = cherrypy.request.json or {}
         action = body.get("action")
         user_id = _user_id()
@@ -200,8 +226,29 @@ class ResearchController:
                 steps[int(index)] = {**steps[int(index)], "done": not steps[int(index)].get("done")}
                 brief["nextSteps"] = steps
                 item.research_brief_json = brief
+            elif action == "add_image":
+                url = (body.get("url") or "").strip()
+                if not url:
+                    raise cherrypy.HTTPError(400, "url is required")
+                images = list(item.research_images_json or [])
+                images.append(
+                    {
+                        "url": url,
+                        "caption": (body.get("caption") or "").strip() or None,
+                        "source": (body.get("source") or "").strip() or None,
+                        "addedAt": datetime.datetime.utcnow().isoformat() + "Z",
+                    }
+                )
+                item.research_images_json = images
+            elif action == "remove_image":
+                index = body.get("index")
+                images = list(item.research_images_json or [])
+                if index is None or not (0 <= int(index) < len(images)):
+                    raise cherrypy.HTTPError(400, "index is required and must reference an existing image")
+                images.pop(int(index))
+                item.research_images_json = images
             else:
-                raise cherrypy.HTTPError(400, "action must be 'refresh' or 'toggle_step'")
+                raise cherrypy.HTTPError(400, "unknown action")
 
             session.flush()
             return _item_summary(session, item)

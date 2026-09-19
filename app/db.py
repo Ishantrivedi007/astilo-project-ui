@@ -32,6 +32,8 @@ def init_db():
     _migrate_nimrose_project_columns()
     _migrate_board_column_wip_limit()
     _migrate_cosmos_research_columns()
+    _migrate_cosmos_research_images_column()
+    _migrate_note_content_format_column()
 
 
 def _migrate_board_column_wip_limit():
@@ -84,6 +86,36 @@ def _migrate_cosmos_research_columns():
         else:
             conn.exec_driver_sql("ALTER TABLE cosmos_saved_items ADD COLUMN IF NOT EXISTS research_project_id INTEGER")
             conn.exec_driver_sql("ALTER TABLE cosmos_saved_items ADD COLUMN IF NOT EXISTS research_brief_json JSONB")
+        conn.commit()
+
+
+def _migrate_cosmos_research_images_column():
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(cosmos_saved_items)")}
+            if "research_images_json" not in existing:
+                conn.exec_driver_sql("ALTER TABLE cosmos_saved_items ADD COLUMN research_images_json TEXT")
+        else:
+            conn.exec_driver_sql("ALTER TABLE cosmos_saved_items ADD COLUMN IF NOT EXISTS research_images_json JSONB")
+        conn.commit()
+
+
+def _migrate_note_content_format_column():
+    """create_all only creates missing tables, not columns on ones that
+    already exist — patch in content_format for notes created before the
+    rich-text editor existed (they default to "markdown", matching what
+    they always were)."""
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(nimrose_notes)")}
+            if "content_format" not in existing:
+                conn.exec_driver_sql("ALTER TABLE nimrose_notes ADD COLUMN content_format VARCHAR(10) DEFAULT 'markdown'")
+        else:
+            conn.exec_driver_sql(
+                "ALTER TABLE nimrose_notes ADD COLUMN IF NOT EXISTS content_format VARCHAR(10) DEFAULT 'markdown'"
+            )
         conn.commit()
 
 
