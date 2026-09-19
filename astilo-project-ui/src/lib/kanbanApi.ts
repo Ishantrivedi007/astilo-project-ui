@@ -1,10 +1,22 @@
-import { apiClient } from "./apiClient";
+import { API_BASE_URL, apiClient, getAuthToken } from "./apiClient";
 
 export type TicketType = "feature" | "bug" | "task" | "improvement" | "research" | "design" | "documentation";
 export type TicketPriority = "low" | "medium" | "high" | "critical";
-export type TicketStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
+// A project's board columns are user-defined (see NimroseBoardColumn), so a
+// ticket's status is whatever slug that project currently has — not a
+// fixed set of literals.
+export type TicketStatus = string;
 export type TicketLinkRelation = "blocks" | "blocked_by" | "depends_on" | "related_to" | "duplicate" | "parent" | "child";
 export type SprintStatus = "planned" | "active" | "completed";
+
+export interface BoardColumn {
+  id: number;
+  projectId: number;
+  name: string;
+  slug: string;
+  position: number;
+  isDone: boolean;
+}
 
 export interface NimroseSprint {
   id: number;
@@ -45,9 +57,23 @@ export interface NimroseTicket {
   storyPoints: number | null;
   estimateMinutes: number | null;
   commentCount: number;
+  attachmentCount: number;
   createdAt: string | null;
   updatedAt: string | null;
   links?: TicketLink[];
+  attachments?: TicketAttachment[];
+}
+
+export interface TicketAttachment {
+  id: number;
+  ticketId: number;
+  fileName: string;
+  contentType: string | null;
+  sizeBytes: number;
+  isImage: boolean;
+  uploadedBy: string | null;
+  url: string;
+  createdAt: string | null;
 }
 
 export interface TicketComment {
@@ -166,3 +192,44 @@ export const removeTicketLink = (ticketId: number, linkId: number) =>
 
 export const fetchTicketActivity = (ticketId: number) =>
   apiClient.get<TicketActivityEntry[]>(`/nimrose/ticket-activity/${ticketId}`).then((r) => r.data);
+
+// -- Board columns (per-project, user-defined workflow steps) --
+
+export const fetchBoardColumns = (projectId: number) =>
+  apiClient.get<BoardColumn[]>(`/nimrose/board-columns`, { params: { project_id: projectId } }).then((r) => r.data);
+
+export const createBoardColumn = (projectId: number, name: string) =>
+  apiClient.post<BoardColumn>(`/nimrose/board-columns/${projectId}`, { name }).then((r) => r.data);
+
+export const updateBoardColumn = (projectId: number, columnId: number, patch: { name?: string; position?: number; isDone?: boolean }) =>
+  apiClient.put<BoardColumn>(`/nimrose/board-columns/${projectId}/${columnId}`, patch).then((r) => r.data);
+
+export const deleteBoardColumn = (projectId: number, columnId: number) =>
+  apiClient.delete(`/nimrose/board-columns/${projectId}/${columnId}`).then((r) => r.data);
+
+// -- Attachments --
+
+export const fetchTicketAttachments = (ticketId: number) =>
+  apiClient.get<TicketAttachment[]>(`/nimrose/ticket-attachments/${ticketId}`).then((r) => r.data);
+
+export const uploadTicketAttachment = (ticketId: number, file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return apiClient
+    .post<TicketAttachment>(`/nimrose/ticket-attachments/${ticketId}`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((r) => r.data);
+};
+
+export const deleteTicketAttachment = (ticketId: number, attachmentId: number) =>
+  apiClient.delete(`/nimrose/ticket-attachments/${ticketId}/${attachmentId}`).then((r) => r.data);
+
+/** An attachment's raw file URL, e.g. for an <img src> or download link,
+ * which can't carry an Authorization header — the token goes as a query
+ * param instead, same pattern as the Browser proxy. */
+export const attachmentFileUrl = (attachment: TicketAttachment): string => {
+  const token = getAuthToken();
+  const base = `${API_BASE_URL}${attachment.url}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+};

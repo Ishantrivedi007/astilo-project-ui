@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchNimroseProjects } from "../../lib/nimroseApi";
-import { fetchSprints, fetchTickets, updateTicket, type TicketPriority } from "../../lib/kanbanApi";
+import { fetchBoardColumns, fetchSprints, fetchTickets, updateTicket, type TicketPriority } from "../../lib/kanbanApi";
 
 const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "critical"];
 
@@ -13,10 +13,21 @@ const NimroseBacklogView = () => {
   const projectsQuery = useQuery({ queryKey: ["nimrose", "projects"], queryFn: fetchNimroseProjects });
   const activeProjectId = projectId ?? projectsQuery.data?.[0]?.id ?? null;
 
-  const ticketsQuery = useQuery({
-    queryKey: ["nimrose", "tickets", activeProjectId, "backlog"],
-    queryFn: () => fetchTickets({ projectId: activeProjectId!, status: "backlog" }),
+  // "Backlog" here means whatever the project's first (lowest-position)
+  // column is — not a hardcoded "backlog" slug, since columns are
+  // user-defined and that first column could be renamed or reordered.
+  const columnsQuery = useQuery({
+    queryKey: ["nimrose", "board-columns", activeProjectId],
+    queryFn: () => fetchBoardColumns(activeProjectId!),
     enabled: !!activeProjectId,
+  });
+  const firstColumn = columnsQuery.data?.[0];
+  const secondColumn = columnsQuery.data?.[1];
+
+  const ticketsQuery = useQuery({
+    queryKey: ["nimrose", "tickets", activeProjectId, "backlog", firstColumn?.slug],
+    queryFn: () => fetchTickets({ projectId: activeProjectId!, status: firstColumn!.slug }),
+    enabled: !!activeProjectId && !!firstColumn,
   });
 
   const sprintsQuery = useQuery({
@@ -94,7 +105,7 @@ const NimroseBacklogView = () => {
                     if (!e.target.value) return;
                     updateMutation.mutate({
                       id: ticket.id,
-                      patch: { sprintId: Number(e.target.value), status: "todo" },
+                      patch: { sprintId: Number(e.target.value), status: secondColumn?.slug ?? firstColumn?.slug },
                     });
                   }}
                   aria-label="Assign to sprint"

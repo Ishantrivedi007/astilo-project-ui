@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 
 import { useConfirm } from "../shared";
 import { fetchNimroseProjects } from "../../lib/nimroseApi";
-import { createSprint, deleteSprint, fetchSprints, fetchTickets, updateSprint, type SprintStatus } from "../../lib/kanbanApi";
+import {
+  createSprint,
+  deleteSprint,
+  fetchBoardColumns,
+  fetchSprints,
+  fetchTickets,
+  updateSprint,
+  type SprintStatus,
+} from "../../lib/kanbanApi";
 import { useNimrosePrompt } from "./NimrosePromptDialog";
 
 const STATUS_ORDER: SprintStatus[] = ["planned", "active", "completed"];
@@ -29,6 +37,16 @@ const NimroseSprintsView = () => {
     queryFn: () => fetchTickets({ projectId: activeProjectId! }),
     enabled: !!activeProjectId,
   });
+
+  const columnsQuery = useQuery({
+    queryKey: ["nimrose", "board-columns", activeProjectId],
+    queryFn: () => fetchBoardColumns(activeProjectId!),
+    enabled: !!activeProjectId,
+  });
+  const doneSlugs = useMemo(
+    () => new Set((columnsQuery.data ?? []).filter((c) => c.isDone).map((c) => c.slug)),
+    [columnsQuery.data]
+  );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "sprints"] });
 
@@ -95,9 +113,11 @@ const NimroseSprintsView = () => {
       <div className="nimrose-sprint-list">
         {sprintsQuery.data?.map((sprint) => {
           const sprintTickets = tickets.filter((t) => t.sprintId === sprint.id);
-          const done = sprintTickets.filter((t) => t.status === "done").length;
+          const done = sprintTickets.filter((t) => doneSlugs.has(t.status)).length;
           const pointsTotal = sprintTickets.reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
-          const pointsDone = sprintTickets.filter((t) => t.status === "done").reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
+          const pointsDone = sprintTickets
+            .filter((t) => doneSlugs.has(t.status))
+            .reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
 
           return (
             <div key={sprint.id} className="glass-card nimrose-sprint-card">

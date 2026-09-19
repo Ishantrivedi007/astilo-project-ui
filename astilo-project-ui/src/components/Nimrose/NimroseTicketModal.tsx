@@ -1,19 +1,23 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link2, Send, Trash2, X } from "lucide-react";
+import { File as FileIcon, Link2, Paperclip, Send, Trash2, X } from "lucide-react";
 
 import { useAuth } from "../../auth/AuthProvider";
 import { useConfirm } from "../shared";
 import {
   addTicketComment,
   addTicketLink,
+  attachmentFileUrl,
   deleteTicket,
+  deleteTicketAttachment,
+  fetchBoardColumns,
   fetchTicketActivity,
   fetchTicketComments,
   fetchTicket,
   fetchTickets,
   removeTicketLink,
   updateTicket,
+  uploadTicketAttachment,
   type TicketLinkRelation,
   type TicketPriority,
   type TicketType,
@@ -21,14 +25,13 @@ import {
 
 const TYPES: TicketType[] = ["feature", "bug", "task", "improvement", "research", "design", "documentation"];
 const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "critical"];
-const STATUSES: { value: string; label: string }[] = [
-  { value: "backlog", label: "Backlog" },
-  { value: "todo", label: "To Do" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "review", label: "Review" },
-  { value: "done", label: "Done" },
-];
 const RELATIONS: TicketLinkRelation[] = ["blocks", "blocked_by", "depends_on", "related_to", "duplicate", "parent", "child"];
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 const RELATION_LABEL: Record<TicketLinkRelation, string> = {
   blocks: "Blocks",
@@ -58,8 +61,14 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
   const [commentDraft, setCommentDraft] = useState("");
   const [linkKey, setLinkKey] = useState("");
   const [linkRelation, setLinkRelation] = useState<TicketLinkRelation>("blocks");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const ticketQuery = useQuery({ queryKey: ["nimrose", "ticket", ticketId], queryFn: () => fetchTicket(ticketId) });
+  const columnsQuery = useQuery({
+    queryKey: ["nimrose", "board-columns", ticketQuery.data?.projectId],
+    queryFn: () => fetchBoardColumns(ticketQuery.data!.projectId),
+    enabled: !!ticketQuery.data,
+  });
   const commentsQuery = useQuery({
     queryKey: ["nimrose", "ticket-comments", ticketId],
     queryFn: () => fetchTicketComments(ticketId),
@@ -111,6 +120,22 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
     onSuccess: () => {
       invalidateBoard();
       onClose();
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => uploadTicketAttachment(ticketId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["nimrose", "ticket", ticketId] });
+      invalidateBoard();
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: (attachmentId: number) => deleteTicketAttachment(ticketId, attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["nimrose", "ticket", ticketId] });
+      invalidateBoard();
     },
   });
 
@@ -185,11 +210,16 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
               <label>
                 Status
                 <select value={ticket.status} onChange={(e) => updateMutation.mutate({ status: e.target.value as never })}>
-                  {STATUSES.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
+                  {columnsQuery.data?.map((c) => (
+                    <option key={c.slug} value={c.slug}>
+                      {c.name}
                     </option>
                   ))}
+                  {/* Covers a status that no longer matches any current column
+                      (e.g. its column was renamed) so the select still shows it. */}
+                  {columnsQuery.data && !columnsQuery.data.some((c) => c.slug === ticket.status) && (
+                    <option value={ticket.status}>{ticket.status}</option>
+                  )}
                 </select>
               </label>
               <label>
@@ -286,6 +316,64 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
                 </datalist>
                 <button type="submit">Link</button>
               </form>
+            </div>
+
+            <div className="nimrose-modal-section">
+              <p className="nimrose-modal-section-title">
+                <Paperclip size={13} /> Attachments
+              </p>
+              {ticket.attachments && ticket.attachments.length > 0 ? (
+                <div className="nimrose-attachment-grid">
+                  {ticket.attachments.map((a) => (
+                    <div key={a.id} className="nimrose-attachment-item">
+                      {a.isImage ? (
+                        <a href={attachmentFileUrl(a)} target="_blank" rel="noreferrer">
+                          <img src={attachmentFileUrl(a)} alt={a.fileName} />
+                        </a>
+                      ) : (
+                        <a href={attachmentFileUrl(a)} target="_blank" rel="noreferrer" className="nimrose-attachment-file">
+                          <FileIcon size={22} />
+                        </a>
+                      )}
+                      <p className="nimrose-attachment-name" title={a.fileName}>
+                        {a.fileName}
+                      </p>
+                      <p className="nimrose-widget-footnote">{formatBytes(a.sizeBytes)}</p>
+                      <button
+                        type="button"
+                        className="nimrose-attachment-remove"
+                        onClick={() => deleteAttachmentMutation.mutate(a.id)}
+                        aria-label={`Remove ${a.fileName}`}
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="nimrose-widget-empty">No attachments yet.</p>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="nimrose-hidden-file-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadMutation.mutate(file);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className="nimrose-chip"
+                disabled={uploadMutation.isPending}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <span className="inline-flex items-center gap-1">
+                  <Paperclip size={12} />
+                  {uploadMutation.isPending ? "Uploading…" : "Add attachment"}
+                </span>
+              </button>
             </div>
 
             <div className="nimrose-modal-section">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Plus } from "lucide-react";
+import { MessageSquare, Paperclip, Plus, Trash2 } from "lucide-react";
 
 import { useAuth } from "../../auth/AuthProvider";
 import {
@@ -8,8 +8,11 @@ import {
   fetchNimroseProjects,
 } from "../../lib/nimroseApi";
 import {
+  createBoardColumn,
   createSprint,
   createTicket,
+  deleteBoardColumn,
+  fetchBoardColumns,
   fetchSprints,
   fetchTickets,
   updateTicket,
@@ -18,14 +21,6 @@ import {
 } from "../../lib/kanbanApi";
 import NimroseTicketModal from "./NimroseTicketModal";
 import { useNimrosePrompt } from "./NimrosePromptDialog";
-
-const COLUMNS: { value: TicketStatus; label: string }[] = [
-  { value: "backlog", label: "Backlog" },
-  { value: "todo", label: "To Do" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "review", label: "Review" },
-  { value: "done", label: "Done" },
-];
 
 const TYPE_ICON: Record<string, string> = {
   feature: "✦",
@@ -42,7 +37,7 @@ type Preset = "all" | "mine" | "unassigned" | "critical";
 const NimroseKanbanView = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { prompt } = useNimrosePrompt();
+  const { prompt, alertInfo } = useNimrosePrompt();
 
   const [projectId, setProjectId] = useState<number | null>(null);
   const [sprintId, setSprintId] = useState<number | "backlog" | null>(null);
@@ -60,6 +55,14 @@ const NimroseKanbanView = () => {
     queryFn: () => fetchSprints(activeProjectId!),
     enabled: !!activeProjectId,
   });
+
+  const columnsQuery = useQuery({
+    queryKey: ["nimrose", "board-columns", activeProjectId],
+    queryFn: () => fetchBoardColumns(activeProjectId!),
+    enabled: !!activeProjectId,
+  });
+  const columns = columnsQuery.data ?? [];
+  const doneSlugs = useMemo(() => new Set(columns.filter((c) => c.isDone).map((c) => c.slug)), [columns]);
 
   const ticketsQuery = useQuery({
     queryKey: ["nimrose", "tickets", activeProjectId, sprintId],
@@ -99,6 +102,19 @@ const NimroseKanbanView = () => {
     onSuccess: invalidateTickets,
   });
 
+  const addColumnMutation = useMutation({
+    mutationFn: (name: string) => createBoardColumn(activeProjectId!, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nimrose", "board-columns", activeProjectId] }),
+  });
+
+  const deleteColumnMutation = useMutation({
+    mutationFn: (columnId: number) => deleteBoardColumn(activeProjectId!, columnId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["nimrose", "board-columns", activeProjectId] }),
+    onError: async () => {
+      await alertInfo("Move its tickets to another column first, then delete it.", "Can't delete column");
+    },
+  });
+
   const allTickets = ticketsQuery.data ?? [];
 
   const visibleTickets = useMemo(() => {
@@ -114,13 +130,15 @@ const NimroseKanbanView = () => {
     return list;
   }, [allTickets, search, preset, user?.name, sprintId]);
 
-  const byColumn = (status: TicketStatus) => visibleTickets.filter((t) => t.status === status);
+  const byColumn = (slug: TicketStatus) => visibleTickets.filter((t) => t.status === slug);
 
   const activeSprint = typeof sprintId === "number" ? sprintsQuery.data?.find((s) => s.id === sprintId) : null;
   const sprintTickets = typeof sprintId === "number" ? allTickets : [];
-  const sprintDone = sprintTickets.filter((t) => t.status === "done").length;
+  const sprintDone = sprintTickets.filter((t) => doneSlugs.has(t.status)).length;
   const sprintPointsTotal = sprintTickets.reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
-  const sprintPointsDone = sprintTickets.filter((t) => t.status === "done").reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
+  const sprintPointsDone = sprintTickets
+    .filter((t) => doneSlugs.has(t.status))
+    .reduce((sum, t) => sum + (t.storyPoints ?? 0), 0);
 
   const addTicket = (status: TicketStatus) => {
     const title = (draftByColumn[status] ?? "").trim();
@@ -264,29 +282,38 @@ const NimroseKanbanView = () => {
       )}
 
       <div className="nimrose-kanban-board">
-        {COLUMNS.map((col) => (
+        {columns.map((col) => (
           <div
-            key={col.value}
-            className={`nimrose-kanban-column ${dragOverColumn === col.value ? "nimrose-kanban-column--over" : ""}`}
+            key={col.slug}
+            className={`nimrose-kanban-column ${dragOverColumn === col.slug ? "nimrose-kanban-column--over" : ""}`}
             onDragOver={(e) => {
               e.preventDefault();
-              setDragOverColumn(col.value);
+              setDragOverColumn(col.slug);
             }}
-            onDragLeave={() => setDragOverColumn((c) => (c === col.value ? null : c))}
+            onDragLeave={() => setDragOverColumn((c) => (c === col.slug ? null : c))}
             onDrop={(e) => {
               e.preventDefault();
               setDragOverColumn(null);
               const id = Number(e.dataTransfer.getData("text/plain"));
-              if (id) moveMutation.mutate({ id, status: col.value });
+              if (id) moveMutation.mutate({ id, status: col.slug });
             }}
           >
             <div className="nimrose-kanban-column-header">
-              <span>{col.label}</span>
-              <span className="nimrose-widget-footnote">{byColumn(col.value).length}</span>
+              <span>{col.name}</span>
+              <span className="nimrose-widget-footnote">{byColumn(col.slug).length}</span>
+              <button
+                type="button"
+                className="nimrose-kanban-column-delete"
+                onClick={() => deleteColumnMutation.mutate(col.id)}
+                aria-label={`Delete ${col.name} column`}
+                title={`Delete ${col.name}`}
+              >
+                <Trash2 size={11} />
+              </button>
             </div>
 
             <div className="nimrose-kanban-cards">
-              {byColumn(col.value).map((ticket) => (
+              {byColumn(col.slug).map((ticket) => (
                 <TicketCard key={ticket.id} ticket={ticket} onOpen={() => setOpenTicketId(ticket.id)} />
               ))}
             </div>
@@ -295,18 +322,31 @@ const NimroseKanbanView = () => {
               className="nimrose-kanban-add"
               onSubmit={(e) => {
                 e.preventDefault();
-                addTicket(col.value);
+                addTicket(col.slug);
               }}
             >
               <input
-                value={draftByColumn[col.value] ?? ""}
-                onChange={(e) => setDraftByColumn((prev) => ({ ...prev, [col.value]: e.target.value }))}
+                value={draftByColumn[col.slug] ?? ""}
+                onChange={(e) => setDraftByColumn((prev) => ({ ...prev, [col.slug]: e.target.value }))}
                 placeholder="+ Add ticket"
-                aria-label={`Add ticket to ${col.label}`}
+                aria-label={`Add ticket to ${col.name}`}
               />
             </form>
           </div>
         ))}
+
+        <div className="nimrose-kanban-column nimrose-kanban-column--add">
+          <button
+            type="button"
+            className="nimrose-chip"
+            onClick={async () => {
+              const name = await prompt({ title: "New column", placeholder: "e.g. Testing, QA" });
+              if (name?.trim()) addColumnMutation.mutate(name.trim());
+            }}
+          >
+            <Plus size={12} /> Add column
+          </button>
+        </div>
       </div>
 
       {openTicketId && <NimroseTicketModal ticketId={openTicketId} onClose={() => setOpenTicketId(null)} />}
@@ -342,6 +382,11 @@ const TicketCard = ({ ticket, onOpen }: { ticket: NimroseTicket; onOpen: () => v
       {ticket.commentCount > 0 && (
         <span className="nimrose-ticket-card-comments">
           <MessageSquare size={11} /> {ticket.commentCount}
+        </span>
+      )}
+      {ticket.attachmentCount > 0 && (
+        <span className="nimrose-ticket-card-comments">
+          <Paperclip size={11} /> {ticket.attachmentCount}
         </span>
       )}
       {ticket.assignee && <span className="nimrose-ticket-avatar">{ticket.assignee.slice(0, 1).toUpperCase()}</span>}
