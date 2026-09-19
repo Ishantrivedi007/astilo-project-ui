@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
-import { ArrowLeft, Globe2, TrendingDown, TrendingUp } from "lucide-react";
+import { ComposableMap, Geographies, Geography, Sphere, Graticule, ZoomableGroup } from "react-simple-maps";
+import { ArrowLeft, Globe2, TrendingDown, TrendingUp, ZoomIn, ZoomOut } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchMarketRegions, type RegionIndex } from "../../lib/marketsApi";
@@ -25,6 +25,15 @@ const MarketsWorldMap = () => {
   const navigate = useNavigate();
   const [hovered, setHovered] = useState<RegionIndex | null>(null);
   const [hoveredName, setHoveredName] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
 
   const regionsQuery = useQuery({
     queryKey: ["markets", "regions"],
@@ -71,42 +80,62 @@ const MarketsWorldMap = () => {
       {regionsQuery.isLoading && <p className="markets-unavailable">Loading live index data for 25 countries…</p>}
       {regionsQuery.isError && <p className="markets-unavailable">Couldn't load world market data right now.</p>}
 
-      <div className="markets-map-wrap">
+      <div className="markets-map-wrap" ref={wrapRef} onMouseMove={handleMouseMove}>
+        <div className="markets-map-zoom-controls">
+          <button type="button" onClick={() => setZoom((z) => Math.min(6, z * 1.5))} aria-label="Zoom in">
+            <ZoomIn size={14} />
+          </button>
+          <button type="button" onClick={() => setZoom((z) => Math.max(1, z / 1.5))} aria-label="Zoom out">
+            <ZoomOut size={14} />
+          </button>
+        </div>
+
         <ComposableMap projectionConfig={{ scale: 148 }} style={{ width: "100%", height: "auto" }}>
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const name = (geo.properties as { name?: string } | undefined)?.name ?? "";
-                const entry = byName.get(name);
-                const isHovered = hoveredName === name;
-                return (
-                  <Geography
-                    key={geo.id ?? name}
-                    geography={geo}
-                    fill={isHovered && entry ? "#facc15" : colorFor(entry?.changePercent ?? null)}
-                    stroke="#0d0d12"
-                    strokeWidth={0.4}
-                    onMouseEnter={() => {
-                      if (entry) {
-                        setHovered(entry);
-                        setHoveredName(name);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      setHovered(null);
-                      setHoveredName(null);
-                    }}
-                    onClick={() => entry && navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(entry.symbol)}&type=stock`)}
-                    style={{ outline: "none", cursor: entry ? "pointer" : "default" }}
-                  />
-                );
-              })
-            }
-          </Geographies>
+          <ZoomableGroup zoom={zoom} onMoveEnd={({ zoom: z }) => setZoom(z ?? 1)} minZoom={1} maxZoom={6}>
+            <Sphere id="globe-sphere" fill="transparent" stroke="rgb(140 160 255 / 0.12)" strokeWidth={0.5} />
+            <Graticule stroke="rgb(140 160 255 / 0.06)" strokeWidth={0.4} />
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const name = (geo.properties as { name?: string } | undefined)?.name ?? "";
+                  const entry = byName.get(name);
+                  const isHovered = hoveredName === name;
+                  return (
+                    <Geography
+                      key={geo.id ?? name}
+                      geography={geo}
+                      fill={isHovered && entry ? "#facc15" : colorFor(entry?.changePercent ?? null)}
+                      stroke="#0d0d12"
+                      strokeWidth={isHovered ? 0.9 : 0.4}
+                      onMouseEnter={() => {
+                        if (entry) {
+                          setHovered(entry);
+                          setHoveredName(name);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHovered(null);
+                        setHoveredName(null);
+                      }}
+                      onClick={() => entry && navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(entry.symbol)}&type=stock`)}
+                      className={entry ? "markets-map-country markets-map-country--live" : "markets-map-country"}
+                      style={{ outline: "none", cursor: entry ? "pointer" : "default" }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          </ZoomableGroup>
         </ComposableMap>
 
         {hovered && (
-          <div className="markets-map-tooltip">
+          <div
+            className="markets-map-tooltip"
+            style={{
+              left: Math.min(tooltipPos.x + 16, (wrapRef.current?.clientWidth ?? 600) - 220),
+              top: Math.max(tooltipPos.y - 60, 8),
+            }}
+          >
             <p className="markets-quote-name">
               {hovered.name} — {hovered.indexName}
             </p>
@@ -119,6 +148,7 @@ const MarketsWorldMap = () => {
                 </>
               )}
             </p>
+            <p className="markets-map-tooltip-hint">Click to open {hovered.symbol}</p>
           </div>
         )}
 

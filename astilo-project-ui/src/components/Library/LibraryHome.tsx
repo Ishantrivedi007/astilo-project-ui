@@ -41,6 +41,7 @@ const LibraryHome = () => {
   const [category, setCategory] = useState<string | null>(null);
   const [resolvingPdf, setResolvingPdf] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [unavailableIds, setUnavailableIds] = useState<Set<string>>(new Set());
 
   const categoriesQuery = useQuery({ queryKey: ["library", "categories"], queryFn: fetchLibraryCategories });
   const searchQuery = useQuery({
@@ -100,6 +101,7 @@ const LibraryHome = () => {
       navigate(`${AppRoute.libraryReader}?${p.toString()}`);
     } catch {
       setPdfError(`"${item.title}" doesn't have a freely-downloadable PDF (it's lending-library restricted) — try another result.`);
+      setUnavailableIds((prev) => new Set(prev).add(item.identifier));
     } finally {
       setResolvingPdf(null);
     }
@@ -116,6 +118,7 @@ const LibraryHome = () => {
       navigate(`${AppRoute.libraryReader}?${p.toString()}`);
     } catch {
       setPdfError(`"${item.title}" doesn't have a freely-downloadable PDF (it's lending-library restricted) — try another result.`);
+      setUnavailableIds((prev) => new Set(prev).add(item.iaIdentifier!));
     } finally {
       setResolvingPdf(null);
     }
@@ -238,18 +241,27 @@ const LibraryHome = () => {
               {!submitted && <p className="lib-empty">Search Internet Archive for a public-domain PDF.</p>}
 
               <div className="lib-grid">
-                {pdfSearchQuery.data?.data.results.map((item) => (
-                  <div key={item.identifier} className="lib-book-card" onClick={() => openPdfReader(item)}>
-                    <img className="lib-book-cover" src={item.coverUrl} alt={item.title} loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
-                    <div className="lib-book-info">
-                      <p className="lib-book-title">{item.title}</p>
-                      <p className="lib-book-author">
-                        {item.creator || "Unknown"} {item.year ? `· ${item.year}` : ""}
-                      </p>
-                      {resolvingPdf === item.identifier && <p className="lib-book-author">Opening…</p>}
+                {pdfSearchQuery.data?.data.results.map((item) => {
+                  const unavailable = unavailableIds.has(item.identifier);
+                  return (
+                    <div
+                      key={item.identifier}
+                      className="lib-book-card"
+                      style={unavailable ? { opacity: 0.5, cursor: "default" } : undefined}
+                      onClick={() => !unavailable && openPdfReader(item)}
+                    >
+                      <img className="lib-book-cover" src={item.coverUrl} alt={item.title} loading="lazy" onError={(e) => (e.currentTarget.style.display = "none")} />
+                      <div className="lib-book-info">
+                        <p className="lib-book-title">{item.title}</p>
+                        <p className="lib-book-author">
+                          {item.creator || "Unknown"} {item.year ? `· ${item.year}` : ""}
+                        </p>
+                        {resolvingPdf === item.identifier && <p className="lib-book-author">Opening…</p>}
+                        {unavailable && <p className="lib-book-author" style={{ color: "#e08a6a" }}>No free PDF — lending-restricted</p>}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <p className="lib-empty" style={{ marginTop: "0.6rem" }}>
                 Only items with a freely-downloadable PDF open — lending-library (DRM) copies are skipped.
@@ -264,28 +276,35 @@ const LibraryHome = () => {
               {!submitted && <p className="lib-empty">Search Open Library's full catalog — the broadest of the three sources.</p>}
 
               <div className="lib-grid">
-                {openLibraryQuery.data?.data.results.map((item) => (
-                  <div
-                    key={item.key}
-                    className="lib-book-card"
-                    onClick={() => openOpenLibraryPdf(item)}
-                    style={{ cursor: item.iaIdentifier ? "pointer" : "default", opacity: item.iaIdentifier ? 1 : 0.55 }}
-                  >
-                    {item.coverUrl ? (
-                      <img className="lib-book-cover" src={item.coverUrl} alt={item.title} loading="lazy" />
-                    ) : (
-                      <div className="lib-book-cover-fallback">{item.title}</div>
-                    )}
-                    <div className="lib-book-info">
-                      <p className="lib-book-title">{item.title}</p>
-                      <p className="lib-book-author">
-                        {item.authors.join(", ") || "Unknown author"} {item.firstPublishYear ? `· ${item.firstPublishYear}` : ""}
-                      </p>
-                      {resolvingPdf === item.iaIdentifier && <p className="lib-book-author">Opening…</p>}
-                      {!item.iaIdentifier && <p className="lib-book-author">No free PDF available</p>}
+                {openLibraryQuery.data?.data.results.map((item) => {
+                  const unavailable = !item.iaIdentifier || unavailableIds.has(item.iaIdentifier);
+                  return (
+                    <div
+                      key={item.key}
+                      className="lib-book-card"
+                      onClick={() => !unavailable && openOpenLibraryPdf(item)}
+                      style={{ cursor: unavailable ? "default" : "pointer", opacity: unavailable ? 0.55 : 1 }}
+                    >
+                      {item.coverUrl ? (
+                        <img className="lib-book-cover" src={item.coverUrl} alt={item.title} loading="lazy" />
+                      ) : (
+                        <div className="lib-book-cover-fallback">{item.title}</div>
+                      )}
+                      <div className="lib-book-info">
+                        <p className="lib-book-title">{item.title}</p>
+                        <p className="lib-book-author">
+                          {item.authors.join(", ") || "Unknown author"} {item.firstPublishYear ? `· ${item.firstPublishYear}` : ""}
+                        </p>
+                        {resolvingPdf === item.iaIdentifier && <p className="lib-book-author">Opening…</p>}
+                        {unavailable && (
+                          <p className="lib-book-author" style={{ color: "#e08a6a" }}>
+                            {item.iaIdentifier ? "No free PDF — lending-restricted" : "No free PDF available"}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               <p className="lib-empty" style={{ marginTop: "0.6rem" }}>
                 Only entries with a public Internet Archive scan (not lending-library) open a real PDF.

@@ -385,44 +385,98 @@
 
 .markets-map-wrap {
   position: relative;
-  border: 1px solid rgba(140, 160, 255, 0.15);
-  border-radius: 0.75rem;
+  border: 1px solid rgba(140, 160, 255, 0.18);
+  border-radius: 1rem;
   padding: 0.75rem;
-  background: radial-gradient(ellipse at center, rgba(40, 50, 90, 0.25), rgba(10, 10, 16, 0.4));
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 20%, rgba(88, 101, 242, 0.18), transparent 60%),
+    radial-gradient(ellipse at center, rgba(40, 50, 90, 0.3), rgba(6, 6, 12, 0.55));
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.3);
   margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.markets-map-country {
+  transition: fill 0.25s ease, stroke-width 0.15s ease, filter 0.2s ease;
+}
+
+.markets-map-country--live:hover {
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.65));
+}
+
+.markets-map-zoom-controls {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  button {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.4rem;
+    background: rgba(12, 12, 20, 0.75);
+    border: 1px solid rgba(140, 160, 255, 0.3);
+    color: rgba(232, 236, 255, 0.85);
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(24, 24, 40, 0.9);
+      border-color: rgba(250, 204, 21, 0.5);
+    }
+  }
 }
 
 .markets-map-tooltip {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(12, 12, 20, 0.92);
-  border: 1px solid rgba(140, 160, 255, 0.3);
-  border-radius: 0.5rem;
+  background: rgba(10, 10, 18, 0.95);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 0.6rem;
   padding: 0.6rem 0.9rem;
-  min-width: 180px;
+  min-width: 190px;
   pointer-events: none;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  z-index: 6;
+  transition: left 0.06s linear, top 0.06s linear;
+}
+
+.markets-map-tooltip-hint {
+  font-size: 0.62rem;
+  color: rgba(250, 204, 21, 0.85);
+  margin-top: 0.3rem;
 }
 
 .markets-map-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.9rem;
-  margin-top: 0.6rem;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
   font-size: 0.68rem;
-  color: rgba(232, 236, 255, 0.6);
+  color: rgba(232, 236, 255, 0.7);
+  position: relative;
+  z-index: 2;
 
   span {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(12, 12, 20, 0.5);
+    border: 1px solid rgba(140, 160, 255, 0.12);
   }
 
   i {
     display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    box-shadow: 0 0 5px currentColor;
   }
 }
 
