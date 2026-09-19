@@ -41,6 +41,8 @@ export const AppRoute = {
   officeSlides: "/office/slides",
   notifications: "/notifications",
   messenger: "/messenger",
+  library: "/library",
+  libraryReader: "/library/read",
   customize: "/customize",
   profile: "/profile",
   admin: "/admin",
