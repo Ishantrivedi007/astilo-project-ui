@@ -32,5 +32,11 @@ class Config:
     # somewhere else (e.g. a separate git worktree).
     MUSIC_DOWNLOADS_DIR = os.getenv("MUSIC_DOWNLOADS_DIR", "")
 
+    # Where Nimrose ticket attachments are stored on disk. Self-contained in
+    # the backend (unlike music downloads) since attachments are served
+    # directly by this server rather than through the frontend's public/ dir.
+    ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "attachments"))
+    ATTACHMENT_MAX_BYTES = int(os.getenv("ATTACHMENT_MAX_BYTES", str(15 * 1024 * 1024)))  # 15MB
+
 
 config = Config()

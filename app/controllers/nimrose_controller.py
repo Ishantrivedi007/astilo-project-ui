@@ -5,13 +5,14 @@ import cherrypy
 
 from app.db import get_session
 from app.models import (
+    DEFAULT_BOARD_COLUMNS,
     TASK_PRIORITIES,
     TASK_STATUSES,
     TICKET_LINK_INVERSE,
     TICKET_LINK_RELATIONS,
     TICKET_PRIORITIES,
-    TICKET_STATUSES,
     TICKET_TYPES,
+    NimroseBoardColumn,
     NimroseCalendarEvent,
     NimroseNote,
     NimroseProject,
@@ -31,6 +32,24 @@ def _user_id():
 def _derive_key_prefix(name: str) -> str:
     letters = re.sub(r"[^A-Za-z]", "", name).upper()
     return (letters[:3] or "PRJ")
+
+
+def _ensure_board_columns(session, project: NimroseProject):
+    """Lazily seeds a project's default columns (Backlog/To Do/In
+    Progress/Review/Done) the first time they're needed, mirroring the
+    Browser Spaces auto-seed pattern — so projects created before this
+    feature existed still get a working board instead of an empty one."""
+    if project.board_columns:
+        return project.board_columns
+    for i, (name, slug, is_done) in enumerate(DEFAULT_BOARD_COLUMNS):
+        session.add(NimroseBoardColumn(project_id=project.id, name=name, slug=slug, position=i, is_done=1 if is_done else 0))
+    session.flush()
+    session.refresh(project)
+    return project.board_columns
+
+
+def _valid_status_slugs(session, project: NimroseProject) -> set:
+    return {c.slug for c in _ensure_board_columns(session, project)}
 
 
 class NimroseProjectsController:
@@ -389,7 +408,7 @@ class NimroseTicketsController:
                 )
                 if not ticket:
                     raise cherrypy.HTTPError(404, "Ticket not found")
-                return ticket.to_dict(include_links=True)
+                return ticket.to_dict(include_links=True, include_attachments=True)
 
             query = session.query(NimroseTicket).filter(NimroseTicket.user_id == _user_id())
             if project_id:
@@ -397,8 +416,6 @@ class NimroseTicketsController:
             if sprint_id:
                 query = query.filter(NimroseTicket.sprint_id == int(sprint_id))
             if status:
-                if status not in TICKET_STATUSES:
-                    raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TICKET_STATUSES)}")
                 query = query.filter(NimroseTicket.status == status)
             if priority:
                 query = query.filter(NimroseTicket.priority == priority)
@@ -431,18 +448,20 @@ class NimroseTicketsController:
 
         ticket_type = body.get("type", "task")
         priority = body.get("priority", "medium")
-        status = body.get("status", "backlog")
         if ticket_type not in TICKET_TYPES:
             raise cherrypy.HTTPError(400, f"type must be one of {', '.join(TICKET_TYPES)}")
         if priority not in TICKET_PRIORITIES:
             raise cherrypy.HTTPError(400, f"priority must be one of {', '.join(TICKET_PRIORITIES)}")
-        if status not in TICKET_STATUSES:
-            raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TICKET_STATUSES)}")
 
         with get_session() as session:
             project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
             if not project:
                 raise cherrypy.HTTPError(404, "Project not found")
+
+            columns = _ensure_board_columns(session, project)
+            status = body.get("status") or columns[0].slug
+            if status not in {c.slug for c in columns}:
+                raise cherrypy.HTTPError(400, f"status must be one of {', '.join(c.slug for c in columns)}")
 
             ticket = NimroseTicket(
                 user_id=_user_id(),
@@ -485,8 +504,9 @@ class NimroseTicketsController:
             if "description" in body:
                 ticket.description = body["description"]
             if "status" in body and body["status"] != ticket.status:
-                if body["status"] not in TICKET_STATUSES:
-                    raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TICKET_STATUSES)}")
+                valid_slugs = _valid_status_slugs(session, ticket.project)
+                if body["status"] not in valid_slugs:
+                    raise cherrypy.HTTPError(400, f"status must be one of {', '.join(valid_slugs)}")
                 _log_activity(session, ticket.id, "status_changed", f"{ticket.status} → {body['status']}")
                 ticket.status = body["status"]
             if "priority" in body and body["priority"] != ticket.priority:
@@ -523,6 +543,117 @@ class NimroseTicketsController:
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
             session.delete(ticket)
+            return {"deleted": True}
+
+
+def _slugify_column_name(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", name.strip().lower()).strip("_")
+    return slug or "column"
+
+
+class NimroseBoardColumnsController:
+    """Per-project Kanban columns — lets a project define its own workflow
+    steps (e.g. adding "Testing" or "QA" between Review and Done) instead
+    of a fixed backlog/todo/in_progress/review/done enum."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, project_id):
+        with get_session() as session:
+            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
+            if not project:
+                raise cherrypy.HTTPError(404, "Project not found")
+            columns = _ensure_board_columns(session, project)
+            return [c.to_dict() for c in columns]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self, project_id):
+        body = cherrypy.request.json or {}
+        name = (body.get("name") or "").strip()
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required")
+
+        with get_session() as session:
+            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
+            if not project:
+                raise cherrypy.HTTPError(404, "Project not found")
+
+            columns = _ensure_board_columns(session, project)
+            slug = _slugify_column_name(name)
+            if any(c.slug == slug for c in columns):
+                raise cherrypy.HTTPError(400, f"A column named \"{name}\" already exists on this project")
+
+            # New columns default to appearing just before "Done" (or at the
+            # end if there's no done column), since that's almost always
+            # where a new workflow step like "Testing"/"QA" belongs.
+            done_positions = [c.position for c in columns if c.is_done]
+            insert_at = min(done_positions) if done_positions else len(columns)
+            for c in columns:
+                if c.position >= insert_at:
+                    c.position += 1
+
+            column = NimroseBoardColumn(project_id=project.id, name=name, slug=slug, position=insert_at, is_done=0)
+            session.add(column)
+            session.flush()
+            return column.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, project_id, column_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            column = (
+                session.query(NimroseBoardColumn)
+                .join(NimroseProject)
+                .filter(
+                    NimroseBoardColumn.id == int(column_id),
+                    NimroseBoardColumn.project_id == int(project_id),
+                    NimroseProject.user_id == _user_id(),
+                )
+                .first()
+            )
+            if not column:
+                raise cherrypy.HTTPError(404, "Column not found")
+
+            if "name" in body:
+                column.name = (body["name"] or "").strip() or column.name
+            if "position" in body:
+                column.position = int(body["position"])
+            if "isDone" in body:
+                column.is_done = 1 if body["isDone"] else 0
+
+            session.flush()
+            return column.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, project_id, column_id):
+        with get_session() as session:
+            column = (
+                session.query(NimroseBoardColumn)
+                .join(NimroseProject)
+                .filter(
+                    NimroseBoardColumn.id == int(column_id),
+                    NimroseBoardColumn.project_id == int(project_id),
+                    NimroseProject.user_id == _user_id(),
+                )
+                .first()
+            )
+            if not column:
+                raise cherrypy.HTTPError(404, "Column not found")
+
+            in_use = session.query(NimroseTicket).filter_by(project_id=int(project_id), status=column.slug).count()
+            if in_use:
+                raise cherrypy.HTTPError(
+                    409, f"{in_use} ticket(s) are still in this column — move them first"
+                )
+
+            session.delete(column)
             return {"deleted": True}
 
 

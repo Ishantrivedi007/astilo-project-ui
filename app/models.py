@@ -405,6 +405,10 @@ class NimroseProject(Base):
     events = relationship("NimroseCalendarEvent", back_populates="project")
     sprints = relationship("NimroseSprint", back_populates="project", cascade="all, delete-orphan")
     tickets = relationship("NimroseTicket", back_populates="project", cascade="all, delete-orphan")
+    board_columns = relationship(
+        "NimroseBoardColumn", back_populates="project", cascade="all, delete-orphan",
+        order_by="NimroseBoardColumn.position",
+    )
 
     def to_dict(self):
         return {
@@ -602,8 +606,9 @@ class NimroseTicket(Base):
         "NimroseTicketLink", back_populates="ticket", cascade="all, delete-orphan",
         foreign_keys="NimroseTicketLink.ticket_id",
     )
+    attachments = relationship("NimroseTicketAttachment", back_populates="ticket", cascade="all, delete-orphan")
 
-    def to_dict(self, include_links=False):
+    def to_dict(self, include_links=False, include_attachments=False):
         data = {
             "id": self.id,
             "projectId": self.project_id,
@@ -623,11 +628,14 @@ class NimroseTicket(Base):
             "storyPoints": self.story_points,
             "estimateMinutes": self.estimate_minutes,
             "commentCount": len(self.comments) if self.comments is not None else 0,
+            "attachmentCount": len(self.attachments) if self.attachments is not None else 0,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
         if include_links:
             data["links"] = [link.to_dict() for link in self.links]
+        if include_attachments:
+            data["attachments"] = [a.to_dict() for a in self.attachments]
         return data
 
 
@@ -839,3 +847,79 @@ class NimroseHistoryEntry(Base):
             "title": self.title,
             "visitedAt": self.visited_at.isoformat() if self.visited_at else None,
         }
+
+
+class NimroseTicketAttachment(Base):
+    """A file (image or otherwise) attached to a ticket. Stored on disk
+    under config.ATTACHMENTS_DIR, served back by NimroseAttachmentsController
+    — not in the database, which is fine for text-sized payloads (like
+    User.avatar) but not for arbitrary uploaded files."""
+
+    __tablename__ = "nimrose_ticket_attachments"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    uploaded_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    file_name = Column(String(255), nullable=False)  # original filename, shown to the user
+    stored_name = Column(String(100), nullable=False)  # random on-disk filename, unique() implied by generation
+    content_type = Column(String(120), nullable=True)
+    size_bytes = Column(Integer, nullable=False, default=0)
+    is_image = Column(Integer, nullable=False, default=0)  # 0/1
+    created_at = Column(DateTime, default=utcnow)
+
+    ticket = relationship("NimroseTicket", back_populates="attachments")
+    uploaded_by = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ticketId": self.ticket_id,
+            "fileName": self.file_name,
+            "contentType": self.content_type,
+            "sizeBytes": self.size_bytes,
+            "isImage": bool(self.is_image),
+            "uploadedBy": self.uploaded_by.name if self.uploaded_by else None,
+            "url": f"/api/nimrose/ticket-attachment-file/{self.id}",
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseBoardColumn(Base):
+    """A Kanban column for a project — user-defined and reorderable, rather
+    than a fixed backlog/todo/in_progress/review/done enum, so a project can
+    add steps like "Testing" or "QA" to its own workflow. `slug` is what
+    NimroseTicket.status actually stores; `is_done` marks which column(s)
+    count as complete for sprint/backlog progress math instead of a
+    hardcoded status == "done" check."""
+
+    __tablename__ = "nimrose_board_columns"
+    __table_args__ = (UniqueConstraint("project_id", "slug", name="uq_board_column_slug"),)
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
+    name = Column(String(50), nullable=False)
+    slug = Column(String(50), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    is_done = Column(Integer, nullable=False, default=0)  # 0/1
+    created_at = Column(DateTime, default=utcnow)
+
+    project = relationship("NimroseProject", back_populates="board_columns")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "name": self.name,
+            "slug": self.slug,
+            "position": self.position,
+            "isDone": bool(self.is_done),
+        }
+
+
+DEFAULT_BOARD_COLUMNS = (
+    ("Backlog", "backlog", False),
+    ("To Do", "todo", False),
+    ("In Progress", "in_progress", False),
+    ("Review", "review", False),
+    ("Done", "done", True),
+)

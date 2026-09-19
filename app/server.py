@@ -22,6 +22,10 @@ from app.controllers.favorites_controller import FavoritesController
 from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
+from app.controllers.nimrose_attachments_controller import (
+    NimroseTicketAttachmentFileController,
+    NimroseTicketAttachmentsController,
+)
 from app.controllers.nimrose_browser_controller import (
     NimroseBookmarksController,
     NimroseBrowserProxyController,
@@ -30,6 +34,7 @@ from app.controllers.nimrose_browser_controller import (
     NimroseHistoryController,
 )
 from app.controllers.nimrose_controller import (
+    NimroseBoardColumnsController,
     NimroseCalendarController,
     NimroseNotesController,
     NimroseProjectsController,
@@ -124,6 +129,9 @@ def build_app():
     cherrypy.tree.mount(NimroseTicketCommentsController(), "/api/nimrose/ticket-comments", conf)
     cherrypy.tree.mount(NimroseTicketLinksController(), "/api/nimrose/ticket-links", conf)
     cherrypy.tree.mount(NimroseTicketActivityController(), "/api/nimrose/ticket-activity", conf)
+    cherrypy.tree.mount(NimroseBoardColumnsController(), "/api/nimrose/board-columns", conf)
+    cherrypy.tree.mount(NimroseTicketAttachmentsController(), "/api/nimrose/ticket-attachments", conf)
+    cherrypy.tree.mount(NimroseTicketAttachmentFileController(), "/api/nimrose/ticket-attachment-file", conf)
     cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)
     cherrypy.tree.mount(NimroseBrowserSpacesController(), "/api/nimrose/browser-spaces", conf)
     cherrypy.tree.mount(NimroseBrowserTabsController(), "/api/nimrose/browser-tabs", conf)
