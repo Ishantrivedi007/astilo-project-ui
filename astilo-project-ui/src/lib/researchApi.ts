@@ -9,6 +9,7 @@ export interface ResearchNextStep {
 
 export interface ResearchBrief {
   summary: string | null;
+  detailedSummary: string | null;
   wikiTitle: string | null;
   wikiUrl: string | null;
   thumbnailUrl: string | null;

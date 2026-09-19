@@ -132,7 +132,16 @@ const ResearchDetail = () => {
         <h2 className="research-section-title">Automated summary</h2>
         {brief?.summary ? (
           <>
-            <p className="research-summary-text">{brief.summary}</p>
+            <div className="research-summary-text">
+              {(brief.detailedSummary ?? brief.summary ?? "")
+                .split("\n")
+                .filter(Boolean)
+                .map((para, i, arr) => (
+                  <p key={i} style={{ marginBottom: i === arr.length - 1 ? 0 : "0.75rem" }}>
+                    {para}
+                  </p>
+                ))}
+            </div>
             {brief.wikiUrl && (
               <p className="research-card-meta" style={{ marginTop: "0.4rem" }}>
                 <a href={brief.wikiUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
