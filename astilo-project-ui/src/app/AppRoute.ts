@@ -23,6 +23,7 @@ export const AppRoute = {
   animeWatchlist: "/anime/watchlist",
   animePlaylists: "/anime/playlists",
   animeCategory: "/anime/category",
+  nimrose: "/nimrose",
   cosmos: "/cosmos",
   cosmosSearch: "/cosmos/search",
   cosmosLibrary: "/cosmos/library",

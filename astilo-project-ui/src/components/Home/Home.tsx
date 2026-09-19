@@ -1,7 +1,7 @@
 import { useMemo, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Clapperboard, Music, Sparkles, ShoppingBag, Palette, Globe, CalendarClock } from "lucide-react";
+import { Clapperboard, Music, Sparkles, ShoppingBag, Palette, Globe, CalendarClock, Orbit } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
@@ -17,13 +17,12 @@ const QUICK_ACCESS = [
   { label: "Music", href: AppRoute.music, icon: Music },
   { label: "Anime", href: AppRoute.anime, icon: Sparkles },
   { label: "Store", href: AppRoute.store, icon: ShoppingBag },
+  { label: "Cosmos", href: AppRoute.cosmos, icon: Orbit },
+  { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },
   { label: "Customize", href: AppRoute.customize, icon: Palette },
 ];
 
-const COMING_SOON = [
-  { label: "Browser", icon: Globe },
-  { label: "Nimrose Desk", icon: CalendarClock },
-];
+const COMING_SOON = [{ label: "Browser", icon: Globe }];
 
 const greeting = () => {
   const hour = new Date().getHours();

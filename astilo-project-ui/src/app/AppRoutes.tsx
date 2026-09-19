@@ -25,6 +25,7 @@ const MovieCategory = lazy(() => import("../components/Movies/MovieCategory"));
 const MovieWatchlistPage = lazy(() => import("../components/Movies/MovieWatchlistPage"));
 const MoviePlaylists = lazy(() => import("../components/Movies/MoviePlaylists"));
 const AnimeHome = lazy(() => import("../components/Anime/AnimeHome"));
+const NimroseShell = lazy(() => import("../components/Nimrose/NimroseShell"));
 const CosmosHome = lazy(() => import("../components/Cosmos/CosmosHome"));
 const CosmosSearch = lazy(() => import("../components/Cosmos/CosmosSearch"));
 const CosmosLibrary = lazy(() => import("../components/Cosmos/CosmosLibrary"));
@@ -138,6 +139,7 @@ const AppRoutes = () => (
           />
         )}
       />
+      <Route path={AppRoute.nimrose} element={getAuthRoute(<NimroseShell />)} />
       <Route path={AppRoute.cosmos} element={getAuthRoute(<CosmosHome />)} />
       <Route path={AppRoute.cosmosSearch} element={getAuthRoute(<CosmosSearch />)} />
       <Route path={AppRoute.cosmosLibrary} element={getAuthRoute(<CosmosLibrary />)} />

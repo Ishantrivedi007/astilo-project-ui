@@ -1,0 +1,613 @@
+// Nimrose Desk — premium digital operating desk. Built entirely on the
+// app's existing theme tokens (--surface-rgb/--ink-rgb/--accent-rgb/...)
+// so it follows whichever of Astilo's light/dark palettes the user picked,
+// rather than introducing its own fixed color scheme.
+
+.nimrose-shell {
+  display: grid;
+  grid-template-columns: auto 1fr 260px;
+  gap: 1.25rem;
+  align-items: start;
+  min-height: calc(100vh - 6rem);
+
+  @media (max-width: 1100px) {
+    grid-template-columns: auto 1fr;
+
+    .nimrose-context-panel {
+      display: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+
+    .nimrose-sidebar {
+      display: none;
+    }
+  }
+}
+
+// -------------------------------------------------------------------------
+// Sidebar
+// -------------------------------------------------------------------------
+
+.nimrose-sidebar {
+  position: sticky;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  width: 208px;
+  max-height: calc(100vh - 7rem);
+  border-radius: 1.25rem;
+  background: rgb(var(--surface-rgb) / 0.6);
+  border: 1px solid rgb(var(--hair-rgb) / 0.14);
+  backdrop-filter: blur(14px);
+  padding: 0.75rem;
+  transition: width 0.2s ease;
+
+  &--collapsed {
+    width: 56px;
+
+    .nimrose-sidebar-item span {
+      display: none;
+    }
+  }
+}
+
+.nimrose-sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.nimrose-sidebar-section {
+  margin-bottom: 0.9rem;
+}
+
+.nimrose-sidebar-heading {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--ink-muted-rgb) / 0.7);
+}
+
+.nimrose-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.65rem;
+  background: none;
+  border: none;
+  color: rgb(var(--ink-rgb) / 0.75);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.08);
+    color: rgb(var(--ink-rgb));
+  }
+
+  &--active {
+    background: rgb(var(--accent-rgb) / 0.14);
+    color: rgb(var(--accent-rgb));
+    font-weight: 600;
+  }
+}
+
+.nimrose-sidebar-collapse {
+  align-self: flex-end;
+  margin-top: 0.5rem;
+  padding: 0.4rem;
+  border-radius: 0.5rem;
+  background: none;
+  border: 1px solid rgb(var(--hair-rgb) / 0.16);
+  color: rgb(var(--ink-rgb) / 0.6);
+  cursor: pointer;
+
+  &:hover {
+    color: rgb(var(--accent-rgb));
+  }
+}
+
+// -------------------------------------------------------------------------
+// Workspace (center)
+// -------------------------------------------------------------------------
+
+.nimrose-workspace {
+  min-width: 0;
+}
+
+.nimrose-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--accent-2-rgb));
+}
+
+.nimrose-page-title {
+  font-family: "Syne", "Space Grotesk", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.6rem;
+  margin: 0.2rem 0 1rem;
+  letter-spacing: -0.01em;
+}
+
+.nimrose-home-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.nimrose-coming-soon {
+  padding: 2rem;
+  text-align: left;
+}
+
+.nimrose-coming-soon-body {
+  color: rgb(var(--ink-muted-rgb));
+  font-size: 0.9rem;
+  max-width: 46ch;
+}
+
+// -------------------------------------------------------------------------
+// Widget grid
+// -------------------------------------------------------------------------
+
+.nimrose-widget-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.9rem;
+}
+
+.nimrose-widget-slot {
+  list-style: none;
+
+  &--sm {
+    grid-column: span 1;
+  }
+  &--md {
+    grid-column: span 2;
+  }
+  &--lg {
+    grid-column: span 4;
+  }
+
+  @media (max-width: 900px) {
+    &--sm,
+    &--md,
+    &--lg {
+      grid-column: span 2;
+    }
+  }
+
+  @media (max-width: 560px) {
+    &--sm,
+    &--md,
+    &--lg {
+      grid-column: span 1;
+    }
+  }
+}
+
+@media (max-width: 900px) {
+  .nimrose-widget-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .nimrose-widget-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nimrose-widget {
+  padding: 1rem;
+  cursor: grab;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.nimrose-widget-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+
+  h3 {
+    flex: 1;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgb(var(--ink-muted-rgb));
+    margin: 0;
+  }
+}
+
+.nimrose-widget-drag {
+  color: rgb(var(--ink-muted-rgb) / 0.5);
+}
+
+.nimrose-widget-hide {
+  background: none;
+  border: none;
+  color: rgb(var(--ink-muted-rgb) / 0.5);
+  cursor: pointer;
+  padding: 0.15rem;
+  border-radius: 0.3rem;
+
+  &:hover {
+    color: rgb(var(--ink-rgb));
+    background: rgb(var(--accent-rgb) / 0.1);
+  }
+}
+
+.nimrose-widget-body {
+  font-size: 0.85rem;
+}
+
+.nimrose-widget-empty {
+  color: rgb(var(--ink-muted-rgb) / 0.7);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.nimrose-widget-footnote {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: rgb(var(--ink-muted-rgb) / 0.7);
+}
+
+.nimrose-widget-link {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: rgb(var(--accent-rgb));
+  text-decoration: underline;
+}
+
+.nimrose-hidden-widgets {
+  margin-top: 1.25rem;
+}
+
+.nimrose-hidden-widget-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.nimrose-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--hair-rgb) / 0.22);
+  background: rgb(var(--surface-rgb) / 0.5);
+  color: rgb(var(--ink-rgb) / 0.75);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    border-color: rgb(var(--accent-rgb) / 0.5);
+    color: rgb(var(--accent-rgb));
+  }
+
+  &--active {
+    background: rgb(var(--accent-rgb) / 0.14);
+    border-color: rgb(var(--accent-rgb) / 0.5);
+    color: rgb(var(--accent-rgb));
+  }
+}
+
+// -------------------------------------------------------------------------
+// Individual widgets
+// -------------------------------------------------------------------------
+
+.nimrose-today-greeting {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.nimrose-today-date {
+  color: rgb(var(--ink-muted-rgb));
+  font-size: 0.8rem;
+  margin: 0.15rem 0;
+}
+
+.nimrose-today-time {
+  font-size: 1.4rem;
+  font-weight: 800;
+  margin: 0.3rem 0 0;
+}
+
+.nimrose-focus-presets {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.nimrose-focus-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.nimrose-focus-phase {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(var(--ink-muted-rgb));
+}
+
+.nimrose-focus-time {
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.nimrose-focus-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nimrose-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgb(var(--hair-rgb) / 0.22);
+  background: rgb(var(--accent-rgb) / 0.1);
+  color: rgb(var(--accent-rgb));
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.2);
+  }
+}
+
+.nimrose-focus-completed {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: rgb(var(--ink-muted-rgb));
+}
+
+.nimrose-quick-add {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+
+  input {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.8rem;
+
+    &:focus {
+      outline: none;
+      border-color: rgb(var(--accent-rgb) / 0.6);
+    }
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    border-radius: 0.5rem;
+    border: none;
+    background: rgb(var(--accent-rgb) / 0.16);
+    color: rgb(var(--accent-rgb));
+    cursor: pointer;
+
+    &:hover {
+      background: rgb(var(--accent-rgb) / 0.28);
+    }
+  }
+}
+
+.nimrose-task-list,
+.nimrose-note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 150px;
+  overflow-y: auto;
+
+  li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.25rem 0.1rem;
+    font-size: 0.8rem;
+
+    button {
+      background: none;
+      border: none;
+      color: rgb(var(--ink-muted-rgb) / 0.5);
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    &:hover button {
+      opacity: 1;
+    }
+  }
+}
+
+.nimrose-task-list li label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.nimrose-task--done span {
+  text-decoration: line-through;
+  color: rgb(var(--ink-muted-rgb));
+}
+
+.nimrose-note-list li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nimrose-music {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.nimrose-music-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.nimrose-music-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nimrose-music-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nimrose-music-artist {
+  font-size: 0.72rem;
+  color: rgb(var(--ink-muted-rgb));
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nimrose-music-controls {
+  display: flex;
+  gap: 0.2rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: none;
+    color: rgb(var(--ink-rgb) / 0.7);
+    cursor: pointer;
+
+    &:hover {
+      background: rgb(var(--accent-rgb) / 0.12);
+      color: rgb(var(--accent-rgb));
+    }
+  }
+}
+
+.nimrose-quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.5rem;
+}
+
+.nimrose-quick-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.16);
+  background: rgb(var(--bg-rgb) / 0.3);
+  color: rgb(var(--ink-rgb) / 0.85);
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: rgb(var(--accent-rgb) / 0.5);
+    transform: translateY(-1px);
+  }
+}
+
+// -------------------------------------------------------------------------
+// Right context panel
+// -------------------------------------------------------------------------
+
+.nimrose-context-panel {
+  position: sticky;
+  top: 1rem;
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background: rgb(var(--surface-rgb) / 0.6);
+  border: 1px solid rgb(var(--hair-rgb) / 0.14);
+  backdrop-filter: blur(14px);
+}
+
+.nimrose-context-time {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.nimrose-context-date {
+  font-size: 0.8rem;
+  color: rgb(var(--ink-muted-rgb));
+  margin: 0 0 1rem;
+}
+
+.nimrose-context-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.78rem;
+  color: rgb(var(--ink-rgb) / 0.8);
+  border-top: 1px solid rgb(var(--hair-rgb) / 0.12);
+
+  svg {
+    color: rgb(var(--accent-rgb));
+    flex-shrink: 0;
+  }
+}

@@ -33,12 +33,10 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Anime", href: AppRoute.anime, icon: Sparkles },
   { label: "Store", href: AppRoute.store, icon: ShoppingBag },
   { label: "Cosmos", href: AppRoute.cosmos, icon: Orbit },
+  { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },
 ];
 
-const COMING_SOON_ITEMS = [
-  { label: "Browser", icon: Globe },
-  { label: "Nimrose Desk", icon: CalendarClock },
-];
+const COMING_SOON_ITEMS = [{ label: "Browser", icon: Globe }];
 
 const initials = (name: string) =>
   name
