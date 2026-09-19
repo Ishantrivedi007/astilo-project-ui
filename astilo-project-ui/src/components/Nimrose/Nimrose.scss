@@ -1236,6 +1236,386 @@
 }
 
 // -------------------------------------------------------------------------
+// Notes
+// -------------------------------------------------------------------------
+
+.nimrose-notes-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nimrose-notes-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nimrose-notes-search {
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.2);
+  background: rgb(var(--bg-rgb) / 0.4);
+  color: rgb(var(--ink-rgb));
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--accent-rgb) / 0.6);
+  }
+}
+
+.nimrose-notes-list {
+  margin-top: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.nimrose-note-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.6rem;
+  background: none;
+  border: none;
+  color: rgb(var(--ink-rgb) / 0.8);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.08);
+  }
+
+  &--active {
+    background: rgb(var(--accent-rgb) / 0.14);
+    color: rgb(var(--accent-rgb));
+  }
+}
+
+.nimrose-note-list-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.nimrose-notes-editor {
+  padding: 1.1rem;
+  min-height: 400px;
+}
+
+.nimrose-notes-editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+
+.nimrose-notes-title-input {
+  flex: 1;
+  border: none;
+  background: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(var(--ink-rgb));
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.nimrose-notes-meta-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+
+  input {
+    flex: 1;
+    padding: 0.35rem 0.55rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.75rem;
+  }
+}
+
+.nimrose-notes-textarea {
+  width: 100%;
+  min-height: 320px;
+  padding: 0.7rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.18);
+  background: rgb(var(--bg-rgb) / 0.35);
+  color: rgb(var(--ink-rgb));
+  font-size: 0.85rem;
+  font-family: "JetBrains Mono", monospace;
+  line-height: 1.5;
+  resize: vertical;
+
+  &:focus {
+    outline: none;
+    border-color: rgb(var(--accent-rgb) / 0.5);
+  }
+}
+
+.nimrose-notes-preview {
+  min-height: 320px;
+}
+
+.nimrose-md-body {
+  font-size: 0.88rem;
+  line-height: 1.6;
+
+  p {
+    margin: 0 0 0.7rem;
+  }
+}
+
+.nimrose-md-h1 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0.4rem 0 0.5rem;
+}
+.nimrose-md-h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0.4rem 0 0.4rem;
+}
+.nimrose-md-h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0.3rem 0 0.3rem;
+}
+
+.nimrose-md-list {
+  margin: 0 0 0.7rem;
+  padding-left: 1.2rem;
+
+  li {
+    margin-bottom: 0.25rem;
+  }
+
+  input[type="checkbox"] {
+    margin-right: 0.4rem;
+    accent-color: rgb(var(--accent-rgb));
+  }
+}
+
+.nimrose-md-code-block {
+  background: rgb(var(--bg-rgb) / 0.6);
+  border: 1px solid rgb(var(--hair-rgb) / 0.16);
+  border-radius: 0.6rem;
+  padding: 0.7rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  margin-bottom: 0.7rem;
+}
+
+.nimrose-md-body code {
+  background: rgb(var(--accent-rgb) / 0.1);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85em;
+}
+
+.nimrose-md-body a {
+  color: rgb(var(--accent-rgb));
+  text-decoration: underline;
+}
+
+// -------------------------------------------------------------------------
+// Focus Mode (full view)
+// -------------------------------------------------------------------------
+
+.nimrose-focus-mode-card {
+  max-width: 420px;
+  margin: 1.5rem auto 0;
+  padding: 2rem;
+  text-align: center;
+}
+
+.nimrose-focus-mode-phase {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgb(var(--ink-muted-rgb));
+  margin: 0.5rem 0 0;
+}
+
+.nimrose-focus-mode-time {
+  font-size: 3.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  margin: 0.2rem 0 1rem;
+}
+
+.nimrose-focus-mode-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.nimrose-icon-btn--lg {
+  width: 52px;
+  height: 52px;
+}
+
+.nimrose-focus-task-picker {
+  margin-top: 1.25rem;
+  text-align: left;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgb(var(--ink-muted-rgb));
+  }
+
+  select {
+    padding: 0.5rem 0.6rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    background: rgb(var(--bg-rgb) / 0.4);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.82rem;
+    text-transform: none;
+  }
+}
+
+.nimrose-focus-music {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgb(var(--hair-rgb) / 0.14);
+  text-align: left;
+
+  img {
+    width: 42px;
+    height: 42px;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+}
+
+.nimrose-focus-music-info {
+  flex: 1;
+  min-width: 0;
+
+  p {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    font-size: 0.72rem;
+    color: rgb(var(--ink-muted-rgb));
+  }
+}
+
+.nimrose-shell--immersive {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+// -------------------------------------------------------------------------
+// Command palette
+// -------------------------------------------------------------------------
+
+.nimrose-palette {
+  width: 100%;
+  max-width: 480px;
+  margin-top: 10vh;
+  padding: 0.6rem;
+  border-radius: 1rem;
+  background: rgb(var(--surface-rgb) / 0.98);
+}
+
+.nimrose-palette-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border-bottom: 1px solid rgb(var(--hair-rgb) / 0.14);
+  color: rgb(var(--ink-muted-rgb));
+
+  input {
+    flex: 1;
+    border: none;
+    background: none;
+    color: rgb(var(--ink-rgb));
+    font-size: 0.9rem;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  kbd {
+    font-size: 0.68rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.3rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.25);
+    color: rgb(var(--ink-muted-rgb));
+  }
+}
+
+.nimrose-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem 0 0;
+  max-height: 50vh;
+  overflow-y: auto;
+
+  button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.6rem;
+    background: none;
+    border: none;
+    color: rgb(var(--ink-rgb) / 0.85);
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: rgb(var(--accent-rgb) / 0.1);
+    }
+
+    span:first-of-type {
+      flex: 1;
+    }
+  }
+}
+
+// -------------------------------------------------------------------------
 // Right context panel
 // -------------------------------------------------------------------------
 

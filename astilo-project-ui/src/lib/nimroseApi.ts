@@ -112,3 +112,31 @@ export const updateNimroseCalendarEvent = (
 
 export const deleteNimroseCalendarEvent = (id: number) =>
   apiClient.delete(`/nimrose/calendar-events/${id}`).then((r) => r.data);
+
+// -- Notes --
+
+export interface NimroseNote {
+  id: number;
+  title: string;
+  content: string | null;
+  folder: string | null;
+  tags: string[];
+  pinned: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export const fetchNimroseNotes = (params?: { folder?: string; tag?: string; q?: string }) =>
+  apiClient.get<NimroseNote[]>("/nimrose/notes", { params }).then((r) => r.data);
+
+export const fetchNimroseNote = (id: number) =>
+  apiClient.get<NimroseNote>(`/nimrose/notes/${id}`).then((r) => r.data);
+
+export const createNimroseNote = (note: { title: string; content?: string; folder?: string; tags?: string[]; pinned?: boolean }) =>
+  apiClient.post<NimroseNote>("/nimrose/notes", note).then((r) => r.data);
+
+export const updateNimroseNote = (id: number, patch: Partial<Omit<NimroseNote, "id" | "createdAt" | "updatedAt">>) =>
+  apiClient.put<NimroseNote>(`/nimrose/notes/${id}`, patch).then((r) => r.data);
+
+export const deleteNimroseNote = (id: number) =>
+  apiClient.delete(`/nimrose/notes/${id}`).then((r) => r.data);

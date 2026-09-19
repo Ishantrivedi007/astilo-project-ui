@@ -6,9 +6,14 @@ import NimroseHome from "./NimroseHome";
 import NimroseTasksView from "./NimroseTasksView";
 import NimroseCalendarView from "./NimroseCalendarView";
 import NimroseKanbanView from "./NimroseKanbanView";
+import NimroseNotesView from "./NimroseNotesView";
+import NimroseFocusView from "./NimroseFocusView";
+import NimroseCommandPalette from "./NimroseCommandPalette";
+import { NimroseFocusProvider, useNimroseFocus } from "./NimroseFocusContext";
 import "./Nimrose.scss";
 
 const COLLAPSE_KEY = "nimrose-sidebar-collapsed";
+const BUILT_SECTIONS = ["home", "tasks", "calendar", "kanban", "projects", "notes", "focus"];
 
 const readCollapsed = () => {
   try {
@@ -27,9 +32,43 @@ const ComingSoonSection = ({ id }: { id: string }) => {
       <p className="nimrose-eyebrow">Nimrose Desk</p>
       <h2 className="nimrose-page-title">{section?.label ?? id}</h2>
       <p className="nimrose-coming-soon-body">
-        {section?.label} is planned for a later Nimrose phase — Phase 1 ships the desk shell and
-        the Home dashboard. Check back as Calendar, Tasks, Kanban and the rest come online.
+        {section?.label} is planned for a later Nimrose phase. Home, Calendar, Tasks, Kanban,
+        Notes and Focus are live — check back as the rest come online.
       </p>
+    </div>
+  );
+};
+
+const NimroseShellInner = ({
+  active,
+  setActive,
+  collapsed,
+  toggleCollapsed,
+}: {
+  active: string;
+  setActive: (id: string) => void;
+  collapsed: boolean;
+  toggleCollapsed: () => void;
+}) => {
+  const { immersive } = useNimroseFocus();
+  const isImmersiveFocus = active === "focus" && immersive;
+
+  return (
+    <div className={`nimrose-shell ${isImmersiveFocus ? "nimrose-shell--immersive" : ""}`}>
+      {!isImmersiveFocus && (
+        <NimroseSidebar active={active} onSelect={setActive} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+      )}
+      <main className="nimrose-workspace">
+        {active === "home" && <NimroseHome />}
+        {active === "tasks" && <NimroseTasksView />}
+        {active === "calendar" && <NimroseCalendarView />}
+        {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
+        {active === "notes" && <NimroseNotesView />}
+        {active === "focus" && <NimroseFocusView />}
+        {!BUILT_SECTIONS.includes(active) && <ComingSoonSection id={active} />}
+      </main>
+      {!isImmersiveFocus && <NimroseContextPanel />}
+      <NimroseCommandPalette onNavigate={setActive} />
     </div>
   );
 };
@@ -51,17 +90,9 @@ const NimroseShell = () => {
   };
 
   return (
-    <div className="nimrose-shell">
-      <NimroseSidebar active={active} onSelect={setActive} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
-      <main className="nimrose-workspace">
-        {active === "home" && <NimroseHome />}
-        {active === "tasks" && <NimroseTasksView />}
-        {active === "calendar" && <NimroseCalendarView />}
-        {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
-        {!["home", "tasks", "calendar", "kanban", "projects"].includes(active) && <ComingSoonSection id={active} />}
-      </main>
-      <NimroseContextPanel />
-    </div>
+    <NimroseFocusProvider>
+      <NimroseShellInner active={active} setActive={setActive} collapsed={collapsed} toggleCollapsed={toggleCollapsed} />
+    </NimroseFocusProvider>
   );
 };
 
