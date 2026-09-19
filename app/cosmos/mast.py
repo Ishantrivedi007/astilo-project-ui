@@ -19,6 +19,11 @@ def search_observations(target_name: str, mission: str | None = None, limit: int
     if mission:
         filters.append({"paramName": "obs_collection", "values": [mission.upper()]})
 
+    # Fetch a wider page than requested and trim after sorting — a lot of
+    # rows (older missions like Spitzer/GALEX especially) have no jpegURL,
+    # so fetching exactly `limit` rows can return a page with zero previews
+    # even when image-bearing observations exist further down the result set.
+    fetch_size = max(limit * 4, 40)
     request_payload = {
         "service": "Mast.Caom.Filtered",
         "format": "json",
@@ -26,7 +31,7 @@ def search_observations(target_name: str, mission: str | None = None, limit: int
             "columns": "obs_id,obs_collection,instrument_name,filters,target_name,t_min,s_ra,s_dec,dataproduct_type,jpegURL,obsid",
             "filters": filters,
         },
-        "pagesize": limit,
+        "pagesize": fetch_size,
         "page": 1,
     }
     params = {"request": json.dumps(request_payload)}
@@ -40,7 +45,13 @@ def search_observations(target_name: str, mission: str | None = None, limit: int
 
     rows = raw.get("data", [])
     results = [_normalize_observation(row) for row in rows]
-    return envelope("MAST", "Mast.Caom.Filtered", None, {"count": len(results), "results": results}, None)
+    total_count = len(results)
+    # MAST's jpegURL is often empty for older missions (Spitzer, GALEX) —
+    # surface the observations that actually have a preview image first so
+    # they aren't buried behind image-less rows.
+    results.sort(key=lambda r: r["previewImageUrl"] is None)
+    results = results[:limit]
+    return envelope("MAST", "Mast.Caom.Filtered", None, {"count": total_count, "results": results}, None)
 
 
 def _normalize_observation(row: dict):

@@ -23,7 +23,21 @@ def resolve_coordinates(name: str):
 
 
 def _resolve_coordinates(name: str):
-    adql = f"select ra, dec from basic join ident on oid = ident.oidref where id = '{name.replace(chr(39), '')}'"
+    resolved = _resolve_object(name)
+    if resolved is None:
+        return None
+    return resolved[0], resolved[1]
+
+
+def _resolve_object(name: str):
+    """Returns (ra, dec, galdim_majaxis) or None. galdim_majaxis is SIMBAD's
+    angular-size field — it's only populated for resolved/extended objects
+    (galaxies, nebulae, remnants, clusters), never for a point-source star,
+    so it's used as the signal for "this isn't a star, don't Gaia-match it"."""
+    adql = (
+        "select ra, dec, galdim_majaxis from basic join ident on oid = ident.oidref "
+        f"where id = '{name.replace(chr(39), '')}'"
+    )
     params = {"REQUEST": "doQuery", "LANG": "ADQL", "FORMAT": "json", "QUERY": adql}
 
     def fetch():
@@ -35,17 +49,22 @@ def _resolve_coordinates(name: str):
     rows = raw.get("data", [])
     if not rows:
         return None
-    ra, dec = rows[0][0], rows[0][1]
-    return ra, dec
+    ra, dec, galdim_majaxis = rows[0][0], rows[0][1], rows[0][2]
+    return ra, dec, galdim_majaxis
 
 
 def search_star(name: str, radius_deg: float = 0.01):
     """Resolves a star name (e.g. 'Sirius') via SIMBAD, then cone-searches
-    Gaia DR3 around those coordinates for the nearest matching source."""
-    coords = _resolve_coordinates(name)
-    if coords is None:
+    Gaia DR3 around those coordinates for the nearest matching source.
+    Returns None for extended objects (nebulae, remnants, galaxies) instead
+    of silently matching an unrelated nearby point source and mislabeling
+    it with the searched name."""
+    resolved = _resolve_object(name)
+    if resolved is None:
         return None
-    ra, dec = coords
+    ra, dec, galdim_majaxis = resolved
+    if galdim_majaxis is not None:
+        return None
 
     adql = (
         f"select top 1 {COLUMNS} from gaiadr3.gaia_source "
