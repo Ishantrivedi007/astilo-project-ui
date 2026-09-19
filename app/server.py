@@ -56,6 +56,13 @@ from app.controllers.nimrose_controller import (
 from app.controllers.nimrose_pulse_controller import NimrosePulseController
 from app.controllers.notifications_controller import NotificationsController
 from app.controllers.chat_controller import ChatChannelsController, ChatMessagesController
+from app.controllers.library_controller import (
+    LibraryBookContentController,
+    LibraryBookController,
+    LibraryCategoriesController,
+    LibraryEntriesController,
+    LibrarySearchController,
+)
 from app.controllers.messenger_controller import (
     MessengerContactsController,
     MessengerConversationsController,
@@ -171,6 +178,11 @@ def build_app():
     cherrypy.tree.mount(ChatMessagesController(), "/api/chat/messages", conf)
     cherrypy.tree.mount(MessengerContactsController(), "/api/messenger/contacts", conf)
     cherrypy.tree.mount(MessengerPersonalContactsController(), "/api/messenger/my-contacts", conf)
+    cherrypy.tree.mount(LibrarySearchController(), "/api/library/search", conf)
+    cherrypy.tree.mount(LibraryCategoriesController(), "/api/library/categories", conf)
+    cherrypy.tree.mount(LibraryBookController(), "/api/library/book", conf)
+    cherrypy.tree.mount(LibraryBookContentController(), "/api/library/book-content", conf)
+    cherrypy.tree.mount(LibraryEntriesController(), "/api/library/entries", conf)
     cherrypy.tree.mount(MessengerConversationsController(), "/api/messenger/conversations", conf)
     cherrypy.tree.mount(MessengerMessagesController(), "/api/messenger/messages", conf)
     cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)

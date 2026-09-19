@@ -982,7 +982,7 @@ DEFAULT_BOARD_COLUMNS = (
 )
 
 
-NOTIFICATION_MODULES = ("kanban", "research", "calendar", "nimrose", "cosmos", "markets")
+NOTIFICATION_MODULES = ("kanban", "research", "calendar", "nimrose", "cosmos", "markets", "library")
 
 
 class Notification(Base):
@@ -1153,4 +1153,52 @@ class PersonalContact(Base):
             "avatar": self.contact.avatar if self.contact else None,
             "nickname": self.nickname,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+LIBRARY_SHELVES = ("want_to_read", "reading", "finished")
+
+
+class LibraryEntry(Base):
+    """A book the user has added to their own Library from Project
+    Gutenberg (via Gutendex) — which shelf it's on, and real reading
+    progress (last chapter index actually opened), not a fabricated
+    percentage."""
+
+    __tablename__ = "library_entries"
+    __table_args__ = (UniqueConstraint("user_id", "gutenberg_id", name="uq_library_entry"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    gutenberg_id = Column(Integer, nullable=False)
+    title = Column(String(500), nullable=False)
+    authors = Column(JSON, nullable=True)  # list[str]
+    cover_url = Column(String(500), nullable=True)
+    text_url = Column(String(500), nullable=True)
+    shelf = Column(String(20), nullable=False, default="want_to_read")
+    last_chapter_index = Column(Integer, nullable=False, default=0)
+    total_chapters = Column(Integer, nullable=True)
+    notes = Column(Text, nullable=True)
+    added_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "gutenbergId": self.gutenberg_id,
+            "title": self.title,
+            "authors": self.authors or [],
+            "coverUrl": self.cover_url,
+            "textUrl": self.text_url,
+            "shelf": self.shelf,
+            "lastChapterIndex": self.last_chapter_index,
+            "totalChapters": self.total_chapters,
+            "progressPercent": (
+                round((self.last_chapter_index / self.total_chapters) * 100)
+                if self.total_chapters
+                else None
+            ),
+            "notes": self.notes,
+            "addedAt": self.added_at.isoformat() if self.added_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
