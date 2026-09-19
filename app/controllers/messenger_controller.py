@@ -62,6 +62,20 @@ class MessengerPersonalContactsController:
     def GET(self):
         user_id = _user_id()
         with get_session() as session:
+            # Auto-seed: every other real Astilo user becomes a contact the
+            # first time this loads, the same way chat channels auto-seed —
+            # so a fresh account isn't stuck manually looking each one up by
+            # email/phone before they can message them.
+            existing_ids = {
+                row.contact_id
+                for row in session.query(PersonalContact.contact_id).filter_by(owner_id=user_id).all()
+            }
+            other_users = session.query(User).filter(User.id != user_id).all()
+            for u in other_users:
+                if u.id not in existing_ids:
+                    session.add(PersonalContact(owner_id=user_id, contact_id=u.id))
+            session.flush()
+
             contacts = (
                 session.query(PersonalContact)
                 .filter_by(owner_id=user_id)

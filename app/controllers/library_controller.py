@@ -188,7 +188,7 @@ class LibraryEntriesController:
             )
             session.add(entry)
             session.flush()
-            notify(session, user_id, "library", f"Added to Library: {title}", link="/library/my-shelf")
+            notify(session, user_id, "library", f"Added to Library: {title}", link="/library")
             return entry.to_dict()
 
     @cherrypy.tools.auth()
