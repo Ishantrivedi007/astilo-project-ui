@@ -179,6 +179,47 @@ def resolve_archive_pdf_url(identifier: str) -> str | None:
     return None
 
 
+OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
+
+
+def search_open_library(query: str, page: int = 1, limit: int = 20):
+    """Open Library's free, keyless search — the broadest of the three
+    sources (millions of editions, not just Gutenberg's ~76k or Archive's
+    texts collection). Each result's own `ia` (Internet Archive)
+    identifiers double as a way into the same free-PDF pipeline used for
+    direct Archive search, when Open Library reports public (non-lending)
+    access."""
+    params = {
+        "q": query,
+        "page": page,
+        "limit": limit,
+        "fields": "key,title,author_name,cover_i,ia,ebook_access,first_publish_year",
+    }
+
+    def fetch():
+        resp = cosmos_get(OPEN_LIBRARY_SEARCH_URL, params=params, timeout=15, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("open_library_search", params, fetch, ttl_seconds=6 * 3600)
+    docs = raw.get("docs") or []
+    results = []
+    for d in docs:
+        ia_ids = d.get("ia") or []
+        results.append(
+            {
+                "key": d.get("key"),
+                "title": d.get("title"),
+                "authors": d.get("author_name") or [],
+                "firstPublishYear": d.get("first_publish_year"),
+                "coverUrl": f"https://covers.openlibrary.org/b/id/{d['cover_i']}-M.jpg" if d.get("cover_i") else None,
+                "ebookAccess": d.get("ebook_access"),
+                "iaIdentifier": ia_ids[0] if ia_ids and d.get("ebook_access") == "public" else None,
+            }
+        )
+    return envelope("Open Library", "search.json", query, {"count": raw.get("numFound", len(results)), "results": results})
+
+
 def fetch_book_text(text_url: str) -> str:
     def fetch():
         resp = cosmos_get(text_url, timeout=20, headers=_HEADERS)

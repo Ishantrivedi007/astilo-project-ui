@@ -61,6 +61,7 @@ from app.controllers.library_controller import (
     LibraryBookController,
     LibraryCategoriesController,
     LibraryEntriesController,
+    LibraryOpenSearchController,
     LibraryPdfSearchController,
     LibraryPdfUrlController,
     LibrarySearchController,
@@ -187,6 +188,7 @@ def build_app():
     cherrypy.tree.mount(LibraryEntriesController(), "/api/library/entries", conf)
     cherrypy.tree.mount(LibraryPdfSearchController(), "/api/library/pdf-search", conf)
     cherrypy.tree.mount(LibraryPdfUrlController(), "/api/library/pdf-url", conf)
+    cherrypy.tree.mount(LibraryOpenSearchController(), "/api/library/openlibrary-search", conf)
     cherrypy.tree.mount(MessengerConversationsController(), "/api/messenger/conversations", conf)
     cherrypy.tree.mount(MessengerMessagesController(), "/api/messenger/messages", conf)
     cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)

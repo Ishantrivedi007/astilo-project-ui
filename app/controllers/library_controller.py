@@ -57,6 +57,20 @@ class LibraryPdfUrlController:
         return {"pdfUrl": url}
 
 
+class LibraryOpenSearchController:
+    """Open Library's free, keyless search — the broadest catalog of the
+    three sources; each result may carry a public Internet Archive
+    identifier, reusable with LibraryPdfUrlController to get a real PDF."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, q=None, page=1):
+        if not q:
+            raise cherrypy.HTTPError(400, "q is required")
+        return _guard(library.search_open_library, q, int(page))
+
+
 class LibraryCategoriesController:
     exposed = True
 
