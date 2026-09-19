@@ -12,7 +12,6 @@ import {
   LogOut,
   Menu,
   X,
-  Globe,
   CalendarClock,
   Orbit,
 } from "lucide-react";
@@ -36,7 +35,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },
 ];
 
-const COMING_SOON_ITEMS = [{ label: "Browser", icon: Globe }];
+// Browser now lives inside Nimrose Desk rather than as its own top-level tile.
+const COMING_SOON_ITEMS: { label: string; icon: typeof Home }[] = [];
 
 const initials = (name: string) =>
   name

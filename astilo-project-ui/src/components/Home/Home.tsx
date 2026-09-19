@@ -1,7 +1,7 @@
 import { useMemo, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Clapperboard, Music, Sparkles, ShoppingBag, Palette, Globe, CalendarClock, Orbit } from "lucide-react";
+import { Clapperboard, Music, Sparkles, ShoppingBag, Palette, CalendarClock, Orbit } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
@@ -22,7 +22,8 @@ const QUICK_ACCESS = [
   { label: "Customize", href: AppRoute.customize, icon: Palette },
 ];
 
-const COMING_SOON = [{ label: "Browser", icon: Globe }];
+// Browser now lives inside Nimrose Desk rather than as its own top-level tile.
+const COMING_SOON: { label: string; icon: typeof Clapperboard }[] = [];
 
 const greeting = () => {
   const hour = new Date().getHours();

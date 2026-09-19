@@ -8,13 +8,14 @@ import NimroseCalendarView from "./NimroseCalendarView";
 import NimroseKanbanView from "./NimroseKanbanView";
 import NimroseNotesView from "./NimroseNotesView";
 import NimroseFocusView from "./NimroseFocusView";
+import NimroseBrowserView from "./NimroseBrowserView";
 import NimroseCommandPalette from "./NimroseCommandPalette";
 import { NimroseFocusProvider, useNimroseFocus } from "./NimroseFocusContext";
 import { NimrosePromptProvider } from "./NimrosePromptDialog";
 import "./Nimrose.scss";
 
 const COLLAPSE_KEY = "nimrose-sidebar-collapsed";
-const BUILT_SECTIONS = ["home", "tasks", "calendar", "kanban", "projects", "notes", "focus"];
+const BUILT_SECTIONS = ["home", "tasks", "calendar", "kanban", "projects", "notes", "focus", "browser"];
 
 const readCollapsed = () => {
   try {
@@ -66,6 +67,7 @@ const NimroseShellInner = ({
         {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
         {active === "notes" && <NimroseNotesView />}
         {active === "focus" && <NimroseFocusView />}
+        {active === "browser" && <NimroseBrowserView />}
         {!BUILT_SECTIONS.includes(active) && <ComingSoonSection id={active} />}
       </main>
       {!isImmersiveFocus && <NimroseContextPanel />}

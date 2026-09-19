@@ -6,6 +6,7 @@ import {
   ChevronsRight,
   Focus,
   FolderKanban,
+  Globe,
   Home,
   KanbanSquare,
   ListTodo,
@@ -30,6 +31,7 @@ const SECTIONS: { heading: string; items: NimroseSection[] }[] = [
       { id: "tasks", label: "Tasks", icon: CheckSquare },
       { id: "kanban", label: "Kanban", icon: KanbanSquare },
       { id: "notes", label: "Notes", icon: Notebook },
+      { id: "browser", label: "Browser", icon: Globe },
     ],
   },
   {

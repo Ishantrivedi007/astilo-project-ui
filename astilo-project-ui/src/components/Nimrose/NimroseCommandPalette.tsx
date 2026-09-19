@@ -5,6 +5,7 @@ import {
   Calendar,
   CheckSquare,
   Focus,
+  Globe,
   KanbanSquare,
   Notebook,
   Palette,
@@ -76,6 +77,7 @@ const NimroseCommandPalette = ({ onNavigate }: { onNavigate: (section: string) =
       { id: "open-kanban", label: "Open Kanban", icon: KanbanSquare, run: () => onNavigate("kanban") },
       { id: "open-notes", label: "Search / open Notes", icon: Notebook, run: () => onNavigate("notes") },
       { id: "open-focus", label: "Open Focus", icon: Focus, run: () => onNavigate("focus") },
+      { id: "open-browser", label: "Open browser", icon: Globe, run: () => onNavigate("browser") },
       {
         id: "start-focus",
         label: running ? "Pause focus session" : "Start focus session",
