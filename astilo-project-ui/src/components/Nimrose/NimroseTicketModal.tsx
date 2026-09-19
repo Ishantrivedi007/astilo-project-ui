@@ -93,7 +93,12 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
     enabled: !!ticketQuery.data,
   });
 
-  const invalidateBoard = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "tickets"] });
+  const invalidateBoard = () => {
+    queryClient.invalidateQueries({ queryKey: ["nimrose", "tickets"] });
+    // Status/assignee changes create a real notification server-side —
+    // refresh the bell immediately instead of waiting for its own poll.
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  };
   const invalidateTicket = () => {
     queryClient.invalidateQueries({ queryKey: ["nimrose", "ticket", ticketId] });
     invalidateBoard();
