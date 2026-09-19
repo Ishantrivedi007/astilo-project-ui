@@ -24,6 +24,7 @@ from app.controllers.health_controller import HealthController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.nimrose_controller import (
     NimroseCalendarController,
+    NimroseNotesController,
     NimroseProjectsController,
     NimroseSprintsController,
     NimroseTasksController,
@@ -115,6 +116,7 @@ def build_app():
     cherrypy.tree.mount(NimroseTicketCommentsController(), "/api/nimrose/ticket-comments", conf)
     cherrypy.tree.mount(NimroseTicketLinksController(), "/api/nimrose/ticket-links", conf)
     cherrypy.tree.mount(NimroseTicketActivityController(), "/api/nimrose/ticket-activity", conf)
+    cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,

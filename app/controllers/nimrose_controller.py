@@ -13,6 +13,7 @@ from app.models import (
     TICKET_STATUSES,
     TICKET_TYPES,
     NimroseCalendarEvent,
+    NimroseNote,
     NimroseProject,
     NimroseSprint,
     NimroseTask,
@@ -654,3 +655,82 @@ class NimroseTicketActivityController:
                 .all()
             )
             return [a.to_dict() for a in activity]
+
+
+class NimroseNotesController:
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, note_id=None, folder=None, tag=None, q=None):
+        with get_session() as session:
+            if note_id is not None:
+                note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
+                if not note:
+                    raise cherrypy.HTTPError(404, "Note not found")
+                return note.to_dict()
+
+            query = session.query(NimroseNote).filter_by(user_id=_user_id())
+            if folder:
+                query = query.filter_by(folder=folder)
+            if q:
+                like = f"%{q}%"
+                query = query.filter((NimroseNote.title.ilike(like)) | (NimroseNote.content.ilike(like)))
+            notes = query.order_by(NimroseNote.pinned.desc(), NimroseNote.updated_at.desc()).all()
+            if tag:
+                notes = [n for n in notes if tag in (n.tags or [])]
+            return [n.to_dict() for n in notes]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self):
+        body = cherrypy.request.json or {}
+        title = (body.get("title") or "").strip() or "Untitled note"
+
+        with get_session() as session:
+            note = NimroseNote(
+                user_id=_user_id(),
+                title=title,
+                content=body.get("content", ""),
+                folder=body.get("folder") or None,
+                tags=body.get("tags") or [],
+                pinned=1 if body.get("pinned") else 0,
+            )
+            session.add(note)
+            session.flush()
+            return note.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, note_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
+            if not note:
+                raise cherrypy.HTTPError(404, "Note not found")
+
+            if "title" in body:
+                note.title = (body["title"] or "").strip() or "Untitled note"
+            if "content" in body:
+                note.content = body["content"]
+            if "folder" in body:
+                note.folder = body["folder"] or None
+            if "tags" in body:
+                note.tags = body["tags"] or []
+            if "pinned" in body:
+                note.pinned = 1 if body["pinned"] else 0
+
+            session.flush()
+            return note.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, note_id):
+        with get_session() as session:
+            note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
+            if not note:
+                raise cherrypy.HTTPError(404, "Note not found")
+            session.delete(note)
+            return {"deleted": True}

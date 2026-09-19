@@ -46,6 +46,7 @@ class User(Base):
     nimrose_tasks = relationship("NimroseTask", back_populates="user", cascade="all, delete-orphan")
     nimrose_calendar_events = relationship("NimroseCalendarEvent", back_populates="user", cascade="all, delete-orphan")
     nimrose_tickets = relationship("NimroseTicket", cascade="all, delete-orphan", foreign_keys="NimroseTicket.user_id")
+    nimrose_notes = relationship("NimroseNote", cascade="all, delete-orphan")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     login_events = relationship("LoginEvent", back_populates="user", cascade="all, delete-orphan")
@@ -705,4 +706,35 @@ class NimroseTicketLink(Base):
             "linkedTicketKey": self.linked_ticket.ticket_key if self.linked_ticket else None,
             "linkedTicketTitle": self.linked_ticket.title if self.linked_ticket else None,
             "linkedTicketStatus": self.linked_ticket.status if self.linked_ticket else None,
+        }
+
+
+class NimroseNote(Base):
+    """A Nimrose note — Markdown content, an optional folder (a plain
+    string rather than a separate entity, matching how labels/projects
+    are kept lightweight elsewhere in Nimrose), and tags. Backlinks are a
+    documented future addition, not built here."""
+
+    __tablename__ = "nimrose_notes"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=True)  # Markdown source
+    folder = Column(String(100), nullable=True)
+    tags = Column(JSON, nullable=True)  # list[str]
+    pinned = Column(Integer, nullable=False, default=0)  # 0/1 (sqlite has no real bool)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "folder": self.folder,
+            "tags": self.tags or [],
+            "pinned": bool(self.pinned),
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
