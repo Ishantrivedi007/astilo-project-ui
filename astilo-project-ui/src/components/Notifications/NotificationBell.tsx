@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck } from "lucide-react";
@@ -54,16 +55,17 @@ const NotificationBell = () => {
         <span className="sidebar-item-label">Notifications</span>
       </button>
 
-      {open && (
-        <>
-          <div style={{ position: "fixed", inset: 0, zIndex: 290 }} onClick={() => setOpen(false)} />
-          <div
-            className="notif-panel"
-            style={{
-              top: rect ? Math.min(rect.top, window.innerHeight - 420) : 60,
-              left: rect ? rect.right + 10 : 60,
-            }}
-          >
+      {open &&
+        createPortal(
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 290 }} onClick={() => setOpen(false)} />
+            <div
+              className="notif-panel"
+              style={{
+                top: rect ? Math.min(rect.top, window.innerHeight - 420) : 60,
+                left: rect ? rect.right + 10 : 60,
+              }}
+            >
             <div className="notif-panel-header">
               <h3>Notifications</h3>
               <button type="button" onClick={() => markAllMutation.mutate()} disabled={unread === 0}>
@@ -101,7 +103,8 @@ const NotificationBell = () => {
               View all notifications
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </>
   );

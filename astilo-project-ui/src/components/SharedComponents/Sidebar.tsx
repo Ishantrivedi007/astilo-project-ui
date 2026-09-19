@@ -17,6 +17,7 @@ import {
   LineChart,
   FlaskConical,
   NotebookPen,
+  MessageCircle,
 } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Markets", href: AppRoute.markets, icon: LineChart },
   { label: "Research", href: AppRoute.research, icon: FlaskConical },
   { label: "Office", href: AppRoute.office, icon: NotebookPen },
+  { label: "Messenger", href: AppRoute.messenger, icon: MessageCircle },
   { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },
 ];
 

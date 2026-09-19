@@ -40,6 +40,7 @@ export const AppRoute = {
   officeExcel: "/office/excel",
   officeSlides: "/office/slides",
   notifications: "/notifications",
+  messenger: "/messenger",
   customize: "/customize",
   profile: "/profile",
   admin: "/admin",

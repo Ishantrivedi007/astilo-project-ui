@@ -42,6 +42,7 @@ const OfficeWord = lazy(() => import("../components/Office/OfficeWord"));
 const OfficeExcel = lazy(() => import("../components/Office/OfficeExcel"));
 const OfficePowerPoint = lazy(() => import("../components/Office/OfficePowerPoint"));
 const NotificationsView = lazy(() => import("../components/Notifications/NotificationsView"));
+const MessengerHome = lazy(() => import("../components/Messenger/MessengerHome"));
 const Customize = lazy(() => import("../components/Customize/Customize"));
 const Home = lazy(() => import("../components/Home/Home"));
 const Login = lazy(() => import("../components/Login/Login"));
@@ -168,6 +169,7 @@ const AppRoutes = () => (
       <Route path={AppRoute.officeExcel} element={getAuthRoute(<OfficeExcel />)} />
       <Route path={AppRoute.officeSlides} element={getAuthRoute(<OfficePowerPoint />)} />
       <Route path={AppRoute.notifications} element={getAuthRoute(<NotificationsView />)} />
+      <Route path={AppRoute.messenger} element={getAuthRoute(<MessengerHome />)} />
       <Route path={AppRoute.customize} element={getAuthRoute(<Customize />)} />
       <Route path={AppRoute.profile} element={getAuthRoute(<Profile />)} />
       <Route
