@@ -12,6 +12,7 @@ Docs: https://heasarc.gsfc.nasa.gov/xamin/vo/tap
 """
 
 import base64
+import math
 import struct
 import xml.etree.ElementTree as ET
 
@@ -29,6 +30,10 @@ CATALOGS = {
     "numaster": {
         "label": "NuSTAR Master Catalog",
         "columns": "name,ra,dec,obsid,time,exposure_a,public_date",
+    },
+    "snrgreen": {
+        "label": "Green's Supernova Remnant Catalog",
+        "columns": "name,ra,dec,major_diameter,minor_diameter,type,flux_1_ghz",
     },
 }
 
@@ -59,8 +64,11 @@ def _parse_votable(xml_bytes: bytes):
                 row[name] = raw[pos : pos + length].decode(errors="replace")
                 pos += length
             elif dtype == "double":
-                (row[name],) = struct.unpack_from(">d", raw, pos)
+                (value,) = struct.unpack_from(">d", raw, pos)
                 pos += 8
+                # VOTABLE BINARY encodes NULL doubles as NaN, which isn't
+                # valid JSON — normalize to None (our "Data unavailable").
+                row[name] = None if math.isnan(value) else value
             elif dtype in ("int", "long"):
                 fmt, size = (">q", 8) if dtype == "long" else (">i", 4)
                 (row[name],) = struct.unpack_from(fmt, raw, pos)

@@ -307,7 +307,7 @@ class CosmosSavedItem(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    object_type = Column(String(30), nullable=False)  # planet | asteroid | exoplanet | star | observation | image
+    object_type = Column(String(30), nullable=False)  # planet | asteroid | exoplanet | star | observation | image | galaxy | supernova
     external_id = Column(String(255), nullable=False)  # e.g. SBDB spkid, exoplanet pl_name, MAST obsid
     collection = Column(String(40), nullable=False, default="favorites")  # favorites | research | discoveries | ...
     title = Column(String(255))

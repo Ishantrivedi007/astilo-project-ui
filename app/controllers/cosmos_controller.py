@@ -1,7 +1,7 @@
 import cherrypy
 import requests
 
-from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa
+from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa, simbad
 from app.db import get_session
 from app.models import CosmosSavedItem
 
@@ -160,6 +160,38 @@ class HighEnergyObservationController:
         return result
 
 
+class GalaxyController:
+    """SIMBAD generic object lookup, used for galaxies (and other deep-sky
+    objects SIMBAD covers that don't fit a dedicated mission catalog) — no
+    API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name=None):
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required (e.g. ?name=Andromeda Galaxy)")
+        result = _guard(simbad.lookup_object, name)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No object found matching '{name}'")
+        return result
+
+
+class SupernovaController:
+    """HEASARC's Green's Supernova Remnant Catalog — no API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name=None, radius=1.0, limit=10):
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required (e.g. ?name=Crab Nebula)")
+        result = _guard(heasarc.search_observations, name, "snrgreen", float(radius), int(limit))
+        if result is None:
+            raise cherrypy.HTTPError(404, f"Could not resolve coordinates for '{name}'")
+        return result
+
+
 class CosmosLibraryController:
     """A user's saved Cosmos objects — planets, asteroids, exoplanets, stars,
     telescope observations. Mirrors FavoritesController's shape."""
@@ -187,7 +219,7 @@ class CosmosLibraryController:
         object_type = body.get("objectType")
         external_id = str(body.get("externalId", ""))
 
-        valid_types = ("planet", "asteroid", "exoplanet", "star", "observation", "image")
+        valid_types = ("planet", "asteroid", "exoplanet", "star", "observation", "image", "galaxy", "supernova")
         if object_type not in valid_types or not external_id:
             raise cherrypy.HTTPError(400, f"objectType ({'|'.join(valid_types)}) and externalId are required")
 
