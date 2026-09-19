@@ -12,6 +12,7 @@ import NimroseSprintsView from "./NimroseSprintsView";
 import NimroseBacklogView from "./NimroseBacklogView";
 import NimroseAnalyticsView from "./NimroseAnalyticsView";
 import NimroseNotesView from "./NimroseNotesView";
+import NimroseChatView from "./NimroseChatView";
 import NimroseFocusView from "./NimroseFocusView";
 import NimroseBrowserView from "./NimroseBrowserView";
 import NimroseBookmarksView from "./NimroseBookmarksView";
@@ -72,6 +73,7 @@ const NimroseShellInner = ({
         {active === "backlog" && <NimroseBacklogView />}
         {active === "analytics" && <NimroseAnalyticsView />}
         {active === "notes" && <NimroseNotesView />}
+        {active === "chat" && <NimroseChatView />}
         {active === "focus" && <NimroseFocusView />}
         {active === "browser" && <NimroseBrowserView />}
         {active === "bookmarks" && <NimroseBookmarksView />}
@@ -93,7 +95,7 @@ const NimroseShellInner = ({
 
 const VALID_SECTIONS = [
   "home", "tasks", "calendar", "kanban", "projects", "sprints", "backlog", "analytics",
-  "notes", "focus", "browser", "bookmarks", "saved", "settings",
+  "notes", "chat", "focus", "browser", "bookmarks", "saved", "settings",
 ];
 
 const NimroseShell = () => {
