@@ -22,6 +22,7 @@ from app.controllers.cosmos_controller import (
 from app.controllers.favorites_controller import FavoritesController
 from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
+from app.controllers.images_controller import WebImageSearchController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.nimrose_analytics_controller import (
     NimroseBreakdownController,
@@ -134,6 +135,7 @@ def build_app():
     cherrypy.tree.mount(SupernovaController(), "/api/cosmos/supernovae", conf)
     cherrypy.tree.mount(CosmosLibraryController(), "/api/cosmos/library", conf)
     cherrypy.tree.mount(ResearchSummaryController(), "/api/cosmos/research-summary", conf)
+    cherrypy.tree.mount(WebImageSearchController(), "/api/images/search", conf)
     cherrypy.tree.mount(MarketsAssetController(), "/api/markets/asset", conf)
     cherrypy.tree.mount(MarketsSearchController(), "/api/markets/search", conf)
     cherrypy.tree.mount(MarketsTopController(), "/api/markets/top", conf)
