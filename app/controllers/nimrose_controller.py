@@ -1,13 +1,35 @@
 import datetime
+import re
 
 import cherrypy
 
 from app.db import get_session
-from app.models import TASK_PRIORITIES, TASK_STATUSES, NimroseCalendarEvent, NimroseProject, NimroseTask
+from app.models import (
+    TASK_PRIORITIES,
+    TASK_STATUSES,
+    TICKET_LINK_INVERSE,
+    TICKET_LINK_RELATIONS,
+    TICKET_PRIORITIES,
+    TICKET_STATUSES,
+    TICKET_TYPES,
+    NimroseCalendarEvent,
+    NimroseProject,
+    NimroseSprint,
+    NimroseTask,
+    NimroseTicket,
+    NimroseTicketActivity,
+    NimroseTicketComment,
+    NimroseTicketLink,
+)
 
 
 def _user_id():
     return int(cherrypy.request.user["sub"])
+
+
+def _derive_key_prefix(name: str) -> str:
+    letters = re.sub(r"[^A-Za-z]", "", name).upper()
+    return (letters[:3] or "PRJ")
 
 
 class NimroseProjectsController:
@@ -30,7 +52,8 @@ class NimroseProjectsController:
             raise cherrypy.HTTPError(400, "name is required")
 
         with get_session() as session:
-            project = NimroseProject(user_id=_user_id(), name=name, color=body.get("color"))
+            key_prefix = (body.get("keyPrefix") or "").strip().upper() or _derive_key_prefix(name)
+            project = NimroseProject(user_id=_user_id(), name=name, color=body.get("color"), key_prefix=key_prefix)
             session.add(project)
             session.flush()
             return project.to_dict()
@@ -248,3 +271,386 @@ class NimroseCalendarController:
                 raise cherrypy.HTTPError(404, "Event not found")
             session.delete(event)
             return {"deleted": True}
+
+
+class NimroseSprintsController:
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, project_id=None):
+        with get_session() as session:
+            query = (
+                session.query(NimroseSprint)
+                .join(NimroseProject)
+                .filter(NimroseProject.user_id == _user_id())
+            )
+            if project_id:
+                query = query.filter(NimroseSprint.project_id == int(project_id))
+            sprints = query.order_by(NimroseSprint.created_at.desc()).all()
+            return [s.to_dict() for s in sprints]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self):
+        body = cherrypy.request.json or {}
+        name = (body.get("name") or "").strip()
+        project_id = body.get("projectId")
+        if not name or not project_id:
+            raise cherrypy.HTTPError(400, "name and projectId are required")
+
+        with get_session() as session:
+            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
+            if not project:
+                raise cherrypy.HTTPError(404, "Project not found")
+
+            sprint = NimroseSprint(
+                project_id=project.id,
+                name=name,
+                goal=body.get("goal"),
+                start_date=body.get("startDate"),
+                end_date=body.get("endDate"),
+                status=body.get("status", "planned"),
+            )
+            session.add(sprint)
+            session.flush()
+            return sprint.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, sprint_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            sprint = (
+                session.query(NimroseSprint)
+                .join(NimroseProject)
+                .filter(NimroseSprint.id == int(sprint_id), NimroseProject.user_id == _user_id())
+                .first()
+            )
+            if not sprint:
+                raise cherrypy.HTTPError(404, "Sprint not found")
+
+            if "name" in body:
+                sprint.name = (body["name"] or "").strip() or sprint.name
+            if "goal" in body:
+                sprint.goal = body["goal"]
+            if "startDate" in body:
+                sprint.start_date = body["startDate"]
+            if "endDate" in body:
+                sprint.end_date = body["endDate"]
+            if "status" in body:
+                if body["status"] not in ("planned", "active", "completed"):
+                    raise cherrypy.HTTPError(400, "invalid sprint status")
+                sprint.status = body["status"]
+
+            session.flush()
+            return sprint.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, sprint_id):
+        with get_session() as session:
+            sprint = (
+                session.query(NimroseSprint)
+                .join(NimroseProject)
+                .filter(NimroseSprint.id == int(sprint_id), NimroseProject.user_id == _user_id())
+                .first()
+            )
+            if not sprint:
+                raise cherrypy.HTTPError(404, "Sprint not found")
+            session.delete(sprint)
+            return {"deleted": True}
+
+
+def _log_activity(session, ticket_id, action, detail=None):
+    session.add(NimroseTicketActivity(ticket_id=ticket_id, actor_user_id=_user_id(), action=action, detail=detail))
+
+
+def _next_ticket_key(session, project: NimroseProject) -> str:
+    project.ticket_sequence = (project.ticket_sequence or 0) + 1
+    return f"{project.key_prefix or 'PRJ'}-{project.ticket_sequence}"
+
+
+class NimroseTicketsController:
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, ticket_id=None, project_id=None, sprint_id=None, status=None, priority=None, type=None, assignee=None, label=None, q=None):
+        with get_session() as session:
+            if ticket_id is not None:
+                ticket = (
+                    session.query(NimroseTicket)
+                    .filter(NimroseTicket.id == int(ticket_id), NimroseTicket.user_id == _user_id())
+                    .first()
+                )
+                if not ticket:
+                    raise cherrypy.HTTPError(404, "Ticket not found")
+                return ticket.to_dict(include_links=True)
+
+            query = session.query(NimroseTicket).filter(NimroseTicket.user_id == _user_id())
+            if project_id:
+                query = query.filter(NimroseTicket.project_id == int(project_id))
+            if sprint_id:
+                query = query.filter(NimroseTicket.sprint_id == int(sprint_id))
+            if status:
+                if status not in TICKET_STATUSES:
+                    raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TICKET_STATUSES)}")
+                query = query.filter(NimroseTicket.status == status)
+            if priority:
+                query = query.filter(NimroseTicket.priority == priority)
+            if type:
+                query = query.filter(NimroseTicket.ticket_type == type)
+            if assignee:
+                query = query.filter(NimroseTicket.assignee_name == assignee)
+            if q:
+                like = f"%{q}%"
+                query = query.filter(
+                    (NimroseTicket.title.ilike(like))
+                    | (NimroseTicket.ticket_key.ilike(like))
+                    | (NimroseTicket.description.ilike(like))
+                )
+
+            tickets = query.order_by(NimroseTicket.updated_at.desc()).all()
+            if label:
+                tickets = [t for t in tickets if label in (t.labels or [])]
+            return [t.to_dict() for t in tickets]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self):
+        body = cherrypy.request.json or {}
+        title = (body.get("title") or "").strip()
+        project_id = body.get("projectId")
+        if not title or not project_id:
+            raise cherrypy.HTTPError(400, "title and projectId are required")
+
+        ticket_type = body.get("type", "task")
+        priority = body.get("priority", "medium")
+        status = body.get("status", "backlog")
+        if ticket_type not in TICKET_TYPES:
+            raise cherrypy.HTTPError(400, f"type must be one of {', '.join(TICKET_TYPES)}")
+        if priority not in TICKET_PRIORITIES:
+            raise cherrypy.HTTPError(400, f"priority must be one of {', '.join(TICKET_PRIORITIES)}")
+        if status not in TICKET_STATUSES:
+            raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TICKET_STATUSES)}")
+
+        with get_session() as session:
+            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
+            if not project:
+                raise cherrypy.HTTPError(404, "Project not found")
+
+            ticket = NimroseTicket(
+                user_id=_user_id(),
+                project_id=project.id,
+                sprint_id=body.get("sprintId"),
+                ticket_key=_next_ticket_key(session, project),
+                title=title,
+                description=body.get("description"),
+                ticket_type=ticket_type,
+                status=status,
+                priority=priority,
+                assignee_name=body.get("assignee"),
+                reporter_user_id=_user_id(),
+                labels=body.get("labels") or [],
+                due_date=body.get("dueDate"),
+                story_points=body.get("storyPoints"),
+                estimate_minutes=body.get("estimateMinutes"),
+            )
+            session.add(ticket)
+            session.flush()
+            _log_activity(session, ticket.id, "created", f"Created as {ticket.ticket_key}")
+            session.flush()
+            return ticket.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def PUT(self, ticket_id):
+        body = cherrypy.request.json or {}
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+
+            if "title" in body:
+                title = (body["title"] or "").strip()
+                if not title:
+                    raise cherrypy.HTTPError(400, "title cannot be empty")
+                ticket.title = title
+            if "description" in body:
+                ticket.description = body["description"]
+            if "status" in body and body["status"] != ticket.status:
+                if body["status"] not in TICKET_STATUSES:
+                    raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TICKET_STATUSES)}")
+                _log_activity(session, ticket.id, "status_changed", f"{ticket.status} → {body['status']}")
+                ticket.status = body["status"]
+            if "priority" in body and body["priority"] != ticket.priority:
+                if body["priority"] not in TICKET_PRIORITIES:
+                    raise cherrypy.HTTPError(400, f"priority must be one of {', '.join(TICKET_PRIORITIES)}")
+                _log_activity(session, ticket.id, "priority_changed", f"{ticket.priority} → {body['priority']}")
+                ticket.priority = body["priority"]
+            if "type" in body:
+                if body["type"] not in TICKET_TYPES:
+                    raise cherrypy.HTTPError(400, f"type must be one of {', '.join(TICKET_TYPES)}")
+                ticket.ticket_type = body["type"]
+            if "assignee" in body and body["assignee"] != ticket.assignee_name:
+                _log_activity(session, ticket.id, "assigned", body["assignee"] or "Unassigned")
+                ticket.assignee_name = body["assignee"]
+            if "sprintId" in body:
+                ticket.sprint_id = body["sprintId"]
+            if "labels" in body:
+                ticket.labels = body["labels"] or []
+            if "dueDate" in body:
+                ticket.due_date = body["dueDate"]
+            if "storyPoints" in body:
+                ticket.story_points = body["storyPoints"]
+            if "estimateMinutes" in body:
+                ticket.estimate_minutes = body["estimateMinutes"]
+
+            session.flush()
+            return ticket.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, ticket_id):
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            session.delete(ticket)
+            return {"deleted": True}
+
+
+class NimroseTicketCommentsController:
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, ticket_id):
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            comments = (
+                session.query(NimroseTicketComment)
+                .filter_by(ticket_id=ticket.id)
+                .order_by(NimroseTicketComment.created_at.asc())
+                .all()
+            )
+            return [c.to_dict() for c in comments]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self, ticket_id):
+        body = cherrypy.request.json or {}
+        text = (body.get("body") or "").strip()
+        if not text:
+            raise cherrypy.HTTPError(400, "body is required")
+
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+
+            comment = NimroseTicketComment(ticket_id=ticket.id, user_id=_user_id(), body=text)
+            session.add(comment)
+            session.flush()
+            _log_activity(session, ticket.id, "commented", text[:120])
+            session.flush()
+            return comment.to_dict()
+
+
+class NimroseTicketLinksController:
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self, ticket_id):
+        body = cherrypy.request.json or {}
+        relation = body.get("relation")
+        linked_ticket_id = body.get("linkedTicketId")
+        if relation not in TICKET_LINK_RELATIONS or not linked_ticket_id:
+            raise cherrypy.HTTPError(400, f"relation must be one of {', '.join(TICKET_LINK_RELATIONS)}, and linkedTicketId is required")
+
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            linked = session.query(NimroseTicket).filter_by(id=int(linked_ticket_id), user_id=_user_id()).first()
+            if not ticket or not linked:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            if ticket.id == linked.id:
+                raise cherrypy.HTTPError(400, "A ticket cannot link to itself")
+
+            existing = (
+                session.query(NimroseTicketLink)
+                .filter_by(ticket_id=ticket.id, linked_ticket_id=linked.id, relation=relation)
+                .first()
+            )
+            if existing:
+                return existing.to_dict()
+
+            link = NimroseTicketLink(ticket_id=ticket.id, linked_ticket_id=linked.id, relation=relation)
+            session.add(link)
+
+            inverse_relation = TICKET_LINK_INVERSE[relation]
+            inverse_existing = (
+                session.query(NimroseTicketLink)
+                .filter_by(ticket_id=linked.id, linked_ticket_id=ticket.id, relation=inverse_relation)
+                .first()
+            )
+            if not inverse_existing:
+                session.add(NimroseTicketLink(ticket_id=linked.id, linked_ticket_id=ticket.id, relation=inverse_relation))
+
+            _log_activity(session, ticket.id, "linked", f"{relation} {linked.ticket_key}")
+            session.flush()
+            return link.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, ticket_id, link_id):
+        with get_session() as session:
+            link = (
+                session.query(NimroseTicketLink)
+                .join(NimroseTicket, NimroseTicketLink.ticket_id == NimroseTicket.id)
+                .filter(NimroseTicketLink.id == int(link_id), NimroseTicket.id == int(ticket_id), NimroseTicket.user_id == _user_id())
+                .first()
+            )
+            if not link:
+                raise cherrypy.HTTPError(404, "Link not found")
+
+            # Remove the mirrored inverse link too, so the relationship
+            # doesn't dangle one-sided on the other ticket.
+            inverse_relation = TICKET_LINK_INVERSE[link.relation]
+            inverse = (
+                session.query(NimroseTicketLink)
+                .filter_by(ticket_id=link.linked_ticket_id, linked_ticket_id=link.ticket_id, relation=inverse_relation)
+                .first()
+            )
+            if inverse:
+                session.delete(inverse)
+            session.delete(link)
+            return {"deleted": True}
+
+
+class NimroseTicketActivityController:
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, ticket_id):
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            activity = (
+                session.query(NimroseTicketActivity)
+                .filter_by(ticket_id=ticket.id)
+                .order_by(NimroseTicketActivity.created_at.desc())
+                .all()
+            )
+            return [a.to_dict() for a in activity]

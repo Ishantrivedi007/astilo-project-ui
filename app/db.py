@@ -29,6 +29,27 @@ def init_db():
 
     Base.metadata.create_all(bind=engine)
     _migrate_song_columns()
+    _migrate_nimrose_project_columns()
+
+
+def _migrate_nimrose_project_columns():
+    """create_all only creates missing tables, not columns on ones that
+    already exist — patch in the ticket-key columns added to
+    nimrose_projects after it first shipped."""
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(nimrose_projects)")}
+            if "key_prefix" not in existing:
+                conn.exec_driver_sql("ALTER TABLE nimrose_projects ADD COLUMN key_prefix VARCHAR(10)")
+            if "ticket_sequence" not in existing:
+                conn.exec_driver_sql("ALTER TABLE nimrose_projects ADD COLUMN ticket_sequence INTEGER DEFAULT 0")
+        else:
+            conn.exec_driver_sql("ALTER TABLE nimrose_projects ADD COLUMN IF NOT EXISTS key_prefix VARCHAR(10)")
+            conn.exec_driver_sql(
+                "ALTER TABLE nimrose_projects ADD COLUMN IF NOT EXISTS ticket_sequence INTEGER DEFAULT 0"
+            )
+        conn.commit()
 
 
 def _migrate_song_columns():

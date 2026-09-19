@@ -25,7 +25,12 @@ from app.controllers.media_controller import LyricsController, LyricsSearchContr
 from app.controllers.nimrose_controller import (
     NimroseCalendarController,
     NimroseProjectsController,
+    NimroseSprintsController,
     NimroseTasksController,
+    NimroseTicketActivityController,
+    NimroseTicketCommentsController,
+    NimroseTicketLinksController,
+    NimroseTicketsController,
 )
 from app.controllers.playlists_controller import PlaylistsController
 from app.controllers.sessions_controller import SessionsController
@@ -105,6 +110,11 @@ def build_app():
     cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)
     cherrypy.tree.mount(NimroseCalendarController(), "/api/nimrose/calendar-events", conf)
+    cherrypy.tree.mount(NimroseSprintsController(), "/api/nimrose/sprints", conf)
+    cherrypy.tree.mount(NimroseTicketsController(), "/api/nimrose/tickets", conf)
+    cherrypy.tree.mount(NimroseTicketCommentsController(), "/api/nimrose/ticket-comments", conf)
+    cherrypy.tree.mount(NimroseTicketLinksController(), "/api/nimrose/ticket-links", conf)
+    cherrypy.tree.mount(NimroseTicketActivityController(), "/api/nimrose/ticket-activity", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,

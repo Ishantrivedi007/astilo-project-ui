@@ -45,6 +45,7 @@ class User(Base):
     nimrose_projects = relationship("NimroseProject", back_populates="user", cascade="all, delete-orphan")
     nimrose_tasks = relationship("NimroseTask", back_populates="user", cascade="all, delete-orphan")
     nimrose_calendar_events = relationship("NimroseCalendarEvent", back_populates="user", cascade="all, delete-orphan")
+    nimrose_tickets = relationship("NimroseTicket", cascade="all, delete-orphan", foreign_keys="NimroseTicket.user_id")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     login_events = relationship("LoginEvent", back_populates="user", cascade="all, delete-orphan")
@@ -389,17 +390,24 @@ class NimroseProject(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(150), nullable=False)
     color = Column(String(20), nullable=True)
+    # Ticket key prefix, e.g. "AST" for AST-1, AST-2... — auto-derived from
+    # the project name if not given explicitly.
+    key_prefix = Column(String(10), nullable=True)
+    ticket_sequence = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="nimrose_projects")
     tasks = relationship("NimroseTask", back_populates="project")
     events = relationship("NimroseCalendarEvent", back_populates="project")
+    sprints = relationship("NimroseSprint", back_populates="project", cascade="all, delete-orphan")
+    tickets = relationship("NimroseTicket", back_populates="project", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
             "color": self.color,
+            "keyPrefix": self.key_prefix,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -498,4 +506,203 @@ class NimroseCalendarEvent(Base):
             "recurrence": self.recurrence,
             "notes": self.notes,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+SPRINT_STATUSES = ("planned", "active", "completed")
+
+
+class NimroseSprint(Base):
+    __tablename__ = "nimrose_sprints"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
+    name = Column(String(150), nullable=False)
+    goal = Column(Text, nullable=True)
+    start_date = Column(String(10), nullable=True)
+    end_date = Column(String(10), nullable=True)
+    status = Column(String(20), nullable=False, default="planned")  # planned | active | completed
+    created_at = Column(DateTime, default=utcnow)
+
+    project = relationship("NimroseProject", back_populates="sprints")
+    tickets = relationship("NimroseTicket", back_populates="sprint")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "name": self.name,
+            "goal": self.goal,
+            "startDate": self.start_date,
+            "endDate": self.end_date,
+            "status": self.status,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+TICKET_TYPES = ("feature", "bug", "task", "improvement", "research", "design", "documentation")
+TICKET_PRIORITIES = ("low", "medium", "high", "critical")
+TICKET_STATUSES = ("backlog", "todo", "in_progress", "review", "done")
+TICKET_LINK_RELATIONS = ("blocks", "blocked_by", "depends_on", "related_to", "duplicate", "parent", "child")
+# Each relation's inverse, so creating a link auto-creates the mirror on the
+# other ticket ("blocks" on A implies "blocked_by" on B) rather than making
+# the user create both directions by hand.
+TICKET_LINK_INVERSE = {
+    "blocks": "blocked_by",
+    "blocked_by": "blocks",
+    "depends_on": "related_to",
+    "related_to": "related_to",
+    "duplicate": "duplicate",
+    "parent": "child",
+    "child": "parent",
+}
+
+
+class NimroseTicket(Base):
+    """A Kanban ticket — Jira-style ticket key, type, priority, sprint
+    assignment, story points. Subtasks are modeled as "child" links to
+    other tickets rather than a separate subtask entity, so the same
+    relationship system covers both."""
+
+    __tablename__ = "nimrose_tickets"
+    __table_args__ = (UniqueConstraint("project_id", "ticket_key", name="uq_ticket_key_per_project"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
+    sprint_id = Column(Integer, ForeignKey("nimrose_sprints.id"), nullable=True)
+    ticket_key = Column(String(30), nullable=False)  # e.g. "AST-1"
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    ticket_type = Column(String(20), nullable=False, default="task")
+    status = Column(String(20), nullable=False, default="backlog")
+    priority = Column(String(20), nullable=False, default="medium")
+    assignee_name = Column(String(120), nullable=True)
+    reporter_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    labels = Column(JSON, nullable=True)  # list[str]
+    due_date = Column(String(10), nullable=True)
+    story_points = Column(Integer, nullable=True)
+    estimate_minutes = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    project = relationship("NimroseProject", back_populates="tickets")
+    sprint = relationship("NimroseSprint", back_populates="tickets")
+    reporter = relationship("User", foreign_keys=[reporter_user_id])
+    comments = relationship("NimroseTicketComment", back_populates="ticket", cascade="all, delete-orphan")
+    activity = relationship(
+        "NimroseTicketActivity", back_populates="ticket", cascade="all, delete-orphan",
+        order_by="NimroseTicketActivity.created_at.desc()",
+    )
+    links = relationship(
+        "NimroseTicketLink", back_populates="ticket", cascade="all, delete-orphan",
+        foreign_keys="NimroseTicketLink.ticket_id",
+    )
+
+    def to_dict(self, include_links=False):
+        data = {
+            "id": self.id,
+            "projectId": self.project_id,
+            "projectName": self.project.name if self.project else None,
+            "sprintId": self.sprint_id,
+            "sprintName": self.sprint.name if self.sprint else None,
+            "key": self.ticket_key,
+            "title": self.title,
+            "description": self.description,
+            "type": self.ticket_type,
+            "status": self.status,
+            "priority": self.priority,
+            "assignee": self.assignee_name,
+            "reporter": self.reporter.name if self.reporter else None,
+            "labels": self.labels or [],
+            "dueDate": self.due_date,
+            "storyPoints": self.story_points,
+            "estimateMinutes": self.estimate_minutes,
+            "commentCount": len(self.comments) if self.comments is not None else 0,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_links:
+            data["links"] = [link.to_dict() for link in self.links]
+        return data
+
+
+class NimroseTicketComment(Base):
+    """A Slack-style comment thread on a ticket — author + timestamp, plain
+    text (Markdown rendering can be layered on the frontend later)."""
+
+    __tablename__ = "nimrose_ticket_comments"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+    ticket = relationship("NimroseTicket", back_populates="comments")
+    user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ticketId": self.ticket_id,
+            "authorName": self.user.name if self.user else None,
+            "body": self.body,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseTicketActivity(Base):
+    """Auto-logged activity feed per ticket — created, status changes,
+    assignment changes, comments — so a ticket's history is always visible
+    without the user having to maintain it by hand."""
+
+    __tablename__ = "nimrose_ticket_activity"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    actor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(40), nullable=False)  # created | status_changed | priority_changed | assigned | commented | linked | field_updated
+    detail = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    ticket = relationship("NimroseTicket", back_populates="activity")
+    actor = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ticketId": self.ticket_id,
+            "actorName": self.actor.name if self.actor else None,
+            "action": self.action,
+            "detail": self.detail,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseTicketLink(Base):
+    """A directed relationship from one ticket to another (blocks, depends
+    on, parent/child, etc). Creating one auto-creates the inverse link on
+    the target ticket so both sides stay consistent."""
+
+    __tablename__ = "nimrose_ticket_links"
+    __table_args__ = (UniqueConstraint("ticket_id", "linked_ticket_id", "relation", name="uq_ticket_link"),)
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    linked_ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    relation = Column(String(20), nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+
+    ticket = relationship("NimroseTicket", back_populates="links", foreign_keys=[ticket_id])
+    linked_ticket = relationship("NimroseTicket", foreign_keys=[linked_ticket_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "relation": self.relation,
+            "linkedTicketId": self.linked_ticket_id,
+            "linkedTicketKey": self.linked_ticket.ticket_key if self.linked_ticket else None,
+            "linkedTicketTitle": self.linked_ticket.title if self.linked_ticket else None,
+            "linkedTicketStatus": self.linked_ticket.status if self.linked_ticket else None,
         }
