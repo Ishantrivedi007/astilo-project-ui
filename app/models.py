@@ -281,6 +281,20 @@ class LyricsCache(Base):
     hit_count = Column(Integer, default=1)
     fetched_at = Column(DateTime, default=utcnow)
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "geniusSongId": self.genius_song_id,
+            "artist": self.artist,
+            "title": self.title,
+            "geniusUrl": self.genius_url,
+            "thumbnailUrl": self.thumbnail_url,
+            "lyricsText": self.lyrics_text,
+            "source": self.source,
+            "fetchedAt": self.fetched_at.isoformat() if self.fetched_at else None,
+            "hitCount": self.hit_count,
+        }
+
 
 class CosmosCache(Base):
     """Cached responses from external astronomy APIs (JPL, NASA Exoplanet
@@ -333,20 +347,6 @@ class CosmosSavedItem(Base):
             "data": self.data_json,
             "notes": self.notes,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
-        }
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "geniusSongId": self.genius_song_id,
-            "artist": self.artist,
-            "title": self.title,
-            "geniusUrl": self.genius_url,
-            "thumbnailUrl": self.thumbnail_url,
-            "lyricsText": self.lyrics_text,
-            "source": self.source,
-            "fetchedAt": self.fetched_at.isoformat() if self.fetched_at else None,
-            "hitCount": self.hit_count,
         }
 
 
