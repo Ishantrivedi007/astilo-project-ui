@@ -167,9 +167,9 @@ const MarketsHome = () => {
                 onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(r.symbol)}&type=${searchType}`)}
               >
                 <span className="markets-result-left">
-                  <MarketLogo logoUrl={r.logoUrl} category={category} name={r.name} size={24} />
-                  <span>
-                    <span className="markets-result-name">{r.name}</span>{" "}
+                  <MarketLogo logoUrl={r.logoUrl} category={category} name={r.name} size={28} />
+                  <span className="markets-result-text">
+                    <span className="markets-result-name">{r.name}</span>
                     <span className="markets-result-meta">{r.symbol}</span>
                   </span>
                 </span>

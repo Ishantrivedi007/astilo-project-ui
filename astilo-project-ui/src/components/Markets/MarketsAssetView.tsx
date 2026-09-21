@@ -1,14 +1,110 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, Newspaper, Satellite, TrendingUp } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ExternalLink, Newspaper, PieChart, Satellite, TrendingUp } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppRoute } from "../../app/AppRoute";
 import { Chart } from "../shared";
 import { fetchMarketAsset, fetchMarketNews, RANGE_LABEL, RANGES, type AssetType, type MarketPoint, type MarketRange } from "../../lib/marketsApi";
 import { fetchResearchSummary } from "../../lib/cosmosApi";
+import { fetchTradingAccount, placeTradingOrder, suggestionForHolding, fetchTradingInsights } from "../../lib/tradingApi";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import "./Markets.scss";
+import "./Trading.scss";
+
+const money = (n: number | null | undefined, decimals = 2) =>
+  n == null ? "—" : n.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+/** Buy/sell this exact symbol right from its own page — same simulated
+ * trading account as the Trading tab, so a trade made here shows up there
+ * (and in Portfolio) immediately via the shared "trading" query keys. */
+const AssetTradePanel = ({ symbol, assetType }: { symbol: string; assetType: AssetType }) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [quantity, setQuantity] = useState("1");
+
+  const accountQuery = useQuery({ queryKey: ["trading", "account"], queryFn: fetchTradingAccount });
+  const insightsQuery = useQuery({
+    queryKey: ["trading", "insights", symbol, assetType],
+    queryFn: () => fetchTradingInsights(symbol, assetType),
+    retry: false,
+  });
+  const holding = accountQuery.data?.holdings.find((h) => h.symbol === symbol && h.assetType === assetType);
+
+  const orderMutation = useMutation({
+    mutationFn: () => placeTradingOrder({ symbol, assetType, side, quantity: Number(quantity) }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["trading", "account"], result);
+      queryClient.invalidateQueries({ queryKey: ["trading", "orders"] });
+      toast.success(`${side === "buy" ? "Bought" : "Sold"} ${quantity} ${symbol} @ ${money(result.transaction.price)} (simulated).`);
+      setQuantity("1");
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(msg || "Order failed.");
+    },
+  });
+
+  return (
+    <div className="trading-order-panel" style={{ marginTop: "1.2rem" }}>
+      <h2 className="markets-section-title" style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
+        <PieChart size={16} /> Simulated trading
+      </h2>
+      <p className="markets-unavailable" style={{ marginBottom: "0.6rem" }}>
+        Practice buying/selling {symbol} at its real live price with simulated money — same account as{" "}
+        <button type="button" onClick={() => navigate(AppRoute.trading)} style={{ textDecoration: "underline", display: "inline", color: "inherit" }}>
+          Trading
+        </button>
+        .
+      </p>
+
+      {holding && (
+        <>
+          <p className="markets-unavailable">
+            You hold {holding.quantity} @ avg {money(holding.avgCost)} ({money(holding.unrealizedPnl)} unrealized)
+          </p>
+          {insightsQuery.data && (
+            <div className="trading-suggestion-card" style={{ marginTop: "0.4rem", marginBottom: "0.6rem" }}>
+              <p className="markets-unavailable">
+                <strong style={{ color: "rgb(var(--ink-rgb) / 0.8)" }}>{suggestionForHolding(holding, insightsQuery.data).label}</strong>
+              </p>
+              <p className="trading-suggestion-meaning">{suggestionForHolding(holding, insightsQuery.data).meaning}</p>
+              <p className="markets-unavailable">{suggestionForHolding(holding, insightsQuery.data).description}</p>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="markets-type-toggle" style={{ margin: "0.6rem 0" }}>
+        <button type="button" className={side === "buy" ? "active" : ""} onClick={() => setSide("buy")}>
+          Buy
+        </button>
+        <button type="button" className={side === "sell" ? "active" : ""} onClick={() => setSide("sell")} disabled={!holding}>
+          Sell
+        </button>
+      </div>
+
+      <label className="trading-field">
+        <span>Quantity</span>
+        <input type="number" min={0.0001} step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+      </label>
+
+      <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.6rem", alignItems: "center" }}>
+        <button
+          type="button"
+          className="markets-chip active"
+          disabled={orderMutation.isPending || !Number(quantity) || (side === "sell" && !holding)}
+          onClick={() => orderMutation.mutate()}
+        >
+          {orderMutation.isPending ? "Placing order…" : `${side === "buy" ? "Buy" : "Sell"} ${symbol} (simulated)`}
+        </button>
+        <span className="markets-result-meta">Cash: {money(accountQuery.data?.account.cashBalance)}</span>
+      </div>
+    </div>
+  );
+};
 
 const sma = (points: MarketPoint[], window: number): (number | null)[] =>
   points.map((_, i) => {
@@ -289,6 +385,8 @@ const MarketsAssetView = () => {
           ) : (
             <p className="markets-unavailable">No historical points for this range.</p>
           )}
+
+          <AssetTradePanel symbol={d.symbol} assetType={assetType} />
 
           {insights && (
             <div style={{ marginTop: "1.5rem" }}>

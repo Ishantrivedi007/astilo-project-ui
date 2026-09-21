@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Landmark, PieChart, Search, TrendingDown, Trendi
 import { AppRoute } from "../../app/AppRoute";
 import { AppInput, useConfirm } from "../shared";
 import { searchMarkets, fetchTopCrypto, type AssetType, type MarketSearchResult } from "../../lib/marketsApi";
+import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import {
   depositTradingFunds,
   fetchTradingAccount,
@@ -317,6 +318,17 @@ const TradingHome = () => {
     setSubmitted(query.trim());
   };
 
+  // live suggestions as the user types, not just on explicit submit
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSubmitted("");
+      return;
+    }
+    const timer = setTimeout(() => setSubmitted(trimmed), 350);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const results = searchQuery.data?.data.results ?? [];
 
   return (
@@ -394,7 +406,16 @@ const TradingHome = () => {
               {results.map((r: MarketSearchResult) => (
                 <button key={r.symbol} type="button" className="markets-search-result-row" onClick={() => setSelected({ symbol: r.symbol, name: r.name })}>
                   <span className="markets-result-left">
-                    <span className="markets-result-name">{r.name}</span> <span className="markets-result-meta">{r.symbol}</span>
+                    <MarketLogo
+                      logoUrl={r.logoUrl}
+                      category={assetType === "crypto" ? "crypto" : categoryFromQuoteType(r.quoteType)}
+                      name={r.name}
+                      size={28}
+                    />
+                    <span className="markets-result-text">
+                      <span className="markets-result-name">{r.name}</span>
+                      <span className="markets-result-meta">{r.symbol}</span>
+                    </span>
                   </span>
                   <span className="markets-result-meta">{r.exchange ?? r.quoteType}</span>
                 </button>
