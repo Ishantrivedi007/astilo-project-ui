@@ -99,12 +99,26 @@ def _build_brief(item: CosmosSavedItem) -> dict:
     ra_deg = (data or {}).get("raDeg")
     dec_deg = (data or {}).get("decDeg")
 
+    topics: list[str] = []
+    related: list[dict] = []
+    if wiki_data.get("title"):
+        try:
+            topics = wikipedia.categories(wiki_data["title"], limit=8)
+        except Exception:
+            pass
+        try:
+            related = wikipedia.related_articles(wiki_data["title"], limit=6)
+        except Exception:
+            pass
+
     return {
         "summary": extract,
         "detailedSummary": detailed,
         "wikiTitle": wiki_data.get("title"),
         "wikiUrl": wiki_data.get("pageUrl"),
         "thumbnailUrl": wiki_data.get("thumbnailUrl"),
+        "topics": topics,
+        "relatedArticles": related,
         "keyPoints": key_points_from_extract(detailed, max_points=8),
         "nextSteps": [{"text": t, "done": False} for t in further_research(object_type, data)],
         "dataSnapshot": {k: v for k, v in (data or {}).items() if not k.startswith("_") and v not in (None, "")},
@@ -189,12 +203,34 @@ def _auto_research_note_html(item_title: str, step_text: str, query: str) -> tup
         except Exception:
             pass
 
+    topics_html = ""
+    related_html = ""
     if resolved:
         findings_html = (
             f'<p><em>From Wikipedia — <a href="{_esc(wiki_data.get("pageUrl") or "")}" target="_blank" rel="noreferrer">{_esc(wiki_data["title"])}</a></em></p>'
             + _paragraphs_html(extract)
             + figures_html
         )
+
+        try:
+            cats = wikipedia.categories(wiki_data["title"], limit=8)
+        except Exception:
+            cats = []
+        if cats:
+            topics_html = "<h2>Topics</h2><p>" + " · ".join(_esc(c) for c in cats) + "</p>"
+
+        try:
+            related = wikipedia.related_articles(wiki_data["title"], limit=6)
+        except Exception:
+            related = []
+        if related:
+            items = "".join(
+                f'<li><a href="{_esc(r.get("pageUrl") or "")}" target="_blank" rel="noreferrer">{_esc(r["title"])}</a>'
+                + (f" — {_esc(r['description'])}" if r.get("description") else "")
+                + "</li>"
+                for r in related
+            )
+            related_html = f"<h2>Related articles</h2><ul>{items}</ul>"
     else:
         findings_html = "<p><em>No Wikipedia article resolved for this specific step — use the search links below.</em></p>"
 
@@ -203,11 +239,14 @@ def _auto_research_note_html(item_title: str, step_text: str, query: str) -> tup
         f"<p><em>Auto-research for {_esc(item_title)}.</em></p>"
         "<h2>Findings</h2>"
         f"{findings_html}"
+        f"{topics_html}"
+        f"{related_html}"
         "<h2>Search further</h2>"
         "<ul>"
         f'<li><a href="https://en.wikipedia.org/w/index.php?search={wiki_q}" target="_blank" rel="noreferrer">Wikipedia search</a></li>'
         f'<li><a href="https://scholar.google.com/scholar?q={q}" target="_blank" rel="noreferrer">Google Scholar</a></li>'
         f'<li><a href="https://ui.adsabs.harvard.edu/search/q={q}" target="_blank" rel="noreferrer">NASA ADS</a></li>'
+        f'<li><a href="https://arxiv.org/search/?searchtype=all&amp;query={q}" target="_blank" rel="noreferrer">arXiv preprints</a></li>'
         "</ul>"
     )
     return html, resolved
@@ -279,6 +318,25 @@ def _build_report_html(item: CosmosSavedItem, brief: dict, docs: list, images: l
     if key_points:
         parts.append("<h2>Key points</h2>")
         parts.append("<ul>" + "".join(f"<li>{_esc(p)}</li>" for p in key_points) + "</ul>")
+
+    topics = brief.get("topics") or []
+    if topics:
+        parts.append("<h2>Topics</h2>")
+        parts.append("<p>" + " · ".join(_esc(t) for t in topics) + "</p>")
+
+    related = brief.get("relatedArticles") or []
+    if related:
+        parts.append("<h2>Related articles</h2>")
+        parts.append(
+            "<ul>"
+            + "".join(
+                f'<li><a href="{_esc(r.get("pageUrl") or "")}" target="_blank" rel="noreferrer">{_esc(r.get("title"))}</a>'
+                + (f" — {_esc(r['description'])}" if r.get("description") else "")
+                + "</li>"
+                for r in related
+            )
+            + "</ul>"
+        )
 
     next_steps = brief.get("nextSteps") or []
     if next_steps:

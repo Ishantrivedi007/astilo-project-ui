@@ -14,7 +14,12 @@ ACTION_API_URL = "https://en.wikipedia.org/w/api.php"
 # We fetch the *full* plaintext extract (no exchars cap) and truncate it
 # ourselves at a sentence boundary — gives noticeably more detail than the
 # Action API's 1200-char-per-request exchars cap would allow.
-MAX_DETAILED_CHARS = 3500
+MAX_DETAILED_CHARS = 7000
+_MAINTENANCE_CATEGORY_HINTS = (
+    "articles ", "all articles", "cs1 ", "webarchive", "pages ", "wikipedia ",
+    "short description", "use dmy", "use mdy", "commons category", "commons link",
+    "featured articles", "good articles", "template", "orphaned", "wikidata",
+)
 _SKIP_IMAGE_HINTS = ("logo", "icon", "edit-ltr", "cscr-featured", "commons-logo", "red circle", "red_circle")
 
 _HEADERS = {"User-Agent": "AstiloCosmos/1.0 (personal research app; contact: astilo-app@example.com)"}
@@ -133,6 +138,52 @@ def article_images(title: str, limit: int = 8) -> list[dict]:
         if len(results) >= limit:
             break
     return results
+
+
+def related_articles(title: str, limit: int = 6) -> list[dict]:
+    """Genuinely related articles via CirrusSearch's "morelike:" operator
+    (the same relevance model behind Wikipedia's own "Related articles"
+    feature before it was retired as a separate REST endpoint) — each one
+    resolved to a real title, short description, and page URL, not just a
+    bare link."""
+    params = {"action": "query", "list": "search", "srsearch": f"morelike:{title}", "srlimit": limit, "format": "json"}
+
+    def fetch():
+        resp = cosmos_get(SEARCH_URL, params=params, timeout=10, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("wikipedia_morelike", params, fetch, ttl_seconds=7 * 24 * 3600)
+    titles = [hit["title"] for hit in (raw.get("query", {}).get("search") or [])]
+
+    results = []
+    for t in titles:
+        s = summary(t)
+        if s:
+            results.append({"title": s.get("title") or t, "description": s.get("description"), "pageUrl": s.get("pageUrl")})
+    return results
+
+
+def categories(title: str, limit: int = 10) -> list[str]:
+    """Real Wikipedia category tags for the article, filtered down to
+    substantive topical ones (drops maintenance/style categories like
+    "Articles lacking reliable references" or "CS1 errors")."""
+    params = {"action": "query", "prop": "categories", "titles": title, "cllimit": 50, "format": "json"}
+
+    def fetch():
+        resp = cosmos_get(ACTION_API_URL, params=params, timeout=10, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("wikipedia_categories", params, fetch, ttl_seconds=7 * 24 * 3600)
+    pages = raw.get("query", {}).get("pages") or {}
+    names = []
+    for page in pages.values():
+        for c in page.get("categories") or []:
+            name = (c.get("title") or "").replace("Category:", "").strip()
+            if name and not any(hint in name.lower() for hint in _MAINTENANCE_CATEGORY_HINTS):
+                names.append(name)
+    return names[:limit]
 
 
 def research_summary(query: str) -> dict:
