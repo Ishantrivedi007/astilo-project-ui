@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Columns3, Combine, Download, Italic, Palette, PaintBucket, Plus, Rows3, Trash2, Ungroup } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, Bold, Columns3, Combine, DollarSign, Download, Italic, Palette, PaintBucket, Percent, Plus, Rows3, Trash2, Ungroup } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useConfirm } from "../shared";
@@ -12,6 +12,7 @@ import {
   colLetter,
   emptySheet,
   evalCell,
+  formatDisplayValue,
   mergeCells,
   mergeCovering,
   sheetToCsv,
@@ -248,6 +249,35 @@ const OfficeExcel = () => {
                     </div>
                   )}
                 </span>
+                <button
+                  type="button"
+                  className="nimrose-chip"
+                  onClick={() => applyStyle({ numberFormat: "currency" })}
+                  disabled={!activeCell}
+                  aria-label="Currency format"
+                  title="Format as currency"
+                >
+                  <DollarSign size={12} />
+                </button>
+                <button
+                  type="button"
+                  className="nimrose-chip"
+                  onClick={() => applyStyle({ numberFormat: "percent" })}
+                  disabled={!activeCell}
+                  aria-label="Percent format"
+                  title="Format as percent"
+                >
+                  <Percent size={12} />
+                </button>
+                <button
+                  type="button"
+                  className="nimrose-chip"
+                  onClick={() => applyStyle({ numberFormat: "none" })}
+                  disabled={!activeCell}
+                  title="Clear number format"
+                >
+                  123
+                </button>
                 <button type="button" className="nimrose-chip" onClick={mergeSelection} disabled={!canMerge}>
                   <Combine size={12} /> Merge cells
                 </button>
@@ -316,7 +346,7 @@ const OfficeExcel = () => {
                               }}
                             >
                               <input
-                                value={isEditing ? raw : evalCell(sheet, r, c)}
+                                value={isEditing ? raw : formatDisplayValue(evalCell(sheet, r, c), style?.numberFormat)}
                                 onFocus={() => setEditingCell(key)}
                                 onChange={(e) => setSheet((s) => ({ ...s, cells: { ...s.cells, [key]: e.target.value } }))}
                                 onBlur={(e) => {

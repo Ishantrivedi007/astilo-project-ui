@@ -1,7 +1,7 @@
 const ALLOWED_TAGS = new Set([
   "P", "BR", "B", "STRONG", "I", "EM", "U", "S", "STRIKE", "H1", "H2", "H3", "H4",
   "UL", "OL", "LI", "A", "IMG", "FIGURE", "FIGCAPTION", "BLOCKQUOTE", "CODE", "PRE",
-  "SPAN", "DIV", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH", "HR",
+  "SPAN", "DIV", "TABLE", "THEAD", "TBODY", "TR", "TD", "TH", "HR", "SUB", "SUP",
 ]);
 
 const ALLOWED_ATTRS: Record<string, string[]> = {

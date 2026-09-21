@@ -38,6 +38,23 @@
   margin: 0 0.2rem;
 }
 
+.rte-font-size {
+  height: 28px;
+  border-radius: 0.4rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
+  background: rgb(var(--surface-rgb) / 0.6);
+  color: rgb(var(--ink-rgb) / 0.75);
+  font-size: 0.72rem;
+  padding: 0 0.3rem;
+  cursor: pointer;
+}
+
+.rte-status-bar {
+  font-size: 0.68rem;
+  color: rgb(var(--ink-rgb) / 0.4);
+  text-align: right;
+}
+
 .rte-panel {
   display: flex;
   gap: 0.4rem;
@@ -144,6 +161,24 @@
     border-left: 3px solid rgba(127, 176, 255, 0.5);
     color: rgb(var(--ink-rgb) / 0.7);
     font-style: italic;
+  }
+
+  pre {
+    margin: 0 0 0.6em;
+    padding: 0.6rem 0.8rem;
+    background: rgb(var(--ink-rgb) / 0.06);
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+    border-radius: 0.5rem;
+    font-family: "Cascadia Code", "Fira Code", ui-monospace, monospace;
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid rgb(var(--hair-rgb) / 0.25);
+    margin: 0.8rem 0;
   }
 
   img {

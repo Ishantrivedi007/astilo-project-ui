@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
   ChartColumn,
+  Code,
+  Eraser,
   Heading1,
   Heading2,
   Heading3,
@@ -14,12 +16,17 @@ import {
   Link2,
   List,
   ListOrdered,
+  Minus,
   Palette,
   Pilcrow,
   Quote,
+  Redo2,
   Strikethrough,
+  Subscript,
+  Superscript,
   Table as TableIcon,
   Underline,
+  Undo2,
   X,
 } from "lucide-react";
 import { sanitizeHtml } from "../../lib/sanitizeHtml";
@@ -97,7 +104,31 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
     emit();
   };
 
+  const applyFontSize = (px: string) => {
+    ref.current?.focus();
+    // execCommand("fontSize") only ever produces legacy <font size="N">
+    // tags (styleWithCSS doesn't affect it) — mark the selection with a
+    // size value unlikely to appear naturally (7), then swap those
+    // <font> tags for a real <span style="font-size"> the sanitizer keeps.
+    document.execCommand("fontSize", false, "7");
+    ref.current?.querySelectorAll('font[size="7"]').forEach((el) => {
+      const span = document.createElement("span");
+      span.style.fontSize = px;
+      span.innerHTML = el.innerHTML;
+      el.replaceWith(span);
+    });
+    emit();
+  };
+
   const closePanel = () => setPanel(null);
+
+  const plainText = useMemo(() => {
+    const div = document.createElement("div");
+    div.innerHTML = value || "";
+    return (div.textContent || "").trim();
+  }, [value]);
+  const wordCount = plainText ? plainText.split(/\s+/).length : 0;
+  const charCount = plainText.length;
 
   return (
     <div className="rte-wrap">
@@ -114,6 +145,29 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
         <button type="button" onClick={() => exec("strikeThrough")} aria-label="Strikethrough">
           <Strikethrough size={14} />
         </button>
+        <button type="button" onClick={() => exec("subscript")} aria-label="Subscript">
+          <Subscript size={14} />
+        </button>
+        <button type="button" onClick={() => exec("superscript")} aria-label="Superscript">
+          <Superscript size={14} />
+        </button>
+        <select
+          defaultValue=""
+          aria-label="Font size"
+          className="rte-font-size"
+          onChange={(e) => {
+            if (e.target.value) applyFontSize(e.target.value);
+            e.target.value = "";
+          }}
+        >
+          <option value="" disabled>
+            Size
+          </option>
+          <option value="12px">Small</option>
+          <option value="15px">Normal</option>
+          <option value="19px">Large</option>
+          <option value="26px">Huge</option>
+        </select>
         <span className="rte-sep" />
         <button type="button" onClick={() => exec("formatBlock", "h1")} aria-label="Heading 1">
           <Heading1 size={14} />
@@ -147,6 +201,12 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
         <button type="button" onClick={() => exec("formatBlock", "blockquote")} aria-label="Quote">
           <Quote size={14} />
         </button>
+        <button type="button" onClick={() => exec("formatBlock", "pre")} aria-label="Code block">
+          <Code size={14} />
+        </button>
+        <button type="button" onClick={() => insertHtml("<hr />")} aria-label="Horizontal rule">
+          <Minus size={14} />
+        </button>
         <span className="rte-sep" />
         <button type="button" onClick={() => exec("insertUnorderedList")} aria-label="Bullet list">
           <List size={14} />
@@ -166,6 +226,16 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
         </button>
         <button type="button" onClick={() => setPanel(panel === "chart" ? null : "chart")} aria-label="Insert chart">
           <ChartColumn size={14} />
+        </button>
+        <span className="rte-sep" />
+        <button type="button" onClick={() => exec("removeFormat")} aria-label="Clear formatting">
+          <Eraser size={14} />
+        </button>
+        <button type="button" onClick={() => exec("undo")} aria-label="Undo">
+          <Undo2 size={14} />
+        </button>
+        <button type="button" onClick={() => exec("redo")} aria-label="Redo">
+          <Redo2 size={14} />
         </button>
       </div>
 
@@ -300,6 +370,9 @@ const RichTextEditor = ({ value, onChange, placeholder }: Props) => {
         onBlur={emit}
         data-placeholder={placeholder}
       />
+      <div className="rte-status-bar">
+        {wordCount} word{wordCount === 1 ? "" : "s"} · {charCount} character{charCount === 1 ? "" : "s"}
+      </div>
     </div>
   );
 };

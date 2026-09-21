@@ -1,10 +1,32 @@
+export type NumberFormat = "none" | "currency" | "percent" | "decimal2";
+
 export interface CellStyle {
   bold?: boolean;
   italic?: boolean;
   color?: string;
   bg?: string;
   align?: "left" | "center" | "right";
+  numberFormat?: NumberFormat;
 }
+
+/** Display-only formatting of a computed cell value — never mutates the
+ * underlying raw text/formula, so switching a number format back to "none"
+ * always recovers the exact original value. */
+export const formatDisplayValue = (raw: string, format: NumberFormat | undefined): string => {
+  if (!format || format === "none") return raw;
+  const n = Number(raw);
+  if (raw === "" || Number.isNaN(n)) return raw;
+  switch (format) {
+    case "currency":
+      return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+    case "percent":
+      return `${(n * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+    case "decimal2":
+      return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    default:
+      return raw;
+  }
+};
 
 export interface CellMerge {
   rows: number;
@@ -184,9 +206,11 @@ export const sheetToXlsHtml = (sheet: SheetData, title: string): string => {
       const covering = mergeCovering(sheet, r, c);
       if (covering && !covering.isOrigin) continue;
       const span = covering ? ` colspan="${covering.cols}" rowspan="${covering.rows}"` : "";
-      const css = styleToCss(sheet.styles?.[cellKey(r, c)]);
+      const style = sheet.styles?.[cellKey(r, c)];
+      const css = styleToCss(style);
       const styleAttr = css ? ` style="${css}"` : "";
-      cells.push(`<td${span}${styleAttr}>${escapeHtml(evalCell(sheet, r, c))}</td>`);
+      const display = formatDisplayValue(evalCell(sheet, r, c), style?.numberFormat);
+      cells.push(`<td${span}${styleAttr}>${escapeHtml(display)}</td>`);
     }
     return `<tr>${cells.join("")}</tr>`;
   }).join("\n");
@@ -217,7 +241,8 @@ export const sheetToCsv = (sheet: SheetData): string => {
     const cells: string[] = [];
     for (let c = 0; c < sheet.cols; c++) {
       const covering = mergeCovering(sheet, r, c);
-      const v = (covering && !covering.isOrigin ? "" : evalCell(sheet, r, c)).replace(/"/g, '""');
+      const raw = covering && !covering.isOrigin ? "" : formatDisplayValue(evalCell(sheet, r, c), sheet.styles?.[cellKey(r, c)]?.numberFormat);
+      const v = raw.replace(/"/g, '""');
       cells.push(v.includes(",") ? `"${v}"` : v);
     }
     lines.push(cells.join(","));
