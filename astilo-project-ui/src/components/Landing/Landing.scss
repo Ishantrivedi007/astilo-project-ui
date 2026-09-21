@@ -3,6 +3,15 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  scroll-behavior: smooth;
+}
+
+/* the nav bar is sticky and ~5.5-6rem tall including its own top padding —
+   without this, clicking "Explore"/"Features" scrolls the target section's
+   top edge underneath it instead of just below it */
+#ecosystem,
+#worlds {
+  scroll-margin-top: 6.5rem;
 }
 
 .landing-nav-wrap {
