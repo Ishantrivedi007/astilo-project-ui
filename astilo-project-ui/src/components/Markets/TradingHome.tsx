@@ -237,7 +237,7 @@ const DepositModal = ({ onClose }: { onClose: () => void }) => {
             />
           </div>
 
-          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.2rem" }}>
+          <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.2rem", justifyContent: "flex-end" }}>
             <button type="submit" className="markets-chip active" disabled={depositMutation.isPending}>
               {depositMutation.isPending ? "Processing…" : `Deposit ${money(amountNum || 0, 0)}`}
             </button>
