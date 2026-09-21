@@ -43,6 +43,9 @@ code {
   width: 8px;
   height: 8px;
 }
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
 *::-webkit-scrollbar-thumb {
   background: linear-gradient(
     rgb(var(--accent-rgb)),

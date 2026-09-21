@@ -35,7 +35,18 @@
   height: 4rem;
   margin: 0 auto;
   padding: 0 0.5rem 0 1.25rem;
-  border-radius: 999px;
+
+  /* .nav-glass's default tint is --surface-rgb (near-white, meant for cards
+     sitting on the page). Behind the hero it's sticky over the page's own
+     --bg-gradient, so that tint reads as a visibly mismatched patch — use
+     the page's own background colour instead so it blends in. */
+  &.nav-glass {
+    background: rgb(var(--bg-rgb) / 0.6);
+  }
+  &.nav-glass-scrolled {
+    background: rgb(var(--bg-rgb) / 0.85);
+  }
+  border-radius: 20px;
   transition: height 0.4s ease;
 
   .landing-nav-wrap--scrolled & {
