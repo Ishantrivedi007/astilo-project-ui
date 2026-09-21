@@ -91,11 +91,13 @@ const Chart = ({ type, series, options, height = 280, themeKey }: ChartProps) =>
       grid: { ...base.grid, ...options?.grid },
       xaxis: { ...base.xaxis, ...options?.xaxis },
       yaxis: { ...base.yaxis, ...options?.yaxis },
-      // base's gradient fill is meant for "area" charts; on a plain "line"
-      // chart (no caller-supplied fill override) it was washing the stroke
-      // out to near-invisible against warm/light themes — a solid, fully
-      // transparent fill keeps line charts crisp.
-      fill: options?.fill ?? (type === "line" ? { type: "solid", opacity: 0 } : base.fill),
+      // base's soft gradient fill (low opacity, meant to shade the area
+      // under a line) only makes sense for "area" charts. Applied as the
+      // fallback to every OTHER type with no caller override, it also made
+      // "line" charts wash out to invisible, and made "donut"/"bar" slices
+      // render as pale/hollow-looking instead of solid — donut especially,
+      // since its gradient's far stop is nearly transparent.
+      fill: options?.fill ?? (type === "area" ? base.fill : { type: "solid", opacity: type === "line" ? 0 : 1 }),
       stroke: { ...base.stroke, ...options?.stroke },
     }),
     [base, options, type]
