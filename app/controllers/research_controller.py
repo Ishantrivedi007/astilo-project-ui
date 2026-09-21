@@ -11,6 +11,7 @@ from the dedicated Research page, not auto-written into note text.
 
 import datetime
 import html as html_lib
+import re
 from urllib.parse import quote_plus, urlencode
 
 import cherrypy
@@ -145,12 +146,25 @@ def _esc(s) -> str:
     return html_lib.escape(str(s) if s is not None else "")
 
 
+_WIKI_HEADING_RE = re.compile(r"^(=+)\s*(.+?)\s*\1$")
+
+
 def _paragraphs_html(text: str) -> str:
-    """Splits real prose (a Wikipedia extract) into <p> tags at blank
-    lines — the same document format the rich editor (Word/Notes) already
-    renders, instead of raw markdown syntax."""
+    """Splits real prose (a Wikipedia extract) into real <h3>/<p> tags —
+    the Action API's plaintext extraction leaves MediaWiki section markers
+    ("== History ==") in as literal text rather than stripping them, so
+    those get rendered as actual headings instead of showing up as raw
+    wiki markup in the document."""
     paras = [p.strip() for p in (text or "").split("\n") if p.strip()]
-    return "".join(f"<p>{_esc(p)}</p>" for p in paras)
+    html_parts = []
+    for p in paras:
+        heading = _WIKI_HEADING_RE.match(p)
+        if heading:
+            level = min(len(heading.group(1)) + 2, 4)  # == -> h3, === -> h4, capped
+            html_parts.append(f"<h{level}>{_esc(heading.group(2))}</h{level}>")
+        else:
+            html_parts.append(f"<p>{_esc(p)}</p>")
+    return "".join(html_parts)
 
 
 def _figure_html(url: str, caption: str, source: str) -> str:
@@ -514,7 +528,9 @@ class ResearchController:
     def PUT(self, item_id):
         """Body: {"action": "refresh"} to regenerate the brief (keeps
         existing next-steps' text/done state, only appends newly suggested
-        ones), {"action": "toggle_step", "index": N}, {"action": "add_step",
+        ones), {"action": "rename", "title": ...} (corrects the item's
+        title — doesn't itself regenerate the brief, follow with "refresh"),
+        {"action": "toggle_step", "index": N}, {"action": "add_step",
         "text": ...}, {"action": "update_step", "index": N, "text": ...},
         {"action": "remove_step", "index": N}, {"action":
         "auto_research_step", "index": N} (creates a document for that step —
@@ -538,6 +554,17 @@ class ResearchController:
                 existing = (item.research_brief_json or {}).get("nextSteps") or []
                 fresh["nextSteps"] = _merge_next_steps(existing, fresh["nextSteps"])
                 item.research_brief_json = fresh
+            elif action == "rename":
+                # Lets a research item's title be corrected — matters because
+                # the title is also what's searched on Wikipedia to build the
+                # brief: an ambiguous catalog designation (e.g. "M 31") can
+                # resolve to a completely unrelated article, and the only way
+                # to fix an already-created item is to give it a better title
+                # and regenerate, not just delete and start over.
+                new_title = (body.get("title") or "").strip()
+                if not new_title:
+                    raise cherrypy.HTTPError(400, "title is required")
+                item.title = new_title[:255]
             elif action == "toggle_step":
                 index = body.get("index")
                 brief = dict(item.research_brief_json or {})
