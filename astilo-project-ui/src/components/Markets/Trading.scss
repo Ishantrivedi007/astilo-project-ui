@@ -35,6 +35,14 @@
   margin-top: 0.2rem;
 }
 
+.trading-summary-words {
+  font-size: 0.72rem;
+  font-style: italic;
+  text-transform: capitalize;
+  color: rgb(var(--ink-rgb) / 0.5);
+  margin-top: 0.15rem;
+}
+
 .trading-columns {
   display: grid;
   grid-template-columns: 380px 1fr;

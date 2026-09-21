@@ -8,7 +8,7 @@ import { AppRoute } from "../../app/AppRoute";
 import { Chart } from "../shared";
 import { fetchMarketAsset, fetchMarketNews, RANGE_LABEL, RANGES, type AssetType, type MarketPoint, type MarketRange } from "../../lib/marketsApi";
 import { fetchResearchSummary } from "../../lib/cosmosApi";
-import { fetchTradingAccount, placeTradingOrder, suggestionForHolding, fetchTradingInsights } from "../../lib/tradingApi";
+import { fetchTradingAccount, placeTradingOrder, suggestionForHolding, fetchTradingInsights, tradingErrorMessage } from "../../lib/tradingApi";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import "./Markets.scss";
 import "./Trading.scss";
@@ -42,8 +42,20 @@ const AssetTradePanel = ({ symbol, assetType }: { symbol: string; assetType: Ass
       setQuantity("1");
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || "Order failed.");
+      const axiosErr = err as { response?: { status?: number } };
+      let fallback = "Order failed.";
+      if (axiosErr?.response?.status === 402) {
+        const price = insightsQuery.data?.currentPrice;
+        const qty = Number(quantity);
+        if (side === "buy" && price != null) {
+          fallback = `Insufficient simulated cash — need ${money(price * qty)}, have ${money(accountQuery.data?.account.cashBalance)}.`;
+        } else if (side === "sell") {
+          fallback = `Insufficient holding — trying to sell ${qty}, you have ${holding?.quantity ?? 0}.`;
+        } else {
+          fallback = "Insufficient simulated funds for this trade.";
+        }
+      }
+      toast.error(tradingErrorMessage(err, fallback));
     },
   });
 

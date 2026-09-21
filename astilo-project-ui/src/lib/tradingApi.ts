@@ -1,5 +1,61 @@
+import axios from "axios";
 import { apiClient } from "./apiClient";
 import type { AssetType } from "./marketsApi";
+
+/** CherryPy's default error pages aren't JSON, so the real server-side
+ * message (e.g. the exact shortfall on a declined trade) isn't readable
+ * client-side — map by status instead, same pattern as storeErrorMessage. */
+export const tradingErrorMessage = (err: unknown, fallback: string): string => {
+  if (axios.isAxiosError(err)) {
+    switch (err.response?.status) {
+      case 404:
+        return "Couldn't find a live price for that symbol right now.";
+      case 400:
+        return "Please check the order details.";
+      case undefined:
+        return "Can't reach the server. Is the backend running?";
+    }
+  }
+  return fallback;
+};
+
+const ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
+const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const SCALES = ["", "thousand", "million", "billion", "trillion"];
+
+const threeDigitsToWords = (n: number): string => {
+  const parts: string[] = [];
+  if (n >= 100) {
+    parts.push(`${ONES[Math.floor(n / 100)]} hundred`);
+    n %= 100;
+  }
+  if (n >= 20) {
+    parts.push(TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : ""));
+  } else if (n > 0) {
+    parts.push(ONES[n]);
+  }
+  return parts.join(" ");
+};
+
+/** Spells out a dollar amount ("one hundred thousand dollars") — capped at
+ * a sane scale since anything beyond trillions isn't meaningful here. */
+export const amountInWords = (amount: number | null | undefined): string => {
+  if (amount == null || !isFinite(amount)) return "";
+  const whole = Math.floor(Math.abs(amount));
+  if (whole === 0) return "zero dollars";
+  const groups: number[] = [];
+  let remaining = whole;
+  while (remaining > 0) {
+    groups.push(remaining % 1000);
+    remaining = Math.floor(remaining / 1000);
+  }
+  const words = groups
+    .map((g, i) => (g === 0 ? "" : `${threeDigitsToWords(g)}${SCALES[i] ? ` ${SCALES[i]}` : ""}`))
+    .reverse()
+    .filter(Boolean)
+    .join(" ");
+  return `${words} dollar${whole === 1 ? "" : "s"}`;
+};
 
 export interface TradingAccountData {
   id: number;

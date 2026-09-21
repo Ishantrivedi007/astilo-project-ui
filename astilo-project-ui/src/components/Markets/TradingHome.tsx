@@ -9,12 +9,14 @@ import { AppInput, useConfirm } from "../shared";
 import { searchMarkets, fetchTopCrypto, type AssetType, type MarketSearchResult } from "../../lib/marketsApi";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import {
+  amountInWords,
   depositTradingFunds,
   fetchTradingAccount,
   fetchTradingInsights,
   fetchTradingOrders,
   placeTradingOrder,
   suggestionForHolding,
+  tradingErrorMessage,
 } from "../../lib/tradingApi";
 import { cardCvc, cardExpiry, cardNumber as validateCardNumber, required } from "../../lib/validators";
 import "./Markets.scss";
@@ -291,8 +293,20 @@ const TradingHome = () => {
       toast.success(`${side === "buy" ? "Bought" : "Sold"} ${quantity} ${selected!.symbol} @ ${money(result.transaction.price)} (simulated).`);
     },
     onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      toast.error(msg || "Order failed.");
+      const axiosErr = err as { response?: { status?: number } };
+      let fallback = "Order failed.";
+      if (axiosErr?.response?.status === 402) {
+        const price = insightsQuery.data?.currentPrice;
+        const qty = Number(quantity);
+        if (side === "buy" && price != null) {
+          fallback = `Insufficient simulated cash — need ${money(price * qty)}, have ${money(portfolio?.account.cashBalance)}.`;
+        } else if (side === "sell") {
+          fallback = `Insufficient holding — trying to sell ${qty}, you have ${holding?.quantity ?? 0}.`;
+        } else {
+          fallback = "Insufficient simulated funds for this trade.";
+        }
+      }
+      toast.error(tradingErrorMessage(err, fallback));
     },
   });
 
@@ -306,11 +320,13 @@ const TradingHome = () => {
     setSelected({ symbol: h.symbol, name: h.name ?? h.symbol });
     setSide("sell");
     setQuantity(String(h.quantity));
-    placeTradingOrder({ symbol: h.symbol, assetType: h.assetType, side: "sell", quantity: h.quantity }).then((result) => {
-      queryClient.setQueryData(["trading", "account"], result);
-      queryClient.invalidateQueries({ queryKey: ["trading", "orders"] });
-      toast.success(`Sold ${h.quantity} ${h.symbol} @ ${money(result.transaction.price)} (simulated).`);
-    });
+    placeTradingOrder({ symbol: h.symbol, assetType: h.assetType, side: "sell", quantity: h.quantity })
+      .then((result) => {
+        queryClient.setQueryData(["trading", "account"], result);
+        queryClient.invalidateQueries({ queryKey: ["trading", "orders"] });
+        toast.success(`Sold ${h.quantity} ${h.symbol} @ ${money(result.transaction.price)} (simulated).`);
+      })
+      .catch((err: unknown) => toast.error(tradingErrorMessage(err, "Sell failed.")));
   };
 
   const submitSearch = (e: React.FormEvent) => {
@@ -353,6 +369,9 @@ const TradingHome = () => {
             <Wallet size={12} /> Simulated cash
           </span>
           <span className="trading-summary-value">{money(portfolio?.account.cashBalance, 2)}</span>
+          {portfolio?.account.cashBalance != null && (
+            <span className="trading-summary-words">{amountInWords(portfolio.account.cashBalance)}</span>
+          )}
           <button type="button" className="markets-chip" style={{ marginTop: "0.5rem" }} onClick={() => setShowDeposit(true)}>
             Deposit funds
           </button>
