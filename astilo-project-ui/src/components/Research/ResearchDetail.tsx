@@ -22,6 +22,7 @@ import {
 
 import { AppRoute } from "../../app/AppRoute";
 import { RichTextEditor, useConfirm } from "../shared";
+import { useNimrosePrompt } from "../Nimrose/NimrosePromptDialog";
 import {
   createNimroseNote,
   deleteNimroseNote,
@@ -36,6 +37,7 @@ import {
   fetchResearchItem,
   generateResearchReport,
   refreshResearchBrief,
+  renameResearchItem,
   removeResearchImage,
   removeResearchStep,
   toggleResearchStep,
@@ -73,6 +75,7 @@ const ResearchDetail = () => {
   const itemId = Number(id);
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { prompt } = useNimrosePrompt();
   const queryClient = useQueryClient();
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
@@ -122,6 +125,13 @@ const ResearchDetail = () => {
   const invalidateDocs = () => queryClient.invalidateQueries({ queryKey: ["research", "docs", folder] });
 
   const refreshMutation = useMutation({ mutationFn: () => refreshResearchBrief(itemId), onSuccess: invalidateItem });
+  const renameMutation = useMutation({
+    mutationFn: (title: string) => renameResearchItem(itemId, title),
+    onSuccess: () => {
+      invalidateItem();
+      refreshMutation.mutate();
+    },
+  });
   const generateReportMutation = useMutation({
     mutationFn: () => generateResearchReport(itemId),
     onSuccess: (result) => {
@@ -252,8 +262,20 @@ const ResearchDetail = () => {
           <p className="research-eyebrow">
             {item.objectType} · {item.source ?? "Unknown source"}
           </p>
-          <h1 className="research-title" style={{ fontSize: "1.7rem" }}>
+          <h1 className="research-title" style={{ fontSize: "1.7rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
             {item.title}
+            <button
+              type="button"
+              className="research-pill"
+              style={{ cursor: "pointer" }}
+              title="Rename — also fixes the title used to search Wikipedia for the summary"
+              onClick={async () => {
+                const name = await prompt({ title: "Research item title", defaultValue: item.title });
+                if (name && name.trim() && name.trim() !== item.title) renameMutation.mutate(name.trim());
+              }}
+            >
+              <Pencil size={11} />
+            </button>
           </h1>
           <div className="research-actions">
             <button type="button" className="research-pill" style={{ cursor: "pointer" }} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
@@ -287,11 +309,20 @@ const ResearchDetail = () => {
               {(brief.detailedSummary ?? brief.summary ?? "")
                 .split("\n")
                 .filter(Boolean)
-                .map((para, i, arr) => (
-                  <p key={i} style={{ marginBottom: i === arr.length - 1 ? 0 : "0.75rem" }}>
-                    {para}
-                  </p>
-                ))}
+                .map((para, i, arr) => {
+                  // The Wikipedia extract leaves section markers ("== History
+                  // ==") in as literal text rather than stripping them —
+                  // render those as real headings instead of raw wiki markup.
+                  const heading = para.match(/^(=+)\s*(.+?)\s*\1$/);
+                  if (heading) {
+                    return <h4 key={i}>{heading[2]}</h4>;
+                  }
+                  return (
+                    <p key={i} style={{ marginBottom: i === arr.length - 1 ? 0 : "0.75rem" }}>
+                      {para}
+                    </p>
+                  );
+                })}
             </div>
             {brief.wikiUrl && (
               <p className="research-card-meta" style={{ marginTop: "0.4rem" }}>

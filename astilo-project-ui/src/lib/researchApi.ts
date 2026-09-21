@@ -79,6 +79,9 @@ export const fetchResearchItem = (id: number) => apiClient.get<ResearchItem>(`/r
 export const refreshResearchBrief = (id: number) =>
   apiClient.put<ResearchItem>(`/research/${id}`, { action: "refresh" }).then((r) => r.data);
 
+export const renameResearchItem = (id: number, title: string) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "rename", title }).then((r) => r.data);
+
 export const toggleResearchStep = (id: number, index: number) =>
   apiClient.put<ResearchItem>(`/research/${id}`, { action: "toggle_step", index }).then((r) => r.data);
 
