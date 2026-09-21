@@ -97,7 +97,7 @@ const NotificationBell = () => {
             <button
               type="button"
               className="notif-item"
-              style={{ justifyContent: "center", color: "rgba(232,236,255,0.6)", fontSize: "0.75rem" }}
+              style={{ justifyContent: "center", color: "rgb(var(--ink-rgb) / 0.6)", fontSize: "0.75rem" }}
               onClick={() => {
                 setOpen(false);
                 navigate(AppRoute.notifications);

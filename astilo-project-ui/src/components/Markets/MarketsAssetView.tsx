@@ -436,7 +436,7 @@ const MarketsAssetView = () => {
                     )}
                     <div
                       className="markets-source-badge"
-                      style={{ display: "block", padding: "0.75rem 1rem", fontSize: "0.82rem", lineHeight: 1.6, color: "rgba(232,236,255,0.75)", flex: 1, minWidth: 240 }}
+                      style={{ display: "block", padding: "0.75rem 1rem", fontSize: "0.82rem", lineHeight: 1.6, color: "rgb(var(--ink-rgb) / 0.8)", flex: 1, minWidth: 240 }}
                     >
                       {(about ?? "").split("\n").filter(Boolean).map((para, i) => {
                         // Wikipedia's plaintext extraction leaves section
@@ -444,7 +444,7 @@ const MarketsAssetView = () => {
                         // instead of stripping them — render as a real
                         // heading instead of raw wiki markup.
                         const heading = para.match(/^(=+)\s*(.+?)\s*\1$/);
-                        if (heading) return <h4 key={i} style={{ margin: "0.9rem 0 0.4rem", fontSize: "0.9rem", color: "#fff" }}>{heading[2]}</h4>;
+                        if (heading) return <h4 key={i} style={{ margin: "0.9rem 0 0.4rem", fontSize: "0.9rem", color: "rgb(var(--ink-rgb))" }}>{heading[2]}</h4>;
                         return (
                           <p key={i} style={{ marginBottom: "0.6rem" }}>
                             {para}

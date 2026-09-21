@@ -320,7 +320,7 @@ const MessengerHome = () => {
                               if (e.key === "Escape") setEditingId(null);
                             }}
                             onBlur={() => editingText.trim() && editMutation.mutate({ id: m.id, body: editingText.trim() })}
-                            style={{ width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(127,176,255,0.4)", borderRadius: 8, padding: "0.4rem 0.6rem", color: "#fff" }}
+                            style={{ width: "100%", background: "rgb(var(--ink-rgb) / 0.08)", border: "1px solid rgba(127,176,255,0.4)", borderRadius: 8, padding: "0.4rem 0.6rem", color: "rgb(var(--ink-rgb))" }}
                           />
                         ) : (
                           <div className="msgr-bubble">{m.body}</div>
