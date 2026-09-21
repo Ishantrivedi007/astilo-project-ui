@@ -200,11 +200,15 @@ const MarketsHome = () => {
               <span className="markets-quote-symbol">{c.ticker}</span>
             </div>
             <span className="markets-quote-name">{c.name}</span>
-            <span className="markets-quote-price">${c.price.toLocaleString(undefined, { maximumFractionDigits: c.price < 5 ? 4 : 2 })}</span>
-            <span className={`markets-quote-change ${c.changePercent >= 0 ? "positive" : "negative"}`}>
-              {c.changePercent >= 0 ? "+" : ""}
-              {c.changePercent.toFixed(2)}%
+            <span className="markets-quote-price">
+              {c.price != null ? `$${c.price.toLocaleString(undefined, { maximumFractionDigits: c.price < 5 ? 4 : 2 })}` : "Data unavailable"}
             </span>
+            {c.changePercent != null && (
+              <span className={`markets-quote-change ${c.changePercent >= 0 ? "positive" : "negative"}`}>
+                {c.changePercent >= 0 ? "+" : ""}
+                {c.changePercent.toFixed(2)}%
+              </span>
+            )}
           </button>
         ))}
         {cryptoQuery.isLoading && <p className="markets-unavailable">Loading…</p>}
