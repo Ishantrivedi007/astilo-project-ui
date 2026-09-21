@@ -171,6 +171,14 @@ export function useMovieStore() {
     []
   );
 
+  const clearWatchlist = useCallback(() => {
+    write({ ...cache, watchlist: [] });
+  }, []);
+
+  const clearWatching = useCallback(() => {
+    write({ ...cache, watching: [] });
+  }, []);
+
   return {
     watchlist: state.watchlist,
     reviews: state.reviews,
@@ -181,5 +189,7 @@ export function useMovieStore() {
     deleteReview,
     reviewsFor,
     recordWatch,
+    clearWatchlist,
+    clearWatching,
   };
 }

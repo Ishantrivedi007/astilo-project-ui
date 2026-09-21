@@ -44,6 +44,120 @@
   }
 }
 
+.chat-sidebar-tabs {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+
+  button {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 0.35rem;
+    border-radius: 0.5rem;
+    font-size: 0.72rem;
+    color: rgb(var(--ink-muted-rgb));
+    cursor: pointer;
+    border: 1px solid rgb(var(--hair-rgb) / 0.2);
+
+    &.active {
+      background: rgb(var(--accent-rgb) / 0.14);
+      color: rgb(var(--ink-rgb));
+      border-color: rgb(var(--accent-rgb) / 0.4);
+    }
+  }
+}
+
+.chat-add-contact {
+  display: flex;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+
+  input {
+    flex: 1;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(var(--hair-rgb) / 0.3);
+    background: rgb(var(--ink-rgb) / 0.06);
+    color: rgb(var(--ink-rgb));
+    font-size: 0.76rem;
+  }
+}
+
+.chat-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.3rem;
+  border-radius: 0.5rem;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.06);
+  }
+
+  &:hover .chat-contact-actions {
+    display: flex;
+  }
+}
+
+.chat-contact-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgb(var(--accent-rgb) / 0.18);
+  color: rgb(var(--accent-rgb));
+}
+
+.chat-contact-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  .name {
+    font-size: 0.8rem;
+    color: rgb(var(--ink-rgb));
+  }
+
+  .email {
+    font-size: 0.68rem;
+    color: rgb(var(--ink-muted-rgb));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.chat-contact-actions {
+  display: none;
+  gap: 0.2rem;
+  flex-shrink: 0;
+
+  button {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.35rem;
+    color: rgb(var(--ink-muted-rgb));
+    cursor: pointer;
+
+    &:hover {
+      background: rgb(var(--accent-rgb) / 0.14);
+      color: rgb(var(--ink-rgb));
+    }
+  }
+}
+
 .chat-main {
   display: flex;
   flex-direction: column;

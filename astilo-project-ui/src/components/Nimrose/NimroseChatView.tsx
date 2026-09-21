@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bot, Hash, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { Bot, Hash, MessageCircle, Pencil, Plus, QrCode, Send, Trash2, UserPlus, Users, X } from "lucide-react";
 
+import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import { useConfirm } from "../shared";
 import {
@@ -15,8 +18,17 @@ import {
   updateChatChannel,
   type ChatMessage,
 } from "../../lib/chatApi";
+import {
+  addMyContact,
+  fetchMyContacts,
+  qrCodeUrl,
+  removeMyContact,
+  renameMyContact,
+  startConversation,
+} from "../../lib/messengerApi";
 import { useNimrosePrompt } from "./NimrosePromptDialog";
 import "./Chat.scss";
+import "../Messenger/Messenger.scss";
 
 const initials = (name: string) =>
   name.split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -25,14 +37,40 @@ const formatTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeStri
 
 const NimroseChatView = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const { prompt } = useNimrosePrompt();
   const queryClient = useQueryClient();
+  const [sidebarTab, setSidebarTab] = useState<"channels" | "contacts">("channels");
   const [activeChannelId, setActiveChannelId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
+  const [addContactValue, setAddContactValue] = useState("");
+  const [showQr, setShowQr] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const myContactsQuery = useQuery({ queryKey: ["messenger", "my-contacts"], queryFn: fetchMyContacts, enabled: sidebarTab === "contacts" });
+  const addContactMutation = useMutation({
+    mutationFn: (lookup: string) => addMyContact(lookup),
+    onSuccess: () => {
+      setAddContactValue("");
+      queryClient.invalidateQueries({ queryKey: ["messenger", "my-contacts"] });
+    },
+  });
+  const renameContactMutation = useMutation({
+    mutationFn: ({ id, nickname }: { id: number; nickname: string | null }) => renameMyContact(id, nickname),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messenger", "my-contacts"] }),
+  });
+  const removeContactMutation = useMutation({
+    mutationFn: (id: number) => removeMyContact(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messenger", "my-contacts"] }),
+  });
+  const messageContactMutation = useMutation({
+    mutationFn: (userId: number) => startConversation(userId),
+    onSuccess: () => navigate(AppRoute.messenger),
+  });
+  const myConnectCode = user?.email ? `astilo-connect:${user.email}` : "";
 
   const channelsQuery = useQuery({ queryKey: ["chat", "channels"], queryFn: fetchChatChannels });
   const channels = channelsQuery.data ?? [];
@@ -115,21 +153,98 @@ const NimroseChatView = () => {
           <p className="nimrose-eyebrow">Workspace</p>
           <h1 className="nimrose-page-title">Chat</h1>
         </div>
-        <button
-          type="button"
-          className="nimrose-chip"
-          onClick={async () => {
-            const name = await prompt({ title: "New channel", placeholder: "e.g. project-x" });
-            if (name?.trim()) createChannelMutation.mutate(name.trim());
-          }}
-        >
-          <Plus size={12} /> Channel
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {sidebarTab === "channels" && (
+            <button
+              type="button"
+              className="nimrose-chip"
+              onClick={async () => {
+                const name = await prompt({ title: "New channel", placeholder: "e.g. project-x" });
+                if (name?.trim()) createChannelMutation.mutate(name.trim());
+              }}
+            >
+              <Plus size={12} /> Channel
+            </button>
+          )}
+          {sidebarTab === "contacts" && (
+            <button type="button" className="nimrose-chip" onClick={() => setShowQr(true)}>
+              <QrCode size={12} /> My QR code
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="chat-layout">
         <div className="chat-channel-sidebar">
-          {channels.map((c) => (
+          <div className="chat-sidebar-tabs">
+            <button type="button" className={sidebarTab === "channels" ? "active" : ""} onClick={() => setSidebarTab("channels")}>
+              <Hash size={12} /> Channels
+            </button>
+            <button type="button" className={sidebarTab === "contacts" ? "active" : ""} onClick={() => setSidebarTab("contacts")}>
+              <Users size={12} /> Contacts
+            </button>
+          </div>
+
+          {sidebarTab === "contacts" && (
+            <>
+              <form
+                className="chat-add-contact"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (addContactValue.trim()) addContactMutation.mutate(addContactValue.trim());
+                }}
+              >
+                <input
+                  value={addContactValue}
+                  onChange={(e) => setAddContactValue(e.target.value)}
+                  placeholder="Email, phone, or QR code…"
+                  aria-label="Add contact by email or phone"
+                />
+                <button type="submit" className="nimrose-chip" disabled={addContactMutation.isPending}>
+                  <UserPlus size={12} />
+                </button>
+              </form>
+              {addContactMutation.isError && <p className="chat-empty" style={{ color: "#f87171", padding: "0 0.6rem" }}>No Astilo user found with that email or phone.</p>}
+
+              {myContactsQuery.data?.length === 0 && <p className="chat-empty">No contacts yet — add one above.</p>}
+              {myContactsQuery.data?.map((c) => (
+                <div key={c.id} className="chat-contact-row">
+                  <span className="chat-contact-avatar">{initials(c.name)}</span>
+                  <span className="chat-contact-body">
+                    <span className="name">{c.name}</span>
+                    <span className="email">{c.email}</span>
+                  </span>
+                  <span className="chat-contact-actions">
+                    <button type="button" aria-label="Message" onClick={() => messageContactMutation.mutate(c.contactId)}>
+                      <MessageCircle size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Rename contact"
+                      onClick={async () => {
+                        const name = await prompt({ title: "Nickname", defaultValue: c.nickname ?? c.realName });
+                        if (name !== null) renameContactMutation.mutate({ id: c.id, nickname: name.trim() || null });
+                      }}
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Remove contact"
+                      onClick={async () => {
+                        const ok = await confirm({ title: "Remove contact?", message: `Remove ${c.name} from your contacts?`, confirmLabel: "Remove", danger: true });
+                        if (ok) removeContactMutation.mutate(c.id);
+                      }}
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {sidebarTab === "channels" && channels.map((c) => (
             <div key={c.id} className={`chat-channel-item ${activeId === c.id ? "active" : ""}`} onClick={() => setActiveChannelId(c.id)}>
               <span style={{ display: "flex", alignItems: "center", gap: "0.3rem", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
                 <Hash size={13} /> {c.name}
@@ -238,6 +353,22 @@ const NimroseChatView = () => {
           )}
         </div>
       </div>
+
+      {showQr &&
+        createPortal(
+          <div className="msgr-qr-overlay" onClick={() => setShowQr(false)}>
+            <div className="msgr-qr-modal" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="msgr-qr-close" onClick={() => setShowQr(false)} aria-label="Close">
+                <X size={16} />
+              </button>
+              <h3>Your connect code</h3>
+              <p>Others can add you by scanning this, or pasting the code below into "Add contact".</p>
+              {myConnectCode && <img src={qrCodeUrl(myConnectCode)} alt="Your Astilo connect QR code" />}
+              <code>{myConnectCode}</code>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

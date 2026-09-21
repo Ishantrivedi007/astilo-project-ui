@@ -28,6 +28,7 @@ import {
   recordHistoryVisit,
   updateBrowserTab,
 } from "../../lib/browserApi";
+import { useConfirm } from "../shared";
 import { useNimrosePrompt } from "./NimrosePromptDialog";
 
 const normalizeUrl = (input: string): string => {
@@ -51,6 +52,7 @@ export const DEFAULT_NEW_TAB_URL_KEY = "nimrose-default-new-tab-url";
 const NimroseBrowserView = () => {
   const queryClient = useQueryClient();
   const { prompt } = useNimrosePrompt();
+  const confirm = useConfirm();
 
   const [activeSpaceId, setActiveSpaceId] = useState<number | null>(null);
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
@@ -384,8 +386,15 @@ const NimroseBrowserView = () => {
                       <p className="nimrose-modal-section-title">
                         <Clock size={13} /> History
                       </p>
-                      <button type="button" className="nimrose-widget-footnote" onClick={() => clearHistoryMutation.mutate()}>
-                        Clear
+                      <button
+                        type="button"
+                        className="nimrose-chip"
+                        onClick={async () => {
+                          const ok = await confirm({ title: "Clear browsing history?", message: "This can't be undone.", confirmLabel: "Clear", danger: true });
+                          if (ok) clearHistoryMutation.mutate();
+                        }}
+                      >
+                        <Trash2 size={11} /> Clear history
                       </button>
                     </div>
                     {historyQuery.data?.length === 0 && <p className="nimrose-widget-empty">No history yet.</p>}

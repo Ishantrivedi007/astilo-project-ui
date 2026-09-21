@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQueries } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PageHeading } from "../shared";
+import { Trash2 } from "lucide-react";
+import { PageHeading, useConfirm } from "../shared";
 import { fetchDetail } from "../../lib/tmdbDetail";
 import type { MediaItem } from "../../lib/tmdb";
 import { useMovieStore, mediaKey } from "./useMovieStore";
@@ -18,7 +19,24 @@ const MovieWatchlistPage = ({
   basePath = "/movies",
   watchBasePath = "/movies/watch",
 }: MovieWatchlistPageProps) => {
-  const { watchlist, watching, toggleWatchlist, isInWatchlist } = useMovieStore();
+  const { watchlist, watching, toggleWatchlist, isInWatchlist, clearWatchlist, clearWatching } = useMovieStore();
+  const confirm = useConfirm();
+
+  const onClearWatchlist = async () => {
+    const ok = await confirm({ title: "Clear watchlist?", message: "Remove all saved titles from your watchlist? This can't be undone.", confirmLabel: "Clear", danger: true });
+    if (ok) {
+      clearWatchlist();
+      toast.success("Watchlist cleared");
+    }
+  };
+
+  const onClearHistory = async () => {
+    const ok = await confirm({ title: "Clear watch history?", message: "Clear your \"Continue watching\" history? This can't be undone.", confirmLabel: "Clear", danger: true });
+    if (ok) {
+      clearWatching();
+      toast.success("Watch history cleared");
+    }
+  };
 
   // Pull "more like this" for the few most-recently watched titles, then
   // merge/dedupe into a single recommendation rail.
@@ -63,7 +81,18 @@ const MovieWatchlistPage = ({
       </PageHeading>
 
       <section>
-        <h2 className="mb-3 font-display text-xl font-bold text-ink">🔖 My watchlist</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-xl font-bold text-ink">🔖 My watchlist</h2>
+          {watchlist.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearWatchlist}
+              className="inline-flex items-center gap-1 rounded-full border border-hair/30 px-3 py-1 text-xs text-ink/60 hover:border-danger/50 hover:text-danger"
+            >
+              <Trash2 size={11} /> Clear watchlist
+            </button>
+          )}
+        </div>
         {watchlist.length === 0 ? (
           <p className="glass-card p-6 text-sm text-ink/50">
             Nothing saved yet — tap + on any poster to add it here.
@@ -88,7 +117,18 @@ const MovieWatchlistPage = ({
       </section>
 
       <section className="mt-12">
-        <h2 className="mb-3 font-display text-xl font-bold text-ink">🕘 Continue watching</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-xl font-bold text-ink">🕘 Continue watching</h2>
+          {watching.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearHistory}
+              className="inline-flex items-center gap-1 rounded-full border border-hair/30 px-3 py-1 text-xs text-ink/60 hover:border-danger/50 hover:text-danger"
+            >
+              <Trash2 size={11} /> Clear history
+            </button>
+          )}
+        </div>
         {watching.length === 0 ? (
           <p className="glass-card p-6 text-sm text-ink/50">
             Your watch history will show up here once you start something.
