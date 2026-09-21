@@ -83,30 +83,39 @@ const Chart = ({ type, series, options, height = 280, themeKey }: ChartProps) =>
   const { base } = useChartTheme();
   const { theme } = useTheme();
 
+  // Verified via an isolated debug harness (real hardcoded data, every other
+  // variable removed) that chart.type "line" renders axis/grid/legend but
+  // never draws the actual series path in this apexcharts/react-apexcharts
+  // pairing — while "area" with the exact same data renders correctly. Since
+  // there's no known config fix, every "line" request is rendered as an
+  // "area" internally with a fully transparent fill, which is visually
+  // identical to a line chart but uses the render path that actually works.
+  const effectiveType = type === "line" ? "area" : type;
+
   const merged: ApexOptions = useMemo(
     () => ({
       ...base,
       ...options,
-      chart: { ...base.chart, ...options?.chart, type },
+      chart: { ...base.chart, ...options?.chart, type: effectiveType },
       grid: { ...base.grid, ...options?.grid },
       xaxis: { ...base.xaxis, ...options?.xaxis },
       yaxis: { ...base.yaxis, ...options?.yaxis },
       // base's soft gradient fill (low opacity, meant to shade the area
-      // under a line) only makes sense for "area" charts. Applied as the
-      // fallback to every OTHER type with no caller override, it also made
-      // "line" charts wash out to invisible, and made "donut"/"bar" slices
-      // render as pale/hollow-looking instead of solid — donut especially,
-      // since its gradient's far stop is nearly transparent.
+      // under a line) only makes sense for a *real* area chart. Applied as
+      // the fallback to every other type with no caller override, it made
+      // "donut"/"bar" slices render as pale/hollow-looking instead of solid.
+      // "line" (now rendered as "area" internally, see above) always gets a
+      // fully transparent fill so no shading appears under it.
       fill: options?.fill ?? (type === "area" ? base.fill : { type: "solid", opacity: type === "line" ? 0 : 1 }),
       stroke: { ...base.stroke, ...options?.stroke },
     }),
-    [base, options, type]
+    [base, options, type, effectiveType]
   );
 
   return (
     <ReactApexChart
       key={themeKey ?? theme.id}
-      type={type}
+      type={effectiveType}
       series={series as ApexOptions["series"]}
       options={merged}
       height={height}
