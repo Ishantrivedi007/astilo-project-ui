@@ -87,28 +87,118 @@ def _merge_next_steps(existing: list[dict], fresh: list[dict]) -> list[dict]:
 
 
 def _auto_research_note_body(item_title: str, step_text: str, query: str) -> str:
-    """Real search links for a checklist step — never a fabricated
-    "finding", since we have no way to actually answer an open research
-    question. This just gets the user straight to searching it."""
+    """Pulls a real Wikipedia extract for the checklist step's specific
+    topic (not just the parent object) when one resolves, so "Findings"
+    starts with actual sourced content instead of a blank placeholder —
+    still never a fabricated claim: if nothing resolves, it says so
+    honestly and falls back to search links instead of making something up."""
     q = quote_plus(query)
     wiki_q = quote_plus(step_text)
+
+    findings_lines = ["_Write what you find here._"]
+    try:
+        wiki = wikipedia.research_summary(query)
+        wiki_data = (wiki or {}).get("data") or {}
+        extract = wiki_data.get("detailedExtract") or wiki_data.get("extract")
+        if extract and wiki_data.get("title"):
+            findings_lines = [
+                f"_From Wikipedia — [{wiki_data['title']}]({wiki_data.get('pageUrl') or ''})_",
+                "",
+                extract,
+            ]
+    except Exception:
+        pass
+
     return "\n".join(
         [
             f"# {step_text}",
             "",
             f"_Auto-research started from the checklist for **{item_title}**._",
             "",
-            "## Search this",
+            "## Findings",
+            "",
+            *findings_lines,
+            "",
+            "## Search further",
             "",
             f"- [Wikipedia search]({f'https://en.wikipedia.org/w/index.php?search={wiki_q}'})",
             f"- [Google Scholar]({f'https://scholar.google.com/scholar?q={q}'})",
             f"- [NASA ADS]({f'https://ui.adsabs.harvard.edu/search/q={q}'})",
-            "",
-            "## Findings",
-            "",
-            "_Write what you find here._",
         ]
     )
+
+
+_TAG_RE = None
+
+
+def _strip_html(html: str) -> str:
+    """Plain-text fallback for embedding a rich (HTML) document's content
+    into the markdown report — a light strip, not a full renderer, since
+    the goal is a readable excerpt, not pixel-perfect reformatting."""
+    import re
+
+    global _TAG_RE
+    if _TAG_RE is None:
+        _TAG_RE = re.compile(r"<[^>]+>")
+    text = _TAG_RE.sub(" ", html or "")
+    return re.sub(r"[ \t]+", " ", text).strip()
+
+
+def _build_report_markdown(item: CosmosSavedItem, brief: dict, docs: list, images: list) -> str:
+    """Assembles everything gathered on a research item — the automated
+    brief, the checklist's completion state, every document written for
+    it, and its image gallery — into one consolidated, downloadable
+    document. This is the actual "finish the research" deliverable, not
+    another starter stub: real content pulled from what's already there,
+    not fabricated new claims."""
+    lines = [f"# {item.title} — Research Report", ""]
+    lines.append(f"_Generated {datetime.datetime.utcnow().strftime('%Y-%m-%d')} · Source: {item.source or 'Unknown'}_")
+    lines.append("")
+
+    summary = brief.get("detailedSummary") or brief.get("summary")
+    if summary:
+        lines += ["## Summary", "", summary, ""]
+
+    key_points = brief.get("keyPoints") or []
+    if key_points:
+        lines.append("## Key points")
+        lines.append("")
+        lines += [f"- {p}" for p in key_points]
+        lines.append("")
+
+    next_steps = brief.get("nextSteps") or []
+    if next_steps:
+        done_count = sum(1 for s in next_steps if s.get("done"))
+        lines.append(f"## Research checklist ({done_count}/{len(next_steps)} complete)")
+        lines.append("")
+        lines += [f"- [{'x' if s.get('done') else ' '}] {s.get('text', '')}" for s in next_steps]
+        lines.append("")
+
+    if docs:
+        lines.append("## Documents")
+        lines.append("")
+        for doc in docs:
+            lines.append(f"### {doc.title}")
+            lines.append("")
+            body = doc.content or ""
+            if doc.content_format == "html":
+                body = _strip_html(body)
+            lines.append(body.strip() or "_(empty)_")
+            lines.append("")
+
+    if images:
+        lines.append("## Images")
+        lines.append("")
+        for img in images:
+            caption = img.get("caption") or ""
+            source = img.get("source") or ""
+            lines.append(f"![{caption}]({img.get('url', '')})")
+            meta = " · ".join(p for p in [caption, f"Source: {source}" if source else ""] if p)
+            if meta:
+                lines.append(f"_{meta}_")
+            lines.append("")
+
+    return "\n".join(lines).strip() + "\n"
 
 
 def _ensure_project(session, item: CosmosSavedItem) -> NimroseProject:
@@ -265,8 +355,12 @@ class ResearchController:
         ones), {"action": "toggle_step", "index": N}, {"action": "add_step",
         "text": ...}, {"action": "update_step", "index": N, "text": ...},
         {"action": "remove_step", "index": N}, {"action":
-        "auto_research_step", "index": N} (creates a starter document for
-        that step and checks it off), {"action": "add_image", ...}, or
+        "auto_research_step", "index": N} (creates a document for that step —
+        a real Wikipedia extract when one resolves, else search links — and
+        checks it off), {"action": "generate_report"} (assembles the brief,
+        checklist, every document, and the image gallery into one
+        consolidated report document; regenerating replaces the previous
+        one rather than duplicating it), {"action": "add_image", ...}, or
         {"action": "remove_image", "index": N}."""
         body = cherrypy.request.json or {}
         action = body.get("action")
@@ -345,6 +439,38 @@ class ResearchController:
 
                 result = _item_summary(session, item)
                 result["autoResearchNoteId"] = note.id
+                return result
+            elif action == "generate_report":
+                project = _ensure_project(session, item)
+                brief = dict(item.research_brief_json or {})
+                # Pull every doc in the project except a report from a
+                # previous run (regenerating replaces it, not duplicates it).
+                all_docs = session.query(NimroseNote).filter_by(user_id=user_id, folder=project.name).all()
+                source_docs = [d for d in all_docs if "final-report" not in (d.tags or []) and d.kind == "note"]
+                images = list(item.research_images_json or [])
+
+                report_body = _build_report_markdown(item, brief, source_docs, images)
+
+                existing_report = next((d for d in all_docs if "final-report" in (d.tags or [])), None)
+                if existing_report:
+                    existing_report.title = f"{item.title} — Research Report"
+                    existing_report.content = report_body
+                    report_note = existing_report
+                else:
+                    report_note = NimroseNote(
+                        user_id=user_id,
+                        title=f"{item.title} — Research Report",
+                        content=report_body,
+                        folder=project.name,
+                        tags=["final-report"],
+                    )
+                    session.add(report_note)
+                session.flush()
+
+                notify(session, user_id, "research", f"Research report generated: {item.title}", link=f"/research/{item.id}")
+
+                result = _item_summary(session, item)
+                result["reportNoteId"] = report_note.id
                 return result
             elif action == "add_image":
                 url = (body.get("url") or "").strip()
