@@ -31,7 +31,15 @@ export const useChartTheme = () => {
         zoom: { enabled: false },
         background: "transparent",
         fontFamily: '"Space Grotesk", system-ui, sans-serif',
-        animations: { enabled: true, speed: 600, animateGradually: { enabled: true } },
+        // Entrance/update animations sound nice but react-apexcharts calls
+        // both updateOptions() and updateSeries() whenever either prop's
+        // object reference changes — any caller that (even accidentally)
+        // passes a new series/options object on a re-render restarts the
+        // animation, and rapid repeats of that can leave series stuck
+        // never finishing their draw (axis/grid/legend still show, since
+        // those aren't animated the same way). Disabling animations removes
+        // that whole failure class app-wide.
+        animations: { enabled: false },
         parentHeightOffset: 0,
       },
       theme: { mode: isDark ? "dark" : "light" },

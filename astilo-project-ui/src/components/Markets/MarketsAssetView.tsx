@@ -150,6 +150,70 @@ const MarketsAssetView = () => {
   const insights = useTrendInsights(d?.points ?? []);
   const forecast = useLinearForecast(d?.points ?? [], insights?.volatilityPct);
 
+  // Built once per actual data change rather than as a fresh object/array
+  // literal on every render (the chart JSX previously constructed these
+  // inline) — react-apexcharts calls both updateOptions() and updateSeries()
+  // whenever either prop's *reference* changes, even if the values are
+  // identical; getting a brand-new series/options object on every unrelated
+  // re-render (e.g. the news/about queries settling) was triggering that
+  // update path constantly, which is a known way for the wrapper to leave
+  // series stuck without ever finishing their draw — axis/grid/legend still
+  // render (they're static chrome), but the line paths never appear.
+  const chartData = useMemo(() => {
+    if (!d || d.points.length === 0) return null;
+    const chartSeries: { name: string; data: { x: number; y: number }[] }[] = [
+      { name: d.symbol, data: d.points.map((p) => ({ x: p.t, y: p.close })) },
+    ];
+    const seriesColors = [seriesColor];
+    const seriesWidths = [2];
+    const seriesDash = [0];
+
+    if (insights?.sma7) {
+      const pts = d.points.map((p, i) => ({ x: p.t, y: insights.sma7[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+      if (pts.length > 1) {
+        chartSeries.push({ name: "7-period avg", data: pts });
+        seriesColors.push("#facc15");
+        seriesWidths.push(1.5);
+        seriesDash.push(4);
+      }
+    }
+    if (insights?.sma30) {
+      const pts = d.points.map((p, i) => ({ x: p.t, y: insights.sma30![i] })).filter((p): p is { x: number; y: number } => p.y != null);
+      if (pts.length > 1) {
+        chartSeries.push({ name: "30-period avg", data: pts });
+        seriesColors.push("#a78bfa");
+        seriesWidths.push(1.5);
+        seriesDash.push(4);
+      }
+    }
+    if (forecast) {
+      chartSeries.push({
+        name: "Projected (linear trend)",
+        data: [
+          { x: d.points[d.points.length - 1].t, y: d.points[d.points.length - 1].close },
+          ...forecast.projected.map((p) => ({ x: p.t, y: p.value })),
+        ],
+      });
+      seriesColors.push("#60a5fa");
+      seriesWidths.push(2);
+      seriesDash.push(6);
+    }
+
+    const chartOptions = {
+      ...interactiveChart,
+      colors: seriesColors,
+      stroke: { curve: "smooth" as const, width: seriesWidths, dashArray: seriesDash },
+      xaxis: { type: "datetime" as const },
+      yaxis: { labels: { formatter: (v: number) => v?.toFixed(2) } },
+      tooltip: { ...interactiveChart.tooltip, x: { format: "dd MMM yyyy HH:mm" } },
+      dataLabels: { enabled: false },
+      legend: { show: true },
+    };
+
+    return { chartSeries, chartOptions };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d, insights?.sma7, insights?.sma30, forecast, seriesColor]);
+
   // For stocks/ETFs there's no "about/founded" from Yahoo — reuse the
   // Research module's Wikipedia summary for the company itself. Crypto
   // already carries this from CoinGecko's own coin metadata.
@@ -220,76 +284,8 @@ const MarketsAssetView = () => {
             ))}
           </div>
 
-          {d.points.length > 0 ? (
-            (() => {
-              // colors/stroke width/dashArray must be exactly as long as the
-              // actual series array — a length mismatch (e.g. 4 style
-              // entries for 2 real series, when sma30/forecast aren't
-              // available for a short range) makes ApexCharts silently fail
-              // to draw ANY line, not just the extra ones. Data also has to
-              // use the {x,y} object format rather than [x,y] tuples: the
-              // sma7/sma30 series legitimately contain null for their
-              // leading points (a moving average isn't defined until there's
-              // enough history), and null inside the tuple-array format can
-              // break rendering for the whole chart, not just that series —
-              // the object format (with those points simply omitted) doesn't
-              // have that problem.
-              const chartSeries: { name: string; data: { x: number; y: number }[] }[] = [
-                { name: d.symbol, data: d.points.map((p) => ({ x: p.t, y: p.close })) },
-              ];
-              const seriesColors = [seriesColor];
-              const seriesWidths = [2];
-              const seriesDash = [0];
-
-              if (insights?.sma7) {
-                const pts = d.points.map((p, i) => ({ x: p.t, y: insights.sma7[i] })).filter((p): p is { x: number; y: number } => p.y != null);
-                if (pts.length > 1) {
-                  chartSeries.push({ name: "7-period avg", data: pts });
-                  seriesColors.push("#facc15");
-                  seriesWidths.push(1.5);
-                  seriesDash.push(4);
-                }
-              }
-              if (insights?.sma30) {
-                const pts = d.points.map((p, i) => ({ x: p.t, y: insights.sma30![i] })).filter((p): p is { x: number; y: number } => p.y != null);
-                if (pts.length > 1) {
-                  chartSeries.push({ name: "30-period avg", data: pts });
-                  seriesColors.push("#a78bfa");
-                  seriesWidths.push(1.5);
-                  seriesDash.push(4);
-                }
-              }
-              if (forecast) {
-                chartSeries.push({
-                  name: "Projected (linear trend)",
-                  data: [
-                    { x: d.points[d.points.length - 1].t, y: d.points[d.points.length - 1].close },
-                    ...forecast.projected.map((p) => ({ x: p.t, y: p.value })),
-                  ],
-                });
-                seriesColors.push("#60a5fa");
-                seriesWidths.push(2);
-                seriesDash.push(6);
-              }
-
-              return (
-                <Chart
-                  type="line"
-                  height={340}
-                  series={chartSeries}
-                  options={{
-                    ...interactiveChart,
-                    colors: seriesColors,
-                    stroke: { curve: "smooth", width: seriesWidths, dashArray: seriesDash },
-                    xaxis: { type: "datetime" },
-                    yaxis: { labels: { formatter: (v: number) => v?.toFixed(2) } },
-                    tooltip: { ...interactiveChart.tooltip, x: { format: "dd MMM yyyy HH:mm" } },
-                    dataLabels: { enabled: false },
-                    legend: { show: true },
-                  }}
-                />
-              );
-            })()
+          {chartData ? (
+            <Chart type="line" height={340} series={chartData.chartSeries} options={chartData.chartOptions} />
           ) : (
             <p className="markets-unavailable">No historical points for this range.</p>
           )}
