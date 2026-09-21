@@ -36,7 +36,6 @@ export const AppRoute = {
   marketsMap: "/markets/map",
   trading: "/markets/trading",
   tradingPortfolio: "/markets/trading/portfolio",
-  chartDebug: "/markets/chart-debug",
   research: "/research",
   researchDetail: "/research/detail",
   office: "/office",
