@@ -80,30 +80,6 @@
 .landing-hero {
   position: relative;
   padding: clamp(2.5rem, 8vw, 5rem) 1.25rem clamp(3rem, 6vw, 5rem);
-  overflow: hidden;
-
-  &::before {
-    content: "";
-    position: absolute;
-    inset: -10% -10% auto -10%;
-    height: 130%;
-    z-index: -1;
-    background: radial-gradient(
-        circle at 20% 20%,
-        rgb(var(--accent-rgb) / 0.28),
-        transparent 38%
-      ),
-      radial-gradient(
-        circle at 82% 60%,
-        rgb(var(--accent-2-rgb) / 0.22),
-        transparent 36%
-      ),
-      radial-gradient(
-        ellipse at 50% 0%,
-        rgb(var(--accent-rgb) / 0.12),
-        transparent 60%
-      );
-  }
 }
 
 .landing-hero-grid {
