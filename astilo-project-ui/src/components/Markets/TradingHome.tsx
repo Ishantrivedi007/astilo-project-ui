@@ -379,10 +379,16 @@ const TradingHome = () => {
         <div className="trading-summary-card">
           <span className="trading-summary-label">Holdings value</span>
           <span className="trading-summary-value">{money(portfolio?.holdingsValue, 2)}</span>
+          {portfolio?.holdingsValue != null && (
+            <span className="trading-summary-words">{amountInWords(portfolio.holdingsValue)}</span>
+          )}
         </div>
         <div className="trading-summary-card">
           <span className="trading-summary-label">Total portfolio value</span>
           <span className="trading-summary-value">{money(portfolio?.totalValue, 2)}</span>
+          {portfolio?.totalValue != null && (
+            <span className="trading-summary-words">{amountInWords(portfolio.totalValue)}</span>
+          )}
         </div>
       </div>
 
