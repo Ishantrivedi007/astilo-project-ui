@@ -16,6 +16,9 @@ export interface ResearchBrief {
   keyPoints: string[];
   nextSteps: ResearchNextStep[];
   dataSnapshot: Record<string, unknown>;
+  skyImageUrl: string | null;
+  raDeg: number | null;
+  decDeg: number | null;
   generatedAt: string;
 }
 

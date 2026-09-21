@@ -306,6 +306,19 @@ const ResearchDetail = () => {
         )}
       </div>
 
+      {brief?.skyImageUrl && (
+        <div className="research-section">
+          <h2 className="research-section-title">Sky position</h2>
+          <button type="button" className="research-detail-thumb-btn" onClick={() => setLightbox({ url: brief.skyImageUrl!, caption: `Sky imagery centered on ${item.title}`, source: "CDS hips2fits (DSS2 survey)" })}>
+            <img className="research-sky-image" src={brief.skyImageUrl} alt={`Real sky imagery centered on ${item.title}`} />
+          </button>
+          <p className="research-card-meta" style={{ marginTop: "0.4rem" }}>
+            RA {brief.raDeg?.toFixed(3)}°, Dec {brief.decDeg?.toFixed(3)}° — real DSS2 survey imagery of this exact sky
+            position, via CDS's free hips2fits service. Not an illustration.
+          </p>
+        </div>
+      )}
+
       {brief && brief.keyPoints.length > 0 && (
         <div className="research-section">
           <h2 className="research-section-title">Key points</h2>
