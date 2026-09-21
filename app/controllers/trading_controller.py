@@ -128,8 +128,8 @@ class TradingDepositController:
             amount = float(body.get("amount"))
         except (TypeError, ValueError):
             raise cherrypy.HTTPError(400, "amount must be a number")
-        if amount <= 0 or amount > 1_000_000:
-            raise cherrypy.HTTPError(400, "amount must be between 0 and 1,000,000")
+        if amount <= 0:
+            raise cherrypy.HTTPError(400, "amount must be greater than 0")
 
         card_number = (body.get("cardNumber") or "").replace(" ", "")
         expiry = (body.get("expiry") or "").strip()
