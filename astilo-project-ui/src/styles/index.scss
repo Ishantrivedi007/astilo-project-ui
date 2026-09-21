@@ -7,16 +7,6 @@
 :root {
   color-scheme: light dark;
 }
-/* pin native UI (scrollbar track/corner, form controls, etc.) to the
-   app's actual mode instead of "light dark" — the latter lets the OS
-   pick a native scrollbar tint (often a mismatched blue-gray) that our
-   custom scrollbar-thumb styling doesn't fully cover. */
-:root.dark {
-  color-scheme: dark;
-}
-:root.light {
-  color-scheme: light;
-}
 
 html,
 body {
@@ -44,17 +34,24 @@ code {
   background: rgb(var(--accent-rgb) / 0.32);
 }
 
-/* --- themed scrollbar --- */
+/* --- themed scrollbar ---
+   "transparent" as the track colour left Chromium/Windows falling back
+   to its own native (often blue-tinted) track fill in places our
+   custom thumb rules don't cover — use the theme's real background
+   colour instead so the track actually matches the page. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--accent-rgb) / 0.5) transparent;
+  scrollbar-color: rgb(var(--accent-rgb) / 0.5) rgb(var(--bg-rgb));
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgb(var(--bg-rgb));
+}
+*::-webkit-scrollbar-corner {
+  background: rgb(var(--bg-rgb));
 }
 *::-webkit-scrollbar-thumb {
   background: linear-gradient(
