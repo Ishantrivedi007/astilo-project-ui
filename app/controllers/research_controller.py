@@ -10,6 +10,7 @@ from the dedicated Research page, not auto-written into note text.
 """
 
 import datetime
+import html as html_lib
 from urllib.parse import quote_plus, urlencode
 
 import cherrypy
@@ -126,15 +127,35 @@ def _merge_next_steps(existing: list[dict], fresh: list[dict]) -> list[dict]:
     return merged
 
 
-def _auto_research_note_body(item_title: str, step_text: str, query: str) -> tuple[str, bool]:
+def _esc(s) -> str:
+    return html_lib.escape(str(s) if s is not None else "")
+
+
+def _paragraphs_html(text: str) -> str:
+    """Splits real prose (a Wikipedia extract) into <p> tags at blank
+    lines — the same document format the rich editor (Word/Notes) already
+    renders, instead of raw markdown syntax."""
+    paras = [p.strip() for p in (text or "").split("\n") if p.strip()]
+    return "".join(f"<p>{_esc(p)}</p>" for p in paras)
+
+
+def _figure_html(url: str, caption: str, source: str) -> str:
+    return (
+        f'<figure><img src="{_esc(url)}" alt="{_esc(caption)}" style="max-width:100%;border-radius:8px" />'
+        f"<figcaption>{_esc(caption)} — {_esc(source)}</figcaption></figure>"
+    )
+
+
+def _auto_research_note_html(item_title: str, step_text: str, query: str) -> tuple[str, bool]:
     """Tries to actually answer the checklist step, not just point at
     search links — tries a few real Wikipedia queries in order of
     specificity (the step's own topic first, then step+object, then the
     object itself), and when one resolves, pulls its full detailed extract
     plus real images (the article's own photos, and NASA's image library
-    for the same query) so the generated document is a genuine write-up,
-    not a stub. Falls back honestly to search links only when nothing
-    resolves — never fabricates a finding. Returns (markdown, resolved)."""
+    for the same query) so the generated document is a genuine, formatted
+    write-up with real inline images — not a markdown stub. Falls back
+    honestly to search links only when nothing resolves — never fabricates
+    a finding. Returns (html, resolved)."""
     q = quote_plus(query)
     wiki_q = quote_plus(step_text)
 
@@ -152,138 +173,136 @@ def _auto_research_note_body(item_title: str, step_text: str, query: str) -> tup
     extract = wiki_data.get("detailedExtract") or wiki_data.get("extract")
     resolved = bool(extract and wiki_data.get("title"))
 
-    image_lines: list[str] = []
+    figures_html = ""
     if resolved:
         seen_urls = set()
         for img in (wiki_data.get("articleImages") or [])[:3]:
             if img.get("url") and img["url"] not in seen_urls:
-                image_lines.append(f"![{img.get('title') or step_text}]({img['url']})")
+                figures_html += _figure_html(img["url"], img.get("title") or step_text, "Wikipedia")
                 seen_urls.add(img["url"])
         try:
             nasa_env = nasa.images_search(f"{step_text} {item_title}", "image", 3)
             for r in (nasa_env.get("data") or {}).get("results") or []:
                 if r.get("previewUrl") and r["previewUrl"] not in seen_urls:
-                    image_lines.append(f"![{r.get('title') or step_text}]({r['previewUrl']}) \n_NASA Image and Video Library_")
+                    figures_html += _figure_html(r["previewUrl"], r.get("title") or step_text, "NASA Image and Video Library")
                     seen_urls.add(r["previewUrl"])
         except Exception:
             pass
 
     if resolved:
-        findings_lines = [
-            f"_From Wikipedia — [{wiki_data['title']}]({wiki_data.get('pageUrl') or ''})_",
-            "",
-            extract,
-        ]
-        if image_lines:
-            findings_lines += ["", "### Images", "", *image_lines]
+        findings_html = (
+            f'<p><em>From Wikipedia — <a href="{_esc(wiki_data.get("pageUrl") or "")}" target="_blank" rel="noreferrer">{_esc(wiki_data["title"])}</a></em></p>'
+            + _paragraphs_html(extract)
+            + figures_html
+        )
     else:
-        findings_lines = ["_No Wikipedia article resolved for this specific step — use the search links below._"]
+        findings_html = "<p><em>No Wikipedia article resolved for this specific step — use the search links below.</em></p>"
 
-    return (
-        "\n".join(
-            [
-                f"# {step_text}",
-                "",
-                f"_Auto-research for **{item_title}**._",
-                "",
-                "## Findings",
-                "",
-                *findings_lines,
-                "",
-                "## Search further",
-                "",
-                f"- [Wikipedia search]({f'https://en.wikipedia.org/w/index.php?search={wiki_q}'})",
-                f"- [Google Scholar]({f'https://scholar.google.com/scholar?q={q}'})",
-                f"- [NASA ADS]({f'https://ui.adsabs.harvard.edu/search/q={q}'})",
-            ]
-        ),
-        resolved,
+    html = (
+        f"<h1>{_esc(step_text)}</h1>"
+        f"<p><em>Auto-research for {_esc(item_title)}.</em></p>"
+        "<h2>Findings</h2>"
+        f"{findings_html}"
+        "<h2>Search further</h2>"
+        "<ul>"
+        f'<li><a href="https://en.wikipedia.org/w/index.php?search={wiki_q}" target="_blank" rel="noreferrer">Wikipedia search</a></li>'
+        f'<li><a href="https://scholar.google.com/scholar?q={q}" target="_blank" rel="noreferrer">Google Scholar</a></li>'
+        f'<li><a href="https://ui.adsabs.harvard.edu/search/q={q}" target="_blank" rel="noreferrer">NASA ADS</a></li>'
+        "</ul>"
     )
+    return html, resolved
 
 
-_TAG_RE = None
+def _markdown_body_to_html(text: str) -> str:
+    """Light markdown-ish -> HTML conversion for embedding an older
+    plain-text/Markdown document's content into the HTML report — handles
+    the shapes this module itself produces (blank-line paragraphs and
+    "- " bullet lines); not a full Markdown parser, since real Markdown
+    documents also get embedded as escaped preformatted text otherwise."""
+    lines = (text or "").split("\n")
+    html_parts = []
+    para: list[str] = []
+    in_list = False
+
+    def flush_para():
+        nonlocal para
+        if para:
+            html_parts.append(f"<p>{_esc(' '.join(para))}</p>")
+            para = []
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            flush_para()
+            if not in_list:
+                html_parts.append("<ul>")
+                in_list = True
+            html_parts.append(f"<li>{_esc(stripped[2:])}</li>")
+            continue
+        if in_list:
+            html_parts.append("</ul>")
+            in_list = False
+        if not stripped:
+            flush_para()
+            continue
+        para.append(stripped)
+    flush_para()
+    if in_list:
+        html_parts.append("</ul>")
+    return "".join(html_parts)
 
 
-def _strip_html(html: str) -> str:
-    """Plain-text fallback for embedding a rich (HTML) document's content
-    into the markdown report — a light strip, not a full renderer, since
-    the goal is a readable excerpt, not pixel-perfect reformatting."""
-    import re
-
-    global _TAG_RE
-    if _TAG_RE is None:
-        _TAG_RE = re.compile(r"<[^>]+>")
-    text = _TAG_RE.sub(" ", html or "")
-    return re.sub(r"[ \t]+", " ", text).strip()
-
-
-def _build_report_markdown(item: CosmosSavedItem, brief: dict, docs: list, images: list) -> str:
+def _build_report_html(item: CosmosSavedItem, brief: dict, docs: list, images: list) -> str:
     """Assembles everything gathered on a research item — the automated
-    brief, the checklist's completion state, every document written for
-    it, and its image gallery — into one consolidated, downloadable
-    document. This is the actual "finish the research" deliverable, not
-    another starter stub: real content pulled from what's already there,
-    not fabricated new claims."""
-    lines = [f"# {item.title} — Research Report", ""]
-    lines.append(f"_Generated {datetime.datetime.utcnow().strftime('%Y-%m-%d')} · Source: {item.source or 'Unknown'}_")
-    lines.append("")
+    brief, the sky-position image, the checklist's completion state, every
+    document written for it (rendered, not markdown source), and its image
+    gallery — into one consolidated, fully-formatted document with real
+    inline images. This is the actual "finish the research" deliverable,
+    not another starter stub: real content pulled from what's already
+    there, not fabricated new claims."""
+    parts = [
+        f"<h1>{_esc(item.title)} — Research Report</h1>",
+        f"<p><em>Generated {datetime.datetime.utcnow().strftime('%Y-%m-%d')} · Source: {_esc(item.source or 'Unknown')}</em></p>",
+    ]
 
     summary = brief.get("detailedSummary") or brief.get("summary")
     if summary:
-        lines += ["## Summary", "", summary, ""]
+        parts.append("<h2>Summary</h2>")
+        parts.append(_paragraphs_html(summary))
 
     if brief.get("skyImageUrl"):
-        lines += [
-            "## Sky position",
-            "",
-            f"RA {brief.get('raDeg')}°, Dec {brief.get('decDeg')}°",
-            "",
-            f"![Sky imagery centered on {item.title}]({brief['skyImageUrl']})",
-            "",
-            "_Real DSS2 survey imagery of this exact sky position — CDS (Centre de Données astronomiques de Strasbourg) hips2fits, not an illustration._",
-            "",
-        ]
+        parts.append("<h2>Sky position</h2>")
+        parts.append(f"<p>RA {_esc(brief.get('raDeg'))}°, Dec {_esc(brief.get('decDeg'))}°</p>")
+        parts.append(_figure_html(brief["skyImageUrl"], f"Sky imagery centered on {item.title}", "CDS hips2fits (DSS2 survey)"))
 
     key_points = brief.get("keyPoints") or []
     if key_points:
-        lines.append("## Key points")
-        lines.append("")
-        lines += [f"- {p}" for p in key_points]
-        lines.append("")
+        parts.append("<h2>Key points</h2>")
+        parts.append("<ul>" + "".join(f"<li>{_esc(p)}</li>" for p in key_points) + "</ul>")
 
     next_steps = brief.get("nextSteps") or []
     if next_steps:
         done_count = sum(1 for s in next_steps if s.get("done"))
-        lines.append(f"## Research checklist ({done_count}/{len(next_steps)} complete)")
-        lines.append("")
-        lines += [f"- [{'x' if s.get('done') else ' '}] {s.get('text', '')}" for s in next_steps]
-        lines.append("")
+        parts.append(f"<h2>Research checklist ({done_count}/{len(next_steps)} complete)</h2>")
+        parts.append(
+            "<ul>"
+            + "".join(f"<li>{'✅' if s.get('done') else '⬜'} {_esc(s.get('text', ''))}</li>" for s in next_steps)
+            + "</ul>"
+        )
 
     if docs:
-        lines.append("## Documents")
-        lines.append("")
+        parts.append("<h2>Documents</h2>")
         for doc in docs:
-            lines.append(f"### {doc.title}")
-            lines.append("")
+            parts.append(f"<h3>{_esc(doc.title)}</h3>")
             body = doc.content or ""
-            if doc.content_format == "html":
-                body = _strip_html(body)
-            lines.append(body.strip() or "_(empty)_")
-            lines.append("")
+            parts.append(body if doc.content_format == "html" else (_markdown_body_to_html(body) or "<p><em>(empty)</em></p>"))
 
     if images:
-        lines.append("## Images")
-        lines.append("")
+        parts.append("<h2>Images</h2>")
         for img in images:
-            caption = img.get("caption") or ""
-            source = img.get("source") or ""
-            lines.append(f"![{caption}]({img.get('url', '')})")
-            meta = " · ".join(p for p in [caption, f"Source: {source}" if source else ""] if p)
-            if meta:
-                lines.append(f"_{meta}_")
-            lines.append("")
+            parts.append(_figure_html(img.get("url", ""), img.get("caption") or item.title, img.get("source") or "Unknown"))
 
-    return "\n".join(lines).strip() + "\n"
+    return "".join(parts)
 
 
 def _ensure_project(session, item: CosmosSavedItem) -> NimroseProject:
@@ -508,11 +527,12 @@ class ResearchController:
 
                 project = _ensure_project(session, item)
                 query = f"{step_text} {item.title}".strip()
-                note_body, note_resolved = _auto_research_note_body(item.title, step_text, query)
+                note_body, note_resolved = _auto_research_note_html(item.title, step_text, query)
                 note = NimroseNote(
                     user_id=user_id,
                     title=step_text[:150],
                     content=note_body,
+                    content_format="html",
                     folder=project.name,
                     tags=["auto-research", "resolved" if note_resolved else "needs-manual-research"],
                 )
@@ -535,18 +555,20 @@ class ResearchController:
                 source_docs = [d for d in all_docs if "final-report" not in (d.tags or []) and d.kind == "note"]
                 images = list(item.research_images_json or [])
 
-                report_body = _build_report_markdown(item, brief, source_docs, images)
+                report_body = _build_report_html(item, brief, source_docs, images)
 
                 existing_report = next((d for d in all_docs if "final-report" in (d.tags or [])), None)
                 if existing_report:
                     existing_report.title = f"{item.title} — Research Report"
                     existing_report.content = report_body
+                    existing_report.content_format = "html"
                     report_note = existing_report
                 else:
                     report_note = NimroseNote(
                         user_id=user_id,
                         title=f"{item.title} — Research Report",
                         content=report_body,
+                        content_format="html",
                         folder=project.name,
                         tags=["final-report"],
                     )
