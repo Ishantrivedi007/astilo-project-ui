@@ -159,7 +159,9 @@ const MarketsAssetView = () => {
     enabled: !!d && assetType === "stock",
     retry: false,
   });
-  const about = assetType === "crypto" ? d?.about ?? null : wikiAboutQuery.data?.data.extract ?? null;
+  const wikiAbout = wikiAboutQuery.data?.data;
+  const about = assetType === "crypto" ? d?.about ?? null : wikiAbout?.detailedExtract ?? wikiAbout?.extract ?? null;
+  const aboutImages = assetType === "stock" ? wikiAbout?.articleImages ?? [] : [];
 
   return (
     <div className="markets-page">
@@ -219,40 +221,62 @@ const MarketsAssetView = () => {
           </div>
 
           {d.points.length > 0 ? (
-            <Chart
-              type="line"
-              height={340}
-              series={[
+            (() => {
+              // colors/stroke width/dashArray must be exactly as long as the
+              // actual series array — a length mismatch (e.g. 4 style
+              // entries for 2 real series, when sma30/forecast aren't
+              // available for a short range) makes ApexCharts silently fail
+              // to draw ANY line, not just the extra ones.
+              const chartSeries: { name: string; data: number[] }[] = [
                 { name: d.symbol, data: d.points.map((p) => [p.t, p.close]) as unknown as number[] },
-                ...(insights?.sma7
-                  ? [{ name: "7-period avg", data: d.points.map((p, i) => [p.t, insights.sma7[i]]) as unknown as number[] }]
-                  : []),
-                ...(insights?.sma30
-                  ? [{ name: "30-period avg", data: d.points.map((p, i) => [p.t, insights.sma30![i]]) as unknown as number[] }]
-                  : []),
-                ...(forecast
-                  ? [
-                      {
-                        name: "Projected (linear trend)",
-                        data: [
-                          [d.points[d.points.length - 1].t, d.points[d.points.length - 1].close],
-                          ...forecast.projected.map((p) => [p.t, p.value]),
-                        ] as unknown as number[],
-                      },
-                    ]
-                  : []),
-              ]}
-              options={{
-                ...interactiveChart,
-                colors: [seriesColor, "#facc15", "#a78bfa", "#60a5fa"],
-                stroke: { curve: "smooth", width: [2, 1.5, 1.5, 2], dashArray: [0, 4, 4, 6] },
-                xaxis: { type: "datetime" },
-                yaxis: { labels: { formatter: (v: number) => v?.toFixed(2) } },
-                tooltip: { ...interactiveChart.tooltip, x: { format: "dd MMM yyyy HH:mm" } },
-                dataLabels: { enabled: false },
-                legend: { show: true },
-              }}
-            />
+              ];
+              const seriesColors = [seriesColor];
+              const seriesWidths = [2];
+              const seriesDash = [0];
+
+              if (insights?.sma7) {
+                chartSeries.push({ name: "7-period avg", data: d.points.map((p, i) => [p.t, insights.sma7[i]]) as unknown as number[] });
+                seriesColors.push("#facc15");
+                seriesWidths.push(1.5);
+                seriesDash.push(4);
+              }
+              if (insights?.sma30) {
+                chartSeries.push({ name: "30-period avg", data: d.points.map((p, i) => [p.t, insights.sma30![i]]) as unknown as number[] });
+                seriesColors.push("#a78bfa");
+                seriesWidths.push(1.5);
+                seriesDash.push(4);
+              }
+              if (forecast) {
+                chartSeries.push({
+                  name: "Projected (linear trend)",
+                  data: [
+                    [d.points[d.points.length - 1].t, d.points[d.points.length - 1].close],
+                    ...forecast.projected.map((p) => [p.t, p.value]),
+                  ] as unknown as number[],
+                });
+                seriesColors.push("#60a5fa");
+                seriesWidths.push(2);
+                seriesDash.push(6);
+              }
+
+              return (
+                <Chart
+                  type="line"
+                  height={340}
+                  series={chartSeries}
+                  options={{
+                    ...interactiveChart,
+                    colors: seriesColors,
+                    stroke: { curve: "smooth", width: seriesWidths, dashArray: seriesDash },
+                    xaxis: { type: "datetime" },
+                    yaxis: { labels: { formatter: (v: number) => v?.toFixed(2) } },
+                    tooltip: { ...interactiveChart.tooltip, x: { format: "dd MMM yyyy HH:mm" } },
+                    dataLabels: { enabled: false },
+                    legend: { show: true },
+                  }}
+                />
+              );
+            })()
           ) : (
             <p className="markets-unavailable">No historical points for this range.</p>
           )}
@@ -388,9 +412,40 @@ const MarketsAssetView = () => {
               {wikiAboutQuery.isLoading && assetType === "stock" ? (
                 <p className="markets-unavailable">Loading…</p>
               ) : (
-                <p className="markets-source-badge" style={{ display: "block", padding: "0.75rem 1rem", fontSize: "0.82rem", lineHeight: 1.6, color: "rgba(232,236,255,0.75)" }}>
-                  {about}
-                </p>
+                <>
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+                    {(d.logoUrl || wikiAbout?.thumbnailUrl) && (
+                      <img
+                        src={d.logoUrl || wikiAbout?.thumbnailUrl || undefined}
+                        alt={`${d.name} logo`}
+                        style={{ width: 88, height: 88, objectFit: "contain", borderRadius: 12, background: "rgba(255,255,255,0.06)", padding: "0.5rem", flexShrink: 0 }}
+                      />
+                    )}
+                    <p
+                      className="markets-source-badge"
+                      style={{ display: "block", padding: "0.75rem 1rem", fontSize: "0.82rem", lineHeight: 1.6, color: "rgba(232,236,255,0.75)", flex: 1, minWidth: 240 }}
+                    >
+                      {about}
+                    </p>
+                  </div>
+                  {wikiAbout?.pageUrl && (
+                    <p className="markets-unavailable" style={{ marginTop: "0.4rem" }}>
+                      Source:{" "}
+                      <a href={wikiAbout.pageUrl} target="_blank" rel="noreferrer" style={{ color: "inherit" }}>
+                        Wikipedia — {wikiAbout.title}
+                      </a>
+                    </p>
+                  )}
+                  {aboutImages.length > 0 && (
+                    <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", marginTop: "0.9rem" }}>
+                      {aboutImages.slice(0, 6).map((img) => (
+                        <a key={img.url} href={img.url} target="_blank" rel="noreferrer" title={img.title}>
+                          <img src={img.url} alt={img.title} style={{ width: 110, height: 80, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(140,160,255,0.15)" }} loading="lazy" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

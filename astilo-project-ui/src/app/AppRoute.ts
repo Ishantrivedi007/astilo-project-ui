@@ -35,6 +35,7 @@ export const AppRoute = {
   marketsAsset: "/markets/asset",
   marketsMap: "/markets/map",
   trading: "/markets/trading",
+  tradingPortfolio: "/markets/trading/portfolio",
   research: "/research",
   researchDetail: "/research/detail",
   office: "/office",

@@ -129,6 +129,96 @@
   .negative { color: #f87171; font-weight: 700; }
 }
 
+.trading-portfolio-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.75rem;
+  margin-top: 1rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trading-portfolio-table-wrap {
+  overflow-x: auto;
+  border: 1px solid rgb(var(--hair-rgb) / 0.18);
+  border-radius: 0.85rem;
+}
+
+.trading-portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  white-space: nowrap;
+
+  th,
+  td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid rgb(var(--hair-rgb) / 0.12);
+  }
+
+  th {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgb(var(--ink-rgb) / 0.5);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.05);
+  }
+
+  .positive { color: #4ade80; }
+  .negative { color: #f87171; }
+}
+
+.trading-portfolio-symbol {
+  font-weight: 700;
+  color: rgb(var(--ink-rgb));
+  cursor: pointer;
+
+  &:hover {
+    color: #7fb0ff;
+  }
+}
+
+.trading-suggestion-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.positive {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+  }
+
+  &.negative {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+  }
+
+  &.neutral {
+    background: rgb(var(--hair-rgb) / 0.2);
+    color: rgb(var(--ink-rgb) / 0.6);
+  }
+}
+
+.trading-suggestion-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.9rem;
+}
+
 .trading-modal-overlay {
   position: fixed;
   inset: 0;

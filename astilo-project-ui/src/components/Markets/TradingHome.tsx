@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Landmark, Search, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRight, Landmark, PieChart, Search, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useConfirm } from "../shared";
@@ -13,6 +13,7 @@ import {
   fetchTradingInsights,
   fetchTradingOrders,
   placeTradingOrder,
+  suggestionForHolding,
 } from "../../lib/tradingApi";
 import { cardCvc, cardExpiry, cardNumber as validateCardNumber, required } from "../../lib/validators";
 import "./Markets.scss";
@@ -286,9 +287,17 @@ const TradingHome = () => {
               )}
 
               {holding && (
-                <p className="markets-unavailable" style={{ marginTop: "0.3rem" }}>
-                  You hold {holding.quantity} @ avg {money(holding.avgCost)} ({money(holding.unrealizedPnl)} unrealized)
-                </p>
+                <>
+                  <p className="markets-unavailable" style={{ marginTop: "0.3rem" }}>
+                    You hold {holding.quantity} @ avg {money(holding.avgCost)} ({money(holding.unrealizedPnl)} unrealized)
+                  </p>
+                  {insightsQuery.data && (
+                    <p className="markets-unavailable" style={{ marginTop: "0.2rem" }}>
+                      <strong style={{ color: "rgb(var(--ink-rgb) / 0.8)" }}>{suggestionForHolding(holding, insightsQuery.data).label}:</strong>{" "}
+                      {suggestionForHolding(holding, insightsQuery.data).description}
+                    </p>
+                  )}
+                </>
               )}
 
               <div className="markets-type-toggle" style={{ margin: "0.6rem 0" }}>
@@ -319,10 +328,17 @@ const TradingHome = () => {
         </div>
 
         <div>
-          <h2 className="markets-section-title">Holdings</h2>
-          {(portfolio?.holdings.length ?? 0) === 0 && <p className="markets-unavailable">No holdings yet — place a simulated trade to get started.</p>}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2 className="markets-section-title" style={{ margin: 0 }}>
+              Holdings
+            </h2>
+            <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.tradingPortfolio)}>
+              <PieChart size={12} /> Full portfolio <ArrowRight size={11} />
+            </button>
+          </div>
+          {(portfolio?.holdings.length ?? 0) === 0 && <p className="markets-unavailable" style={{ marginTop: "0.6rem" }}>No holdings yet — place a simulated trade to get started.</p>}
           <div className="trading-holdings-list">
-            {portfolio?.holdings.map((h) => (
+            {portfolio?.holdings.slice(0, 6).map((h) => (
               <div key={h.id} className="markets-quote-card" style={{ cursor: "default" }}>
                 <div className="markets-quote-card-head">
                   <span className="markets-quote-symbol">{h.symbol}</span>
@@ -348,7 +364,7 @@ const TradingHome = () => {
           <h2 className="markets-section-title">Recent orders</h2>
           {(ordersQuery.data?.length ?? 0) === 0 && <p className="markets-unavailable">No simulated trades yet.</p>}
           <div className="trading-history-list">
-            {ordersQuery.data?.slice(0, 15).map((t) => (
+            {ordersQuery.data?.slice(0, 8).map((t) => (
               <div key={t.id} className="trading-history-row">
                 <span className={t.side === "buy" ? "positive" : "negative"}>{t.side.toUpperCase()}</span>
                 <span>

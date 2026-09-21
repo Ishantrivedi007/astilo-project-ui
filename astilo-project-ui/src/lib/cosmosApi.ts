@@ -93,9 +93,11 @@ const cosmos = axios.create({ baseURL: `${API_BASE}/cosmos`, timeout: 20000 });
 export interface ResearchSummaryData {
   title: string | null;
   extract: string | null;
+  detailedExtract: string | null;
   description: string | null;
   thumbnailUrl: string | null;
   pageUrl: string | null;
+  articleImages: { title: string; url: string }[];
 }
 
 /** Real Wikipedia-sourced background summary for an object — free, keyless,
