@@ -8,19 +8,19 @@
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(232, 236, 255, 0.5);
+  color: rgb(var(--ink-rgb) / 0.5);
   margin-bottom: 0.35rem;
 }
 
 .office-title {
   font-size: 1.9rem;
   font-weight: 800;
-  color: #fff;
+  color: rgb(var(--ink-rgb));
   margin-bottom: 0.4rem;
 }
 
 .office-tagline {
-  color: rgba(232, 236, 255, 0.55);
+  color: rgb(var(--ink-rgb) / 0.55);
   font-size: 0.9rem;
   max-width: 46rem;
   margin-bottom: 0.5rem;
@@ -41,8 +41,8 @@
   text-align: left;
   padding: 1.6rem 1.4rem;
   border-radius: 1rem;
-  border: 1px solid rgba(140, 160, 255, 0.15);
-  background: rgba(15, 18, 40, 0.4);
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
+  background: rgb(var(--surface-rgb) / 0.4);
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease;
 
@@ -53,12 +53,12 @@
   h3 {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 
   p {
     font-size: 0.8rem;
-    color: rgba(232, 236, 255, 0.55);
+    color: rgb(var(--ink-rgb) / 0.55);
     line-height: 1.5;
   }
 }
@@ -108,7 +108,7 @@
   padding: 0.5rem 0.65rem;
   border-radius: 0.55rem;
   font-size: 0.8rem;
-  color: rgba(232, 236, 255, 0.65);
+  color: rgb(var(--ink-rgb) / 0.65);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -119,7 +119,7 @@
 
   &.active {
     background: rgba(127, 176, 255, 0.16);
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 }
 
@@ -136,7 +136,7 @@
 .office-toolbar-sep {
   width: 1px;
   height: 18px;
-  background: rgba(140, 160, 255, 0.2);
+  background: rgb(var(--hair-rgb) / 0.2);
   margin: 0 0.2rem;
 }
 
@@ -148,8 +148,8 @@
   display: flex;
   gap: 0.3rem;
   padding: 0.4rem;
-  background: rgba(10, 12, 28, 0.97);
-  border: 1px solid rgba(140, 160, 255, 0.25);
+  background: rgb(var(--surface-rgb) / 0.98);
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
   border-radius: 0.5rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
@@ -158,12 +158,12 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 1px solid rgba(140, 160, 255, 0.3);
+  border: 1px solid rgb(var(--hair-rgb) / 0.3);
   padding: 0;
   cursor: pointer;
 
   &:hover {
-    border-color: rgba(255, 255, 255, 0.6);
+    border-color: rgb(var(--ink-rgb) / 0.7);
   }
 }
 
@@ -174,7 +174,7 @@
 
 .office-sheet-scroll {
   overflow: auto;
-  border: 1px solid rgba(140, 160, 255, 0.15);
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
   border-radius: 0.7rem;
   max-height: 65vh;
 }
@@ -184,14 +184,14 @@
   font-size: 0.78rem;
 
   th, td {
-    border: 1px solid rgba(140, 160, 255, 0.12);
+    border: 1px solid rgb(var(--hair-rgb) / 0.12);
     padding: 0;
     min-width: 90px;
   }
 
   th {
-    background: rgba(15, 18, 40, 0.6);
-    color: rgba(232, 236, 255, 0.5);
+    background: rgb(var(--surface-rgb) / 0.6);
+    color: rgb(var(--ink-rgb) / 0.5);
     font-weight: 600;
     padding: 0.35rem 0.5rem;
     position: sticky;
@@ -208,8 +208,8 @@
   }
 
   td.office-sheet-rowhead {
-    background: rgba(15, 18, 40, 0.6);
-    color: rgba(232, 236, 255, 0.5);
+    background: rgb(var(--surface-rgb) / 0.6);
+    color: rgb(var(--ink-rgb) / 0.5);
     text-align: center;
     position: sticky;
     left: 0;
@@ -221,7 +221,7 @@
     height: 100%;
     background: transparent;
     border: none;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     padding: 0.35rem 0.5rem;
     font-size: 0.78rem;
 
@@ -249,9 +249,9 @@
 }
 
 .office-slide-thumb {
-  border: 2px solid rgba(140, 160, 255, 0.15);
+  border: 2px solid rgb(var(--hair-rgb) / 0.15);
   border-radius: 0.6rem;
-  background: rgba(15, 18, 40, 0.5);
+  background: rgb(var(--surface-rgb) / 0.5);
   padding: 0.6rem;
   text-align: left;
   cursor: pointer;
@@ -266,12 +266,12 @@
 
   .thumb-num {
     font-size: 0.6rem;
-    color: rgba(232, 236, 255, 0.4);
+    color: rgb(var(--ink-rgb) / 0.4);
   }
 
   .thumb-title {
     font-size: 0.72rem;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     font-weight: 600;
     margin-top: 0.2rem;
     overflow: hidden;
@@ -284,7 +284,7 @@
 
 .office-slide-editor {
   background: #14162c;
-  border: 1px solid rgba(140, 160, 255, 0.15);
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
   border-radius: 0.9rem;
   padding: 1.4rem;
   aspect-ratio: 16/9;
@@ -296,7 +296,7 @@
 .office-slide-title-input {
   background: transparent;
   border: none;
-  color: #fff;
+  color: rgb(var(--ink-rgb));
   font-size: 1.4rem;
   font-weight: 800;
   margin-bottom: 0.8rem;
@@ -325,7 +325,7 @@
   border-radius: 1rem;
   padding: 3rem;
   overflow-y: auto;
-  color: #fff;
+  color: rgb(var(--ink-rgb));
 
   h2 {
     font-size: 2rem;
@@ -339,6 +339,6 @@
   align-items: center;
   gap: 1rem;
   margin-top: 1.5rem;
-  color: rgba(232, 236, 255, 0.6);
+  color: rgb(var(--ink-rgb) / 0.6);
   font-size: 0.85rem;
 }

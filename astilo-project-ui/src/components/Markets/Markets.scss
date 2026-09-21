@@ -8,19 +8,19 @@
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(232, 236, 255, 0.5);
+  color: rgb(var(--ink-rgb) / 0.5);
   margin-bottom: 0.35rem;
 }
 
 .markets-title {
   font-size: 1.9rem;
   font-weight: 800;
-  color: #fff;
+  color: rgb(var(--ink-rgb));
   margin-bottom: 0.4rem;
 }
 
 .markets-tagline {
-  color: rgba(232, 236, 255, 0.55);
+  color: rgb(var(--ink-rgb) / 0.55);
   font-size: 0.9rem;
   max-width: 46rem;
   margin-bottom: 1.5rem;
@@ -38,9 +38,9 @@
   min-width: 200px;
   padding: 0.6rem 0.9rem;
   border-radius: 0.7rem;
-  border: 1px solid rgba(140, 160, 255, 0.25);
-  background: rgba(15, 18, 40, 0.5);
-  color: #fff;
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
+  background: rgb(var(--surface-rgb) / 0.5);
+  color: rgb(var(--ink-rgb));
   font-size: 0.9rem;
 
   &:focus {
@@ -52,8 +52,8 @@
 .markets-type-toggle {
   display: flex;
   gap: 0.3rem;
-  background: rgba(15, 18, 40, 0.5);
-  border: 1px solid rgba(140, 160, 255, 0.2);
+  background: rgb(var(--surface-rgb) / 0.5);
+  border: 1px solid rgb(var(--hair-rgb) / 0.2);
   border-radius: 0.7rem;
   padding: 0.2rem;
 
@@ -61,12 +61,12 @@
     padding: 0.4rem 0.85rem;
     border-radius: 0.5rem;
     font-size: 0.78rem;
-    color: rgba(232, 236, 255, 0.6);
+    color: rgb(var(--ink-rgb) / 0.6);
     cursor: pointer;
 
     &.active {
       background: rgba(127, 176, 255, 0.18);
-      color: #fff;
+      color: rgb(var(--ink-rgb));
     }
   }
 }
@@ -76,8 +76,8 @@
   flex-direction: column;
   gap: 0.35rem;
   margin-bottom: 1.5rem;
-  background: rgba(15, 18, 40, 0.35);
-  border: 1px solid rgba(140, 160, 255, 0.15);
+  background: rgb(var(--surface-rgb) / 0.35);
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
   border-radius: 0.8rem;
   padding: 0.5rem;
 }
@@ -105,20 +105,20 @@
 
   .markets-result-name {
     font-weight: 600;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     font-size: 0.85rem;
   }
 
   .markets-result-meta {
     font-size: 0.7rem;
-    color: rgba(232, 236, 255, 0.45);
+    color: rgb(var(--ink-rgb) / 0.45);
   }
 }
 
 .markets-section-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #fff;
+  color: rgb(var(--ink-rgb));
   margin: 1.75rem 0 0.75rem;
 }
 
@@ -141,7 +141,7 @@
   justify-content: center;
   border-radius: 0.4rem;
   background: rgba(127, 176, 255, 0.12);
-  color: rgba(232, 236, 255, 0.55);
+  color: rgb(var(--ink-rgb) / 0.55);
   flex-shrink: 0;
 }
 
@@ -152,8 +152,8 @@
 }
 
 .markets-quote-card {
-  background: rgba(15, 18, 40, 0.45);
-  border: 1px solid rgba(140, 160, 255, 0.18);
+  background: rgb(var(--surface-rgb) / 0.45);
+  border: 1px solid rgb(var(--hair-rgb) / 0.18);
   border-radius: 0.85rem;
   padding: 0.85rem 1rem;
   text-align: left;
@@ -172,13 +172,13 @@
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: rgba(232, 236, 255, 0.45);
+    color: rgb(var(--ink-rgb) / 0.45);
   }
 
   .markets-quote-name {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -187,7 +187,7 @@
   .markets-quote-price {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     margin-top: 0.2rem;
   }
 
@@ -210,15 +210,15 @@
 .markets-filter-chip {
   padding: 0.3rem 0.7rem;
   border-radius: 999px;
-  border: 1px solid rgba(140, 160, 255, 0.2);
-  color: rgba(232, 236, 255, 0.55);
+  border: 1px solid rgb(var(--hair-rgb) / 0.2);
+  color: rgb(var(--ink-rgb) / 0.55);
   font-size: 0.72rem;
   cursor: pointer;
 
   &.active {
     background: rgba(127, 176, 255, 0.16);
     border-color: rgba(127, 176, 255, 0.5);
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 }
 
@@ -231,8 +231,8 @@
 
 .markets-news-item {
   display: block;
-  background: rgba(15, 18, 40, 0.4);
-  border: 1px solid rgba(140, 160, 255, 0.15);
+  background: rgb(var(--surface-rgb) / 0.4);
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
   border-radius: 0.7rem;
   padding: 0.7rem 0.9rem;
   text-decoration: none;
@@ -244,13 +244,13 @@
   .markets-news-title {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     margin-bottom: 0.25rem;
   }
 
   .markets-news-desc {
     font-size: 0.75rem;
-    color: rgba(232, 236, 255, 0.55);
+    color: rgb(var(--ink-rgb) / 0.55);
     margin-bottom: 0.3rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -260,13 +260,13 @@
 
   .markets-news-meta {
     font-size: 0.68rem;
-    color: rgba(232, 236, 255, 0.4);
+    color: rgb(var(--ink-rgb) / 0.4);
   }
 }
 
 .markets-unavailable {
   font-size: 0.75rem;
-  color: rgba(232, 236, 255, 0.35);
+  color: rgb(var(--ink-rgb) / 0.35);
   font-style: italic;
 }
 
@@ -291,7 +291,7 @@
 .markets-asset-price {
   font-size: 2.2rem;
   font-weight: 800;
-  color: #fff;
+  color: rgb(var(--ink-rgb));
 }
 
 .markets-asset-change {
@@ -312,20 +312,20 @@
 .markets-range-chip {
   padding: 0.35rem 0.8rem;
   border-radius: 999px;
-  border: 1px solid rgba(140, 160, 255, 0.25);
-  color: rgba(232, 236, 255, 0.65);
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
+  color: rgb(var(--ink-rgb) / 0.65);
   font-size: 0.78rem;
   cursor: pointer;
 
   &:hover {
     border-color: rgba(127, 176, 255, 0.6);
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 
   &.active {
     background: rgba(127, 176, 255, 0.18);
     border-color: rgba(127, 176, 255, 0.6);
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 }
 
@@ -337,8 +337,8 @@
 }
 
 .markets-stat {
-  background: rgba(15, 18, 40, 0.4);
-  border: 1px solid rgba(140, 160, 255, 0.15);
+  background: rgb(var(--surface-rgb) / 0.4);
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
   border-radius: 0.7rem;
   padding: 0.65rem 0.85rem;
 
@@ -346,14 +346,14 @@
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: rgba(232, 236, 255, 0.45);
+    color: rgb(var(--ink-rgb) / 0.45);
     margin-bottom: 0.2rem;
   }
 
   dd {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 }
 
@@ -362,8 +362,8 @@
   align-items: center;
   gap: 0.3rem;
   font-size: 0.65rem;
-  color: rgba(232, 236, 255, 0.45);
-  border: 1px solid rgba(140, 160, 255, 0.2);
+  color: rgb(var(--ink-rgb) / 0.45);
+  border: 1px solid rgb(var(--hair-rgb) / 0.2);
   border-radius: 999px;
   padding: 0.15rem 0.55rem;
 }
@@ -371,19 +371,22 @@
 .markets-chip {
   padding: 0.2rem 0.65rem;
   border-radius: 999px;
-  border: 1px solid rgba(140, 160, 255, 0.25);
-  color: rgba(232, 236, 255, 0.7);
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
+  color: rgb(var(--ink-rgb) / 0.7);
   cursor: pointer;
   font-size: 0.75rem;
   transition: border-color 0.15s ease, color 0.15s ease;
 
   &:hover {
     border-color: rgba(127, 176, 255, 0.6);
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 }
 
 .markets-map-wrap {
+  // Fixed dark "globe" backdrop regardless of the app's light/dark theme
+  // (like Cosmos's starfield) — text/borders inside it stay fixed too,
+  // not theme-following, since the background never lightens.
   position: relative;
   border: 1px solid rgba(140, 160, 255, 0.18);
   border-radius: 1rem;
@@ -468,7 +471,7 @@
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
     background: rgba(12, 12, 20, 0.5);
-    border: 1px solid rgba(140, 160, 255, 0.12);
+    border: 1px solid rgb(var(--hair-rgb) / 0.12);
   }
 
   i {

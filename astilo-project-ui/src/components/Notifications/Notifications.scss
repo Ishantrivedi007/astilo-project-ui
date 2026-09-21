@@ -27,8 +27,8 @@
   width: 340px;
   max-height: 70vh;
   overflow-y: auto;
-  background: rgba(15, 18, 40, 0.97);
-  border: 1px solid rgba(140, 160, 255, 0.2);
+  background: rgb(var(--surface-rgb) / 0.98);
+  border: 1px solid rgb(var(--hair-rgb) / 0.3);
   border-radius: 0.9rem;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
   padding: 0.6rem;
@@ -39,22 +39,22 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.3rem 0.4rem 0.6rem;
-  border-bottom: 1px solid rgba(140, 160, 255, 0.12);
+  border-bottom: 1px solid rgb(var(--hair-rgb) / 0.2);
   margin-bottom: 0.4rem;
 
   h3 {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
   }
 
   button {
     font-size: 0.68rem;
-    color: rgba(232, 236, 255, 0.55);
+    color: rgb(var(--ink-rgb) / 0.6);
     cursor: pointer;
 
     &:hover {
-      color: #fff;
+      color: rgb(var(--ink-rgb));
     }
   }
 }
@@ -70,11 +70,11 @@
   width: 100%;
 
   &:hover {
-    background: rgba(127, 176, 255, 0.08);
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.08);
   }
 
   &.unread {
-    background: rgba(127, 176, 255, 0.06);
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.06);
   }
 }
 
@@ -98,18 +98,18 @@
   p.title {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #fff;
+    color: rgb(var(--ink-rgb));
     margin-bottom: 0.1rem;
   }
 
   p.desc {
     font-size: 0.72rem;
-    color: rgba(232, 236, 255, 0.5);
+    color: rgb(var(--ink-rgb) / 0.55);
   }
 
   p.meta {
     font-size: 0.65rem;
-    color: rgba(232, 236, 255, 0.35);
+    color: rgb(var(--ink-rgb) / 0.4);
     margin-top: 0.2rem;
     display: flex;
     gap: 0.4rem;
@@ -123,14 +123,14 @@
   letter-spacing: 0.03em;
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
-  border: 1px solid rgba(140, 160, 255, 0.25);
-  color: rgba(232, 236, 255, 0.55);
+  border: 1px solid rgb(var(--hair-rgb) / 0.35);
+  color: rgb(var(--ink-rgb) / 0.6);
 }
 
 .notif-empty {
   padding: 1.5rem 0.5rem;
   text-align: center;
-  color: rgba(232, 236, 255, 0.4);
+  color: rgb(var(--ink-rgb) / 0.45);
   font-size: 0.8rem;
 }
 
@@ -152,15 +152,15 @@
 .notif-page-tab {
   padding: 0.35rem 0.8rem;
   border-radius: 999px;
-  border: 1px solid rgba(140, 160, 255, 0.2);
-  color: rgba(232, 236, 255, 0.55);
+  border: 1px solid rgb(var(--hair-rgb) / 0.3);
+  color: rgb(var(--ink-rgb) / 0.6);
   font-size: 0.78rem;
   cursor: pointer;
 
   &.active {
-    background: rgba(127, 176, 255, 0.16);
-    border-color: rgba(127, 176, 255, 0.5);
-    color: #fff;
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.16);
+    border-color: rgb(var(--accent-rgb, 127 176 255) / 0.5);
+    color: rgb(var(--ink-rgb));
   }
 }
 
@@ -174,12 +174,12 @@
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
-  background: rgba(15, 18, 40, 0.4);
-  border: 1px solid rgba(140, 160, 255, 0.15);
+  background: rgb(var(--surface-rgb) / 0.5);
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
   border-radius: 0.7rem;
   padding: 0.75rem 0.9rem;
 
   &.unread {
-    border-color: rgba(127, 176, 255, 0.35);
+    border-color: rgb(var(--accent-rgb, 127 176 255) / 0.4);
   }
 }
