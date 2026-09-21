@@ -226,33 +226,46 @@ const MarketsAssetView = () => {
               // actual series array — a length mismatch (e.g. 4 style
               // entries for 2 real series, when sma30/forecast aren't
               // available for a short range) makes ApexCharts silently fail
-              // to draw ANY line, not just the extra ones.
-              const chartSeries: { name: string; data: number[] }[] = [
-                { name: d.symbol, data: d.points.map((p) => [p.t, p.close]) as unknown as number[] },
+              // to draw ANY line, not just the extra ones. Data also has to
+              // use the {x,y} object format rather than [x,y] tuples: the
+              // sma7/sma30 series legitimately contain null for their
+              // leading points (a moving average isn't defined until there's
+              // enough history), and null inside the tuple-array format can
+              // break rendering for the whole chart, not just that series —
+              // the object format (with those points simply omitted) doesn't
+              // have that problem.
+              const chartSeries: { name: string; data: { x: number; y: number }[] }[] = [
+                { name: d.symbol, data: d.points.map((p) => ({ x: p.t, y: p.close })) },
               ];
               const seriesColors = [seriesColor];
               const seriesWidths = [2];
               const seriesDash = [0];
 
               if (insights?.sma7) {
-                chartSeries.push({ name: "7-period avg", data: d.points.map((p, i) => [p.t, insights.sma7[i]]) as unknown as number[] });
-                seriesColors.push("#facc15");
-                seriesWidths.push(1.5);
-                seriesDash.push(4);
+                const pts = d.points.map((p, i) => ({ x: p.t, y: insights.sma7[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+                if (pts.length > 1) {
+                  chartSeries.push({ name: "7-period avg", data: pts });
+                  seriesColors.push("#facc15");
+                  seriesWidths.push(1.5);
+                  seriesDash.push(4);
+                }
               }
               if (insights?.sma30) {
-                chartSeries.push({ name: "30-period avg", data: d.points.map((p, i) => [p.t, insights.sma30![i]]) as unknown as number[] });
-                seriesColors.push("#a78bfa");
-                seriesWidths.push(1.5);
-                seriesDash.push(4);
+                const pts = d.points.map((p, i) => ({ x: p.t, y: insights.sma30![i] })).filter((p): p is { x: number; y: number } => p.y != null);
+                if (pts.length > 1) {
+                  chartSeries.push({ name: "30-period avg", data: pts });
+                  seriesColors.push("#a78bfa");
+                  seriesWidths.push(1.5);
+                  seriesDash.push(4);
+                }
               }
               if (forecast) {
                 chartSeries.push({
                   name: "Projected (linear trend)",
                   data: [
-                    [d.points[d.points.length - 1].t, d.points[d.points.length - 1].close],
-                    ...forecast.projected.map((p) => [p.t, p.value]),
-                  ] as unknown as number[],
+                    { x: d.points[d.points.length - 1].t, y: d.points[d.points.length - 1].close },
+                    ...forecast.projected.map((p) => ({ x: p.t, y: p.value })),
+                  ],
                 });
                 seriesColors.push("#60a5fa");
                 seriesWidths.push(2);
@@ -421,12 +434,24 @@ const MarketsAssetView = () => {
                         style={{ width: 88, height: 88, objectFit: "contain", borderRadius: 12, background: "rgba(255,255,255,0.06)", padding: "0.5rem", flexShrink: 0 }}
                       />
                     )}
-                    <p
+                    <div
                       className="markets-source-badge"
                       style={{ display: "block", padding: "0.75rem 1rem", fontSize: "0.82rem", lineHeight: 1.6, color: "rgba(232,236,255,0.75)", flex: 1, minWidth: 240 }}
                     >
-                      {about}
-                    </p>
+                      {(about ?? "").split("\n").filter(Boolean).map((para, i) => {
+                        // Wikipedia's plaintext extraction leaves section
+                        // markers ("== History ==") in as literal text
+                        // instead of stripping them — render as a real
+                        // heading instead of raw wiki markup.
+                        const heading = para.match(/^(=+)\s*(.+?)\s*\1$/);
+                        if (heading) return <h4 key={i} style={{ margin: "0.9rem 0 0.4rem", fontSize: "0.9rem", color: "#fff" }}>{heading[2]}</h4>;
+                        return (
+                          <p key={i} style={{ marginBottom: "0.6rem" }}>
+                            {para}
+                          </p>
+                        );
+                      })}
+                    </div>
                   </div>
                   {wikiAbout?.pageUrl && (
                     <p className="markets-unavailable" style={{ marginTop: "0.4rem" }}>

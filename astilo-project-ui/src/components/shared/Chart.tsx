@@ -67,7 +67,7 @@ export const useChartTheme = () => {
   }, [theme]);
 };
 
-type ChartSeries = { name?: string; data: number[] }[] | number[];
+type ChartSeries = { name?: string; data: number[] | { x: number; y: number | null }[] }[] | number[];
 
 interface ChartProps {
   type: "area" | "bar" | "line" | "donut";
