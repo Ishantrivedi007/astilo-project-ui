@@ -319,7 +319,7 @@ const ResearchDetail = () => {
         </div>
       )}
 
-      {brief && brief.keyPoints.length > 0 && (
+      {brief && (brief.keyPoints ?? []).length > 0 && (
         <div className="research-section">
           <h2 className="research-section-title">Key points</h2>
           <ul className="research-key-points">
@@ -330,7 +330,7 @@ const ResearchDetail = () => {
         </div>
       )}
 
-      {brief && brief.topics.length > 0 && (
+      {brief && (brief.topics ?? []).length > 0 && (
         <div className="research-section">
           <h2 className="research-section-title">Topics</h2>
           <div className="research-topic-row">
@@ -343,7 +343,7 @@ const ResearchDetail = () => {
         </div>
       )}
 
-      {brief && brief.relatedArticles.length > 0 && (
+      {brief && (brief.relatedArticles ?? []).length > 0 && (
         <div className="research-section">
           <h2 className="research-section-title">Related articles</h2>
           <ul className="research-related-list">
