@@ -292,10 +292,13 @@ const TradingHome = () => {
                     You hold {holding.quantity} @ avg {money(holding.avgCost)} ({money(holding.unrealizedPnl)} unrealized)
                   </p>
                   {insightsQuery.data && (
-                    <p className="markets-unavailable" style={{ marginTop: "0.2rem" }}>
-                      <strong style={{ color: "rgb(var(--ink-rgb) / 0.8)" }}>{suggestionForHolding(holding, insightsQuery.data).label}:</strong>{" "}
-                      {suggestionForHolding(holding, insightsQuery.data).description}
-                    </p>
+                    <div className="trading-suggestion-card" style={{ marginTop: "0.4rem" }}>
+                      <p className="markets-unavailable">
+                        <strong style={{ color: "rgb(var(--ink-rgb) / 0.8)" }}>{suggestionForHolding(holding, insightsQuery.data).label}</strong>
+                      </p>
+                      <p className="trading-suggestion-meaning">{suggestionForHolding(holding, insightsQuery.data).meaning}</p>
+                      <p className="markets-unavailable">{suggestionForHolding(holding, insightsQuery.data).description}</p>
+                    </div>
                   )}
                 </>
               )}

@@ -104,9 +104,13 @@ const Chart = ({ type, series, options, height = 280, themeKey }: ChartProps) =>
       // under a line) only makes sense for a *real* area chart. Applied as
       // the fallback to every other type with no caller override, it made
       // "donut"/"bar" slices render as pale/hollow-looking instead of solid.
-      // "line" (now rendered as "area" internally, see above) always gets a
-      // fully transparent fill so no shading appears under it.
-      fill: options?.fill ?? (type === "area" ? base.fill : { type: "solid", opacity: type === "line" ? 0 : 1 }),
+      // "line" (now rendered as "area" internally, see above) is *forced*
+      // transparent regardless of any caller-supplied fill — fill has no
+      // visible effect on a genuine line chart, so a caller setting e.g.
+      // {opacity: 1} for what it thinks is a harmless no-op (true before
+      // the "line"->"area" substitution) would otherwise now paint solid
+      // overlapping blocks instead of lines.
+      fill: type === "line" ? { type: "solid", opacity: 0 } : options?.fill ?? (type === "area" ? base.fill : { type: "solid", opacity: 1 }),
       stroke: { ...base.stroke, ...options?.stroke },
     }),
     [base, options, type, effectiveType]

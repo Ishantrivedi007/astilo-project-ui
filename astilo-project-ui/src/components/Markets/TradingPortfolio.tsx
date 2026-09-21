@@ -130,9 +130,7 @@ const TradingPortfolio = () => {
                           )}
                         </td>
                         <td>
-                          <span className={`trading-suggestion-badge ${suggestion.tone}`} title={suggestion.description}>
-                            {suggestion.label}
-                          </span>
+                          <span className={`trading-suggestion-badge ${suggestion.tone}`}>{suggestion.label}</span>
                         </td>
                       </tr>
                     );
@@ -146,9 +144,14 @@ const TradingPortfolio = () => {
                 const insights = insightsQueries[i]?.data;
                 const suggestion = suggestionForHolding(h, insights);
                 return (
-                  <p key={h.id} className="markets-unavailable">
-                    <strong style={{ color: "rgb(var(--ink-rgb) / 0.85)" }}>{h.symbol}:</strong> {suggestion.description}
-                  </p>
+                  <div key={h.id} className="trading-suggestion-card">
+                    <p className="markets-unavailable">
+                      <strong style={{ color: "rgb(var(--ink-rgb) / 0.85)" }}>{h.symbol}</strong> —{" "}
+                      <span className={`trading-suggestion-badge ${suggestion.tone}`}>{suggestion.label}</span>
+                    </p>
+                    <p className="trading-suggestion-meaning">{suggestion.meaning}</p>
+                    <p className="markets-unavailable">{suggestion.description}</p>
+                  </div>
                 );
               })}
             </div>
