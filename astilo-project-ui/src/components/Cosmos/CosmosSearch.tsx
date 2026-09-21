@@ -579,6 +579,16 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
   </div>
 );
 
+/** SIMBAD's resolved common name (e.g. "Andromeda") is often just the
+ * proper name without "Galaxy" — searching that alone on Wikipedia can
+ * resolve to something else entirely (the mythological figure, for
+ * Andromeda). Appending "Galaxy" when it's not already part of the name
+ * disambiguates without guessing at anything not already known. */
+const galaxyResearchTitle = (data: GalaxyData): string => {
+  if (!data.commonName) return data.name;
+  return /galaxy|nebula|cluster/i.test(data.commonName) ? data.commonName : `${data.commonName} Galaxy`;
+};
+
 const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
   <div className="cosmos-card">
     <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -587,12 +597,12 @@ const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
       <SaveButton
         objectType="galaxy"
         externalId={data.name}
-        title={data.name}
+        title={galaxyResearchTitle(data)}
         source={source}
         sourceDataset="basic"
         data={data}
       />
-      <ResearchButton objectType="galaxy" externalId={data.name} title={data.name} source={source} sourceDataset="basic" data={data} />
+      <ResearchButton objectType="galaxy" externalId={data.name} title={galaxyResearchTitle(data)} source={source} sourceDataset="basic" data={data} />
       <AddToKanbanButton objectType="galaxy" title={data.name} source={source} sourceDataset="basic" />
     </div>
     <h3 className="mb-2 text-lg font-bold">
