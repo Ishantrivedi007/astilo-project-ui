@@ -7,6 +7,16 @@
 :root {
   color-scheme: light dark;
 }
+/* pin native UI (scrollbar track/corner, form controls, etc.) to the
+   app's actual mode instead of "light dark" — the latter lets the OS
+   pick a native scrollbar tint (often a mismatched blue-gray) that our
+   custom scrollbar-thumb styling doesn't fully cover. */
+:root.dark {
+  color-scheme: dark;
+}
+:root.light {
+  color-scheme: light;
+}
 
 html,
 body {
@@ -42,6 +52,9 @@ code {
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 *::-webkit-scrollbar-thumb {
   background: linear-gradient(

@@ -4,6 +4,38 @@
   display: flex;
   flex-direction: column;
   scroll-behavior: smooth;
+
+  /* fixed (not scoped to the hero box) so it covers the whole viewport
+     uniformly at any scroll position — a version scoped/clipped to the
+     hero section previously cut off hard at the hero's bottom edge and
+     showed unevenly behind the nav/scrollbar. */
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(
+        circle at 20% 20%,
+        rgb(var(--accent-rgb) / 0.16),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 82% 55%,
+        rgb(var(--accent-2-rgb) / 0.13),
+        transparent 38%
+      ),
+      radial-gradient(
+        ellipse at 50% 0%,
+        rgb(var(--accent-rgb) / 0.08),
+        transparent 55%
+      );
+  }
+}
+
+.landing > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* the nav bar is sticky and ~5.5-6rem tall including its own top padding —
