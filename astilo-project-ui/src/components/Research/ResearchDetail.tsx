@@ -330,6 +330,35 @@ const ResearchDetail = () => {
         </div>
       )}
 
+      {brief && brief.topics.length > 0 && (
+        <div className="research-section">
+          <h2 className="research-section-title">Topics</h2>
+          <div className="research-topic-row">
+            {brief.topics.map((t) => (
+              <span key={t} className="research-pill">
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {brief && brief.relatedArticles.length > 0 && (
+        <div className="research-section">
+          <h2 className="research-section-title">Related articles</h2>
+          <ul className="research-related-list">
+            {brief.relatedArticles.map((r) => (
+              <li key={r.title}>
+                <a href={r.pageUrl ?? undefined} target="_blank" rel="noreferrer">
+                  {r.title}
+                </a>
+                {r.description && <span className="research-card-meta"> — {r.description}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {dataFields.length > 0 && (
         <div className="research-section">
           <h2 className="research-section-title">Data snapshot</h2>

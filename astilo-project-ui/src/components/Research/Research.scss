@@ -185,6 +185,31 @@
   }
 }
 
+.research-topic-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.research-related-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  li {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  a {
+    color: #7fb0ff;
+    font-weight: 600;
+  }
+}
+
 .research-progress-row {
   display: flex;
   align-items: center;

@@ -7,12 +7,20 @@ export interface ResearchNextStep {
   done: boolean;
 }
 
+export interface RelatedArticle {
+  title: string;
+  description: string | null;
+  pageUrl: string | null;
+}
+
 export interface ResearchBrief {
   summary: string | null;
   detailedSummary: string | null;
   wikiTitle: string | null;
   wikiUrl: string | null;
   thumbnailUrl: string | null;
+  topics: string[];
+  relatedArticles: RelatedArticle[];
   keyPoints: string[];
   nextSteps: ResearchNextStep[];
   dataSnapshot: Record<string, unknown>;
