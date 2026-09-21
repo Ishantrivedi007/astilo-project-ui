@@ -15,6 +15,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import {
   autoResearchStep,
   deleteResearchItem,
   fetchResearchItem,
+  generateResearchReport,
   refreshResearchBrief,
   removeResearchImage,
   removeResearchStep,
@@ -120,6 +122,15 @@ const ResearchDetail = () => {
   const invalidateDocs = () => queryClient.invalidateQueries({ queryKey: ["research", "docs", folder] });
 
   const refreshMutation = useMutation({ mutationFn: () => refreshResearchBrief(itemId), onSuccess: invalidateItem });
+  const generateReportMutation = useMutation({
+    mutationFn: () => generateResearchReport(itemId),
+    onSuccess: (result) => {
+      invalidateItem();
+      invalidateDocs();
+      setSelectedDocId(result.reportNoteId);
+      setMode("preview");
+    },
+  });
   const toggleMutation = useMutation({
     mutationFn: (index: number) => toggleResearchStep(itemId, index),
     onSuccess: invalidateItem,
@@ -317,6 +328,31 @@ const ResearchDetail = () => {
               </div>
             ))}
           </dl>
+        </div>
+      )}
+
+      {brief && brief.nextSteps.length > 0 && (
+        <div className="research-progress-row">
+          <div className="research-progress-bar">
+            <div
+              className="research-progress-fill"
+              style={{ width: `${Math.round((brief.nextSteps.filter((s) => s.done).length / brief.nextSteps.length) * 100)}%` }}
+            />
+          </div>
+          <span className="research-progress-label">
+            {brief.nextSteps.filter((s) => s.done).length}/{brief.nextSteps.length} steps complete
+          </span>
+          <button
+            type="button"
+            className="research-pill"
+            style={{ cursor: "pointer" }}
+            onClick={() => generateReportMutation.mutate()}
+            disabled={generateReportMutation.isPending}
+            title="Assemble the summary, checklist, documents, and images into one downloadable report"
+          >
+            <Sparkles size={11} style={{ display: "inline", verticalAlign: "-1px" }} />{" "}
+            {generateReportMutation.isPending ? "Generating…" : "Generate report"}
+          </button>
         </div>
       )}
 

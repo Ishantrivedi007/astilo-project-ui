@@ -89,6 +89,13 @@ export const autoResearchStep = (id: number, index: number) =>
 
 export const deleteResearchItem = (id: number) => apiClient.delete(`/research/${id}`).then((r) => r.data);
 
+export interface GenerateReportResult extends ResearchItem {
+  reportNoteId: number;
+}
+
+export const generateResearchReport = (id: number) =>
+  apiClient.put<GenerateReportResult>(`/research/${id}`, { action: "generate_report" }).then((r) => r.data);
+
 export const addResearchImage = (id: number, image: { url: string; caption?: string; source?: string }) =>
   apiClient.put<ResearchItem>(`/research/${id}`, { action: "add_image", ...image }).then((r) => r.data);
 

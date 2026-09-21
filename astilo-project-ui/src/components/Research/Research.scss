@@ -176,6 +176,34 @@
   }
 }
 
+.research-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.25rem;
+}
+
+.research-progress-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--hair-rgb) / 0.2);
+  overflow: hidden;
+}
+
+.research-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22d3ee);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.research-progress-label {
+  font-size: 0.72rem;
+  color: rgb(var(--ink-rgb) / 0.55);
+  white-space: nowrap;
+}
+
 .research-checklist {
   display: flex;
   flex-direction: column;
