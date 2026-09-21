@@ -90,6 +90,12 @@ from app.controllers.songs_controller import (
     SongsController,
 )
 from app.controllers.store_controller import OrdersController, ProductsController
+from app.controllers.trading_controller import (
+    TradingAccountController,
+    TradingDepositController,
+    TradingInsightsController,
+    TradingOrdersController,
+)
 from app.controllers.users_controller import UsersController
 from app.db import init_db
 
@@ -162,6 +168,10 @@ def build_app():
     cherrypy.tree.mount(MarketsTopController(), "/api/markets/top", conf)
     cherrypy.tree.mount(MarketsNewsController(), "/api/markets/news", conf)
     cherrypy.tree.mount(MarketsRegionsController(), "/api/markets/regions", conf)
+    cherrypy.tree.mount(TradingAccountController(), "/api/trading/account", conf)
+    cherrypy.tree.mount(TradingDepositController(), "/api/trading/deposit", conf)
+    cherrypy.tree.mount(TradingOrdersController(), "/api/trading/orders", conf)
+    cherrypy.tree.mount(TradingInsightsController(), "/api/trading/insights", conf)
 
     cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)

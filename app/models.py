@@ -1202,3 +1202,82 @@ class LibraryEntry(Base):
             "addedAt": self.added_at.isoformat() if self.added_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+# -- Trading — simulated stock/crypto trading against real, live market
+# prices (via the same Yahoo Finance / CoinGecko adapters Markets uses).
+# The cash and P&L are entirely make-believe; the prices trades execute at
+# are real. Starting balance is a flat, clearly-fake $100,000.
+
+TRADING_STARTING_BALANCE = 100000.0
+TRADE_SIDES = ("buy", "sell")
+TRADE_ASSET_TYPES = ("stock", "crypto")
+
+
+class TradingAccount(Base):
+    __tablename__ = "trading_accounts"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    cash_balance = Column(Float, nullable=False, default=TRADING_STARTING_BALANCE)
+    created_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "cashBalance": self.cash_balance,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class TradingHolding(Base):
+    __tablename__ = "trading_holdings"
+    __table_args__ = (UniqueConstraint("account_id", "symbol", "asset_type", name="uq_trading_holding"),)
+
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
+    symbol = Column(String(40), nullable=False)
+    asset_type = Column(String(10), nullable=False)
+    name = Column(String(200), nullable=True)
+    quantity = Column(Float, nullable=False, default=0)
+    avg_cost = Column(Float, nullable=False, default=0)  # weighted average price paid per unit
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "assetType": self.asset_type,
+            "name": self.name,
+            "quantity": self.quantity,
+            "avgCost": self.avg_cost,
+        }
+
+
+class TradingTransaction(Base):
+    __tablename__ = "trading_transactions"
+
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
+    symbol = Column(String(40), nullable=False)
+    asset_type = Column(String(10), nullable=False)
+    name = Column(String(200), nullable=True)
+    side = Column(String(4), nullable=False)  # buy | sell
+    quantity = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)
+    total = Column(Float, nullable=False)
+    realized_pnl = Column(Float, nullable=True)  # only set on sell
+    created_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "assetType": self.asset_type,
+            "name": self.name,
+            "side": self.side,
+            "quantity": self.quantity,
+            "price": self.price,
+            "total": self.total,
+            "realizedPnl": self.realized_pnl,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
