@@ -595,7 +595,10 @@ const GalaxyCard = ({ data, source }: { data: GalaxyData; source: string }) => (
       <ResearchButton objectType="galaxy" externalId={data.name} title={data.name} source={source} sourceDataset="basic" data={data} />
       <AddToKanbanButton objectType="galaxy" title={data.name} source={source} sourceDataset="basic" />
     </div>
-    <h3 className="mb-2 text-lg font-bold">{data.name}</h3>
+    <h3 className="mb-2 text-lg font-bold">
+      {data.name}
+      {data.commonName && <span style={{ fontWeight: 400, opacity: 0.65 }}> — {data.commonName}</span>}
+    </h3>
     <dl className="cosmos-field-grid">
       <CosmosField label="Morphological type" value={data.morphologicalType} />
       <CosmosField label="Redshift" value={data.redshift} />

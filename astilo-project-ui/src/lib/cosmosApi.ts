@@ -206,7 +206,9 @@ export async function searchHighEnergyObservations(name: string, catalog = "numa
 
 export interface GalaxyData {
   name: string;
+  commonName: string | null;
   objectType: string | null;
+  rawObjectType: string | null;
   raDeg: number | null;
   decDeg: number | null;
   angularMajorAxisArcmin: number | null;
