@@ -10,11 +10,11 @@ from the dedicated Research page, not auto-written into note text.
 """
 
 import datetime
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlencode
 
 import cherrypy
 
-from app.cosmos import wikipedia
+from app.cosmos import nasa, wikipedia
 from app.db import get_session
 from app.notify import notify
 from app.models import (
@@ -34,6 +34,31 @@ def _user_id():
     return int(cherrypy.request.user["sub"])
 
 
+HIPS2FITS_URL = "https://alasky.u-strasbg.fr/hips-image-services/hips2fits"
+
+
+def _sky_image_url(ra_deg, dec_deg, fov_deg: float = 0.5) -> str | None:
+    """A real cutout of the actual sky at these coordinates — CDS
+    (Centre de Données astronomiques de Strasbourg)'s free, keyless
+    hips2fits service compositing the DSS2 color survey. Not a diagram or
+    illustration: this is what a telescope pointed here would actually
+    see. Returns None when the object has no known sky position."""
+    if ra_deg is None or dec_deg is None:
+        return None
+    params = {
+        "hips": "CDS/P/DSS2/color",
+        "width": 400,
+        "height": 400,
+        "fov": fov_deg,
+        "projection": "TAN",
+        "coordsys": "icrs",
+        "ra": ra_deg,
+        "dec": dec_deg,
+        "format": "jpg",
+    }
+    return f"{HIPS2FITS_URL}?{urlencode(params)}"
+
+
 def _build_brief(item: CosmosSavedItem) -> dict:
     title, object_type, data = item.title, item.object_type, item.data_json
     try:
@@ -45,21 +70,33 @@ def _build_brief(item: CosmosSavedItem) -> dict:
     extract = wiki_data.get("extract")
     detailed = wiki_data.get("detailedExtract") or extract
 
-    # Dynamically grows the image gallery with whatever Wikipedia turns up
-    # for this object — the lead thumbnail plus other images found in the
-    # article — instead of only ever showing what was there at save time.
+    # Dynamically grows the image gallery with whatever Wikipedia and NASA's
+    # own image library turn up for this object — the Wikipedia lead
+    # thumbnail, other images found in the article, and real NASA archive
+    # photos/renders — instead of only ever showing what was there at save
+    # time, and without requiring the user to manually search first.
     images = list(item.research_images_json or [])
     existing_urls = {img["url"] for img in images}
     candidates = []
     if wiki_data.get("thumbnailUrl"):
-        candidates.append({"url": wiki_data["thumbnailUrl"], "caption": wiki_data.get("title") or title})
+        candidates.append({"url": wiki_data["thumbnailUrl"], "caption": wiki_data.get("title") or title, "source": "Wikipedia"})
     for img in wiki_data.get("articleImages") or []:
-        candidates.append({"url": img["url"], "caption": img.get("title") or title})
+        candidates.append({"url": img["url"], "caption": img.get("title") or title, "source": "Wikipedia"})
+    try:
+        nasa_env = nasa.images_search(title, "image", 6)
+        for r in (nasa_env.get("data") or {}).get("results") or []:
+            if r.get("previewUrl"):
+                candidates.append({"url": r["previewUrl"], "caption": r.get("title") or title, "source": "NASA Image and Video Library"})
+    except Exception:
+        pass
     for c in candidates:
         if c["url"] not in existing_urls:
-            images.append({**c, "source": "Wikipedia", "addedAt": datetime.datetime.utcnow().isoformat() + "Z"})
+            images.append({**c, "addedAt": datetime.datetime.utcnow().isoformat() + "Z"})
             existing_urls.add(c["url"])
     item.research_images_json = images
+
+    ra_deg = (data or {}).get("raDeg")
+    dec_deg = (data or {}).get("decDeg")
 
     return {
         "summary": extract,
@@ -70,6 +107,9 @@ def _build_brief(item: CosmosSavedItem) -> dict:
         "keyPoints": key_points_from_extract(detailed, max_points=8),
         "nextSteps": [{"text": t, "done": False} for t in further_research(object_type, data)],
         "dataSnapshot": {k: v for k, v in (data or {}).items() if not k.startswith("_") and v not in (None, "")},
+        "skyImageUrl": _sky_image_url(ra_deg, dec_deg),
+        "raDeg": ra_deg,
+        "decDeg": dec_deg,
         "generatedAt": datetime.datetime.utcnow().isoformat() + "Z",
     }
 
@@ -86,45 +126,78 @@ def _merge_next_steps(existing: list[dict], fresh: list[dict]) -> list[dict]:
     return merged
 
 
-def _auto_research_note_body(item_title: str, step_text: str, query: str) -> str:
-    """Pulls a real Wikipedia extract for the checklist step's specific
-    topic (not just the parent object) when one resolves, so "Findings"
-    starts with actual sourced content instead of a blank placeholder —
-    still never a fabricated claim: if nothing resolves, it says so
-    honestly and falls back to search links instead of making something up."""
+def _auto_research_note_body(item_title: str, step_text: str, query: str) -> tuple[str, bool]:
+    """Tries to actually answer the checklist step, not just point at
+    search links — tries a few real Wikipedia queries in order of
+    specificity (the step's own topic first, then step+object, then the
+    object itself), and when one resolves, pulls its full detailed extract
+    plus real images (the article's own photos, and NASA's image library
+    for the same query) so the generated document is a genuine write-up,
+    not a stub. Falls back honestly to search links only when nothing
+    resolves — never fabricates a finding. Returns (markdown, resolved)."""
     q = quote_plus(query)
     wiki_q = quote_plus(step_text)
 
-    findings_lines = ["_Write what you find here._"]
-    try:
-        wiki = wikipedia.research_summary(query)
-        wiki_data = (wiki or {}).get("data") or {}
-        extract = wiki_data.get("detailedExtract") or wiki_data.get("extract")
-        if extract and wiki_data.get("title"):
-            findings_lines = [
-                f"_From Wikipedia — [{wiki_data['title']}]({wiki_data.get('pageUrl') or ''})_",
-                "",
-                extract,
-            ]
-    except Exception:
-        pass
+    wiki_data = {}
+    for candidate in (step_text, query, item_title):
+        try:
+            wiki = wikipedia.research_summary(candidate)
+        except Exception:
+            continue
+        candidate_data = (wiki or {}).get("data") or {}
+        if candidate_data.get("detailedExtract") or candidate_data.get("extract"):
+            wiki_data = candidate_data
+            break
 
-    return "\n".join(
-        [
-            f"# {step_text}",
+    extract = wiki_data.get("detailedExtract") or wiki_data.get("extract")
+    resolved = bool(extract and wiki_data.get("title"))
+
+    image_lines: list[str] = []
+    if resolved:
+        seen_urls = set()
+        for img in (wiki_data.get("articleImages") or [])[:3]:
+            if img.get("url") and img["url"] not in seen_urls:
+                image_lines.append(f"![{img.get('title') or step_text}]({img['url']})")
+                seen_urls.add(img["url"])
+        try:
+            nasa_env = nasa.images_search(f"{step_text} {item_title}", "image", 3)
+            for r in (nasa_env.get("data") or {}).get("results") or []:
+                if r.get("previewUrl") and r["previewUrl"] not in seen_urls:
+                    image_lines.append(f"![{r.get('title') or step_text}]({r['previewUrl']}) \n_NASA Image and Video Library_")
+                    seen_urls.add(r["previewUrl"])
+        except Exception:
+            pass
+
+    if resolved:
+        findings_lines = [
+            f"_From Wikipedia — [{wiki_data['title']}]({wiki_data.get('pageUrl') or ''})_",
             "",
-            f"_Auto-research started from the checklist for **{item_title}**._",
-            "",
-            "## Findings",
-            "",
-            *findings_lines,
-            "",
-            "## Search further",
-            "",
-            f"- [Wikipedia search]({f'https://en.wikipedia.org/w/index.php?search={wiki_q}'})",
-            f"- [Google Scholar]({f'https://scholar.google.com/scholar?q={q}'})",
-            f"- [NASA ADS]({f'https://ui.adsabs.harvard.edu/search/q={q}'})",
+            extract,
         ]
+        if image_lines:
+            findings_lines += ["", "### Images", "", *image_lines]
+    else:
+        findings_lines = ["_No Wikipedia article resolved for this specific step — use the search links below._"]
+
+    return (
+        "\n".join(
+            [
+                f"# {step_text}",
+                "",
+                f"_Auto-research for **{item_title}**._",
+                "",
+                "## Findings",
+                "",
+                *findings_lines,
+                "",
+                "## Search further",
+                "",
+                f"- [Wikipedia search]({f'https://en.wikipedia.org/w/index.php?search={wiki_q}'})",
+                f"- [Google Scholar]({f'https://scholar.google.com/scholar?q={q}'})",
+                f"- [NASA ADS]({f'https://ui.adsabs.harvard.edu/search/q={q}'})",
+            ]
+        ),
+        resolved,
     )
 
 
@@ -158,6 +231,18 @@ def _build_report_markdown(item: CosmosSavedItem, brief: dict, docs: list, image
     summary = brief.get("detailedSummary") or brief.get("summary")
     if summary:
         lines += ["## Summary", "", summary, ""]
+
+    if brief.get("skyImageUrl"):
+        lines += [
+            "## Sky position",
+            "",
+            f"RA {brief.get('raDeg')}°, Dec {brief.get('decDeg')}°",
+            "",
+            f"![Sky imagery centered on {item.title}]({brief['skyImageUrl']})",
+            "",
+            "_Real DSS2 survey imagery of this exact sky position — CDS (Centre de Données astronomiques de Strasbourg) hips2fits, not an illustration._",
+            "",
+        ]
 
     key_points = brief.get("keyPoints") or []
     if key_points:
@@ -423,12 +508,13 @@ class ResearchController:
 
                 project = _ensure_project(session, item)
                 query = f"{step_text} {item.title}".strip()
+                note_body, note_resolved = _auto_research_note_body(item.title, step_text, query)
                 note = NimroseNote(
                     user_id=user_id,
                     title=step_text[:150],
-                    content=_auto_research_note_body(item.title, step_text, query),
+                    content=note_body,
                     folder=project.name,
-                    tags=["auto-research"],
+                    tags=["auto-research", "resolved" if note_resolved else "needs-manual-research"],
                 )
                 session.add(note)
 
