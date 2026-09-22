@@ -1106,6 +1106,12 @@ class DirectMessage(Base):
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     body = Column(Text, nullable=False)
+    kind = Column(String(10), nullable=False, default="text")  # text | image | file | contact | sticker
+    attachment_file_name = Column(String(255), nullable=True)
+    attachment_stored_name = Column(String(80), nullable=True)
+    attachment_content_type = Column(String(120), nullable=True)
+    attachment_size_bytes = Column(Integer, nullable=True)
+    contact_payload_json = Column(Text, nullable=True)  # shared-contact card: {"userId","name","email","avatar"}
     created_at = Column(DateTime, default=utcnow)
     edited_at = Column(DateTime, nullable=True)
     read_at = Column(DateTime, nullable=True)  # set when the *other* participant(s) have seen it
@@ -1114,12 +1120,26 @@ class DirectMessage(Base):
     sender = relationship("User")
 
     def to_dict(self):
+        import json
+
         return {
             "id": self.id,
             "conversationId": self.conversation_id,
             "senderId": self.sender_id,
             "senderName": self.sender.name if self.sender else None,
             "body": self.body,
+            "kind": self.kind or "text",
+            "attachment": (
+                {
+                    "fileName": self.attachment_file_name,
+                    "contentType": self.attachment_content_type,
+                    "sizeBytes": self.attachment_size_bytes,
+                    "url": f"/messenger/attachment-file/{self.id}",
+                }
+                if self.attachment_stored_name
+                else None
+            ),
+            "contact": json.loads(self.contact_payload_json) if self.contact_payload_json else None,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "editedAt": self.edited_at.isoformat() if self.edited_at else None,
             "readAt": self.read_at.isoformat() if self.read_at else None,

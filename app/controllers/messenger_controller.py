@@ -1,10 +1,32 @@
 import datetime
+import json
+import os
+import uuid
 
 import cherrypy
+import jwt
 from sqlalchemy import func
 
+from app.auth import decode_token
+from app.config import config
 from app.db import get_session
 from app.models import Conversation, ConversationParticipant, DirectMessage, LoginEvent, PersonalContact, User
+
+IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
+
+
+def _decode_or_401(token: str) -> int:
+    try:
+        return int(decode_token(token)["sub"])
+    except jwt.ExpiredSignatureError:
+        raise cherrypy.HTTPError(401, "Token expired")
+    except jwt.InvalidTokenError:
+        raise cherrypy.HTTPError(401, "Invalid token")
+
+
+def _attachments_dir():
+    os.makedirs(config.ATTACHMENTS_DIR, exist_ok=True)
+    return config.ATTACHMENTS_DIR
 
 
 def _user_id():
@@ -273,11 +295,26 @@ class MessengerMessagesController:
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
     def POST(self):
+        """Body: {"conversationId", "body", and optionally "kind" ("text" |
+        "image" | "file" | "contact"), "attachmentStoredName" (from a prior
+        upload to /api/messenger/attachments), "contact" (a shared-contact
+        card payload). A plain text message just needs conversationId+body,
+        same as before."""
         body = cherrypy.request.json or {}
         conversation_id = body.get("conversationId")
         text = (body.get("body") or "").strip()
-        if not conversation_id or not text:
-            raise cherrypy.HTTPError(400, "conversationId and body are required")
+        kind = (body.get("kind") or "text").strip()
+        contact = body.get("contact")
+        stored_name = body.get("attachmentStoredName")
+
+        if not conversation_id:
+            raise cherrypy.HTTPError(400, "conversationId is required")
+        if kind == "contact" and not contact:
+            raise cherrypy.HTTPError(400, "contact is required for a contact-card message")
+        if kind in ("image", "file") and not stored_name:
+            raise cherrypy.HTTPError(400, "attachmentStoredName is required for an attachment message")
+        if kind in ("text", "sticker") and not text:
+            raise cherrypy.HTTPError(400, "body is required")
 
         user_id = _user_id()
         with get_session() as session:
@@ -289,7 +326,20 @@ class MessengerMessagesController:
             if not participant:
                 raise cherrypy.HTTPError(404, "Conversation not found")
 
-            message = DirectMessage(conversation_id=int(conversation_id), sender_id=user_id, body=text)
+            message = DirectMessage(conversation_id=int(conversation_id), sender_id=user_id, body=text, kind=kind)
+
+            if kind in ("image", "file"):
+                path = os.path.join(_attachments_dir(), stored_name)
+                if not os.path.isfile(path):
+                    raise cherrypy.HTTPError(400, "Unknown attachment — upload it first")
+                message.attachment_file_name = body.get("attachmentFileName") or stored_name
+                message.attachment_stored_name = stored_name
+                message.attachment_content_type = body.get("attachmentContentType") or "application/octet-stream"
+                message.attachment_size_bytes = body.get("attachmentSizeBytes")
+
+            if kind == "contact":
+                message.contact_payload_json = json.dumps(contact)
+
             session.add(message)
             session.flush()
             return message.to_dict()
@@ -323,3 +373,83 @@ class MessengerMessagesController:
                 raise cherrypy.HTTPError(404, "Message not found")
             session.delete(message)
             return {"deleted": True}
+
+
+class MessengerAttachmentsController:
+    """Uploads a file for an about-to-be-sent message (image, document, or
+    any other attachment). The file is stored on disk under a random name
+    before the message itself exists — the client uploads first, gets back
+    a `storedName`, then POSTs /messenger/messages with kind + that name to
+    actually create the message, mirroring the Nimrose ticket-attachment
+    two-step flow."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def POST(self, file=None, **_ignored):
+        if file is None or not getattr(file, "filename", None):
+            raise cherrypy.HTTPError(400, "file is required (multipart/form-data)")
+
+        content_type = (file.content_type.value if file.content_type else None) or "application/octet-stream"
+        _, ext = os.path.splitext(file.filename)
+        stored_name = f"{uuid.uuid4().hex}{ext[:10]}"
+        dest_path = os.path.join(_attachments_dir(), stored_name)
+
+        size = 0
+        with open(dest_path, "wb") as out:
+            while True:
+                chunk = file.file.read(65536)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > config.ATTACHMENT_MAX_BYTES:
+                    out.close()
+                    os.remove(dest_path)
+                    raise cherrypy.HTTPError(413, f"Attachment too large (max {config.ATTACHMENT_MAX_BYTES // (1024 * 1024)}MB)")
+                out.write(chunk)
+
+        return {
+            "storedName": stored_name,
+            "fileName": file.filename,
+            "contentType": content_type,
+            "sizeBytes": size,
+            "isImage": content_type in IMAGE_CONTENT_TYPES,
+        }
+
+
+class MessengerAttachmentFileController:
+    """Serves a message attachment's raw bytes, addressed by message id.
+    Like the Nimrose file controller, an <img src>/<a href> can't carry an
+    Authorization header, so this also accepts the JWT as a `token` query
+    param."""
+
+    exposed = True
+
+    def GET(self, message_id, *_rest, token=None):
+        auth_header = cherrypy.request.headers.get("Authorization", "")
+        if token:
+            user_id = _decode_or_401(token)
+        elif auth_header.startswith("Bearer "):
+            user_id = _decode_or_401(auth_header.split(" ", 1)[1])
+        else:
+            raise cherrypy.HTTPError(401, "Missing token")
+
+        with get_session() as session:
+            message = (
+                session.query(DirectMessage)
+                .join(ConversationParticipant, ConversationParticipant.conversation_id == DirectMessage.conversation_id)
+                .filter(DirectMessage.id == int(message_id), ConversationParticipant.user_id == user_id)
+                .first()
+            )
+            if not message or not message.attachment_stored_name:
+                raise cherrypy.HTTPError(404, "Attachment not found")
+
+            path = os.path.join(_attachments_dir(), message.attachment_stored_name)
+            if not os.path.isfile(path):
+                raise cherrypy.HTTPError(404, "File missing on disk")
+
+            cherrypy.response.headers["Content-Type"] = message.attachment_content_type or "application/octet-stream"
+            cherrypy.response.headers["Content-Disposition"] = f'inline; filename="{message.attachment_file_name}"'
+            with open(path, "rb") as f:
+                return f.read()

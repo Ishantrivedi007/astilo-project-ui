@@ -22,6 +22,7 @@ from app.controllers.cosmos_controller import (
 from app.controllers.favorites_controller import FavoritesController
 from app.controllers.anime_controller import AnimeController
 from app.controllers.health_controller import HealthController
+from app.controllers.docs_controller import DocsPageController, OpenApiSpecController
 from app.controllers.images_controller import WebImageSearchController
 from app.controllers.media_controller import LyricsController, LyricsSearchController, TmdbController
 from app.controllers.nimrose_analytics_controller import (
@@ -68,6 +69,8 @@ from app.controllers.library_controller import (
     LibrarySearchController,
 )
 from app.controllers.messenger_controller import (
+    MessengerAttachmentFileController,
+    MessengerAttachmentsController,
     MessengerContactsController,
     MessengerConversationsController,
     MessengerMessagesController,
@@ -128,6 +131,12 @@ def build_app():
     }
 
     root = cherrypy.tree.mount(HealthController(), "/api/health", conf)
+    if config.API_DOCS_ENABLED:
+        # Not mounted at all unless explicitly opted into — see the
+        # API_DOCS_ENABLED comment in app/config.py. Admin-only on top of
+        # that, enforced inside the controllers themselves.
+        cherrypy.tree.mount(DocsPageController(), "/api/docs", conf)
+        cherrypy.tree.mount(OpenApiSpecController(), "/api/openapi.json", conf)
     cherrypy.tree.mount(AuthController(), "/api/auth", conf)
     cherrypy.tree.mount(UsersController(), "/api/users", conf)
     cherrypy.tree.mount(SessionsController(), "/api/sessions", conf)
@@ -205,6 +214,8 @@ def build_app():
     cherrypy.tree.mount(LibraryOpenSearchController(), "/api/library/openlibrary-search", conf)
     cherrypy.tree.mount(MessengerConversationsController(), "/api/messenger/conversations", conf)
     cherrypy.tree.mount(MessengerMessagesController(), "/api/messenger/messages", conf)
+    cherrypy.tree.mount(MessengerAttachmentsController(), "/api/messenger/attachments", conf)
+    cherrypy.tree.mount(MessengerAttachmentFileController(), "/api/messenger/attachment-file", conf)
     cherrypy.tree.mount(NimroseNotesController(), "/api/nimrose/notes", conf)
     cherrypy.tree.mount(NimroseBrowserSpacesController(), "/api/nimrose/browser-spaces", conf)
     cherrypy.tree.mount(NimroseBrowserTabsController(), "/api/nimrose/browser-tabs", conf)

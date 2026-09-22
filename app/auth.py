@@ -55,3 +55,24 @@ def require_admin():
 
 cherrypy.tools.auth = cherrypy.Tool("before_handler", require_auth)
 cherrypy.tools.admin_only = cherrypy.Tool("before_handler", require_admin, priority=60)
+
+
+def require_admin_from_request(token_param: str | None = None):
+    """Like require_auth()+require_admin(), but for endpoints a browser
+    navigates to directly (the Swagger docs page) where an Authorization
+    header can't be attached — falls back to a `?token=` query param, the
+    same pattern already used by the attachment-file controllers. Raises
+    404 (not 401/403) on any failure so an unauthenticated/non-admin probe
+    can't even confirm the docs endpoint exists."""
+    auth_header = cherrypy.request.headers.get("Authorization", "")
+    token = auth_header.split(" ", 1)[1] if auth_header.startswith("Bearer ") else token_param
+
+    if not token:
+        raise cherrypy.HTTPError(404)
+    try:
+        claims = decode_token(token)
+    except jwt.InvalidTokenError:
+        raise cherrypy.HTTPError(404)
+    if claims.get("role") != "admin":
+        raise cherrypy.HTTPError(404)
+    return claims

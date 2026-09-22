@@ -36,6 +36,7 @@ def init_db():
     _migrate_note_content_format_column()
     _migrate_note_kind_column()
     _migrate_ticket_phase_column()
+    _migrate_direct_message_columns()
 
 
 def _migrate_board_column_wip_limit():
@@ -148,6 +149,32 @@ def _migrate_ticket_phase_column():
                 conn.exec_driver_sql("ALTER TABLE nimrose_tickets ADD COLUMN phase_id INTEGER")
         else:
             conn.exec_driver_sql("ALTER TABLE nimrose_tickets ADD COLUMN IF NOT EXISTS phase_id INTEGER")
+        conn.commit()
+
+
+def _migrate_direct_message_columns():
+    """create_all only creates missing tables, not columns on ones that
+    already exist — patch in attachment/contact-card support for
+    direct_messages rows created before those message kinds existed (they
+    default to "text", matching what they always were)."""
+    is_sqlite = config.DATABASE_URL.startswith("sqlite")
+    columns = (
+        ("kind", "VARCHAR(10) DEFAULT 'text'"),
+        ("attachment_file_name", "VARCHAR(255)"),
+        ("attachment_stored_name", "VARCHAR(80)"),
+        ("attachment_content_type", "VARCHAR(120)"),
+        ("attachment_size_bytes", "INTEGER"),
+        ("contact_payload_json", "TEXT"),
+    )
+    with engine.connect() as conn:
+        if is_sqlite:
+            existing = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(direct_messages)")}
+            for column, ddl_type in columns:
+                if column not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE direct_messages ADD COLUMN {column} {ddl_type}")
+        else:
+            for column, ddl_type in columns:
+                conn.exec_driver_sql(f"ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS {column} {ddl_type}")
         conn.commit()
 
 

@@ -38,5 +38,12 @@ class Config:
     ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "attachments"))
     ATTACHMENT_MAX_BYTES = int(os.getenv("ATTACHMENT_MAX_BYTES", str(15 * 1024 * 1024)))  # 15MB
 
+    # The Swagger/OpenAPI docs endpoints (/api/docs, /api/openapi.json) are
+    # admin-only regardless, but this is a second, independent kill switch:
+    # when false the routes aren't even mounted, so there's nothing to probe
+    # or rate-limit in a deployment that doesn't want them reachable at all.
+    # Defaults OFF — an explicit opt-in, not an accidentally-exposed default.
+    API_DOCS_ENABLED = os.getenv("API_DOCS_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+
 
 config = Config()
