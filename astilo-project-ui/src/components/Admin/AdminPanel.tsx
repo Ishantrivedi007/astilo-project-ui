@@ -6,6 +6,8 @@ import { PageHeading, GlassPanel, StatCard, Chart, BarList, AppInput, AppTextare
 import DashBoard from "../DashBoard/Dashboard";
 import { useAuth } from "../../auth/AuthProvider";
 import { avatarUrl } from "../../lib/avatar";
+import { API_BASE_URL, getAuthToken } from "../../lib/apiClient";
+import { BookOpenText } from "lucide-react";
 import {
   fetchUsers,
   updateUserRole,
@@ -761,6 +763,20 @@ const AdminPanel = () => {
       <PageHeading eyebrow="✦ behind the scenes">
         Admin <span className="gradient-text">panel</span>
       </PageHeading>
+
+      <div className="mb-6 flex justify-end">
+        <Button
+          size="sm"
+          variant="flat"
+          startContent={<BookOpenText size={14} />}
+          onPress={() => {
+            const token = getAuthToken();
+            window.open(`${API_BASE_URL}/docs${token ? `?token=${encodeURIComponent(token)}` : ""}`, "_blank", "noopener,noreferrer");
+          }}
+        >
+          API Docs
+        </Button>
+      </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total users" value={String(users?.length ?? 0)} spark={signupSpark} />

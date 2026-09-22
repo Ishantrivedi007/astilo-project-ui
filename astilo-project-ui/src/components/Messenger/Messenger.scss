@@ -154,14 +154,34 @@
 
 .msgr-bubble-row {
   display: flex;
+  width: 100%;
 
   &.mine {
     justify-content: flex-end;
   }
 }
 
-.msgr-bubble {
+// Forces alignment regardless of what a bubble's content wants to be wide
+// (a flex-laid-out file/contact card, a full-width image) — the wrap is
+// the thing that actually gets pushed to either edge of the row.
+.msgr-bubble-wrap {
+  display: flex;
+  flex-direction: column;
   max-width: 70%;
+
+  .msgr-bubble-row.mine & {
+    align-items: flex-end;
+    margin-left: auto;
+  }
+
+  .msgr-bubble-row:not(.mine) & {
+    align-items: flex-start;
+    margin-right: auto;
+  }
+}
+
+.msgr-bubble {
+  max-width: 100%;
   padding: 0.5rem 0.75rem;
   border-radius: 0.9rem;
   background: rgb(var(--surface-rgb) / 0.9);
@@ -378,4 +398,415 @@
   color: rgb(var(--ink-rgb) / 0.45);
   font-size: 0.85rem;
   text-align: center;
+}
+
+// -- Composer icon buttons (emoji / attach) --
+
+.msgr-composer {
+  position: relative;
+  align-items: center;
+}
+
+.msgr-composer-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: rgb(var(--ink-rgb) / 0.6);
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.14);
+    color: rgb(var(--ink-rgb));
+  }
+
+  &.active {
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.2);
+    color: rgb(var(--accent-rgb, 127 176 255));
+  }
+}
+
+// -- Sticker bubble (chrome-less, like WhatsApp) --
+
+.msgr-bubble-sticker-shell {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+.msgr-bubble-sticker {
+  display: block;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+// -- Attach menu popover --
+
+.msgr-attach-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 1rem;
+  min-width: 170px;
+  background: rgb(var(--surface-rgb) / 0.98);
+  border: 1px solid rgb(var(--hair-rgb) / 0.3);
+  border-radius: 0.8rem;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+  padding: 0.4rem;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.45rem 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+    color: rgb(var(--ink-rgb));
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: rgb(var(--accent-rgb, 127 176 255) / 0.12);
+    }
+  }
+}
+
+.msgr-attach-menu-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &.image {
+    background: rgba(96, 165, 250, 0.18);
+    color: #60a5fa;
+  }
+
+  &.doc {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fbbf24;
+  }
+
+  &.contact {
+    background: rgba(74, 222, 128, 0.18);
+    color: #4ade80;
+  }
+}
+
+// -- Emoji picker popover --
+
+.msgr-emoji-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 1rem;
+  width: 280px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: rgb(var(--surface-rgb) / 0.98);
+  border: 1px solid rgb(var(--hair-rgb) / 0.3);
+  border-radius: 0.8rem;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+  padding: 0.6rem;
+  z-index: 60;
+}
+
+.msgr-emoji-tabs {
+  display: flex;
+  gap: 0.2rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid rgb(var(--hair-rgb) / 0.16);
+  padding-bottom: 0.4rem;
+
+  button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    color: rgb(var(--ink-rgb) / 0.55);
+    cursor: pointer;
+
+    &:hover {
+      color: rgb(var(--ink-rgb));
+    }
+
+    &.active {
+      background: rgb(var(--accent-rgb, 127 176 255) / 0.16);
+      color: rgb(var(--accent-rgb, 127 176 255));
+    }
+  }
+}
+
+.msgr-emoji-empty {
+  padding: 1rem 0.4rem;
+  text-align: center;
+
+  p {
+    font-size: 0.75rem;
+    color: rgb(var(--ink-rgb) / 0.55);
+    margin-bottom: 0.7rem;
+  }
+}
+
+.msgr-sticker-grid {
+  grid-template-columns: repeat(6, 1fr);
+
+  .msgr-emoji-btn {
+    font-size: 1.5rem;
+  }
+}
+
+.msgr-emoji-cat {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(var(--ink-rgb) / 0.45);
+  margin: 0.4rem 0.15rem 0.25rem;
+}
+
+.msgr-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.1rem;
+}
+
+.msgr-emoji-btn {
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0.3rem 0;
+  border-radius: 0.4rem;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.16);
+  }
+}
+
+// -- Attachment preview strip (before sending) --
+
+.msgr-attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid rgb(var(--hair-rgb) / 0.2);
+  background: rgb(var(--accent-rgb, 127 176 255) / 0.06);
+
+  img {
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+  }
+
+  .msgr-attach-file-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 0.5rem;
+    background: rgb(var(--ink-rgb) / 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgb(var(--ink-rgb) / 0.6);
+    flex-shrink: 0;
+  }
+
+  .msgr-attach-info {
+    flex: 1;
+    min-width: 0;
+
+    strong {
+      display: block;
+      font-size: 0.78rem;
+      color: rgb(var(--ink-rgb));
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    span {
+      font-size: 0.68rem;
+      color: rgb(var(--ink-rgb) / 0.5);
+    }
+  }
+
+  button {
+    color: rgb(var(--ink-rgb) / 0.55);
+    cursor: pointer;
+
+    &:hover {
+      color: #f87171;
+    }
+  }
+}
+
+// -- Attachment bubbles (image / file) --
+
+.msgr-bubble-image {
+  display: block;
+  max-width: 220px;
+  max-height: 260px;
+  border-radius: 0.7rem;
+  cursor: pointer;
+  object-fit: cover;
+}
+
+.msgr-bubble-file {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 200px;
+  text-decoration: none;
+  color: inherit;
+
+  .msgr-file-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 0.5rem;
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.16);
+    color: rgb(var(--accent-rgb, 127 176 255));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .msgr-file-info {
+    min-width: 0;
+
+    strong {
+      display: block;
+      font-size: 0.78rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    span {
+      font-size: 0.66rem;
+      color: rgb(var(--ink-rgb) / 0.5);
+    }
+  }
+}
+
+.msgr-bubble-caption {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+
+// -- Shared-contact card bubble --
+
+.msgr-bubble-contact {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 200px;
+
+  .msgr-list-body {
+    flex: 1;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.8rem;
+  }
+
+  span {
+    font-size: 0.68rem;
+    color: rgb(var(--ink-rgb) / 0.5);
+  }
+
+  button {
+    font-size: 0.66rem;
+    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border-radius: 0.5rem;
+    background: rgb(var(--accent-rgb, 127 176 255) / 0.18);
+    color: rgb(var(--accent-rgb, 127 176 255));
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+      background: rgb(var(--accent-rgb, 127 176 255) / 0.28);
+    }
+  }
+}
+
+// -- Contact-share picker modal (reuses the QR overlay pattern) --
+
+.msgr-picker-modal {
+  position: relative;
+  max-width: 360px;
+  width: 100%;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: rgb(var(--surface-rgb) / 0.98);
+  border: 1px solid rgb(var(--hair-rgb) / 0.3);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+
+  h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: rgb(var(--ink-rgb));
+    margin-bottom: 0.75rem;
+  }
+
+  .msgr-list {
+    overflow-y: auto;
+  }
+}
+
+// -- Lightbox for opening a sent image full-size --
+
+.msgr-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 6, 16, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  padding: 2rem;
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0.6rem;
+  }
+}
+
+.msgr-lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 501;
+
+  &:hover {
+    background: rgb(255 255 255 / 0.22);
+  }
 }
