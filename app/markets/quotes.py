@@ -5,8 +5,11 @@ endpoints, simulated trading, watchlist, price alerts) so the fallback
 policy can't drift between them.
 
 Non-crypto: Yahoo Finance -> Frankfurter/ECB (forex pairs only) -> Alpha
-Vantage (equities/ETFs/bonds/commodities/metals, only if a free API key is
-configured — see app/markets/alphavantage.py).
+Vantage (equities/ETFs/bonds/commodities, only if a free API key is
+configured — see app/markets/alphavantage.py) -> gold-api.com (gold/silver
+spot only — see app/markets/goldapi.py; CURRENT PRICE ONLY, no history,
+so a chart built from this last-resort fallback will only ever have one
+point, flagged `spotOnly: True` in the response).
 
 Crypto: CoinGecko -> Binance (real trading data, keyless).
 
@@ -19,7 +22,7 @@ else has an answer, rather than a generic "fallback also failed" message.
 
 import requests
 
-from app.markets import alphavantage, binance, coingecko, frankfurter, yahoo
+from app.markets import alphavantage, binance, coingecko, frankfurter, goldapi, yahoo
 
 
 def _ok(result) -> bool:
@@ -54,6 +57,10 @@ def stock_chart_with_fallback(symbol: str, range_: str):
             return fallback
 
     fallback = _try(alphavantage.chart, symbol, range_)
+    if fallback is not None:
+        return fallback
+
+    fallback = _try(goldapi.spot, symbol)
     if fallback is not None:
         return fallback
 
