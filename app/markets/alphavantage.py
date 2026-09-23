@@ -1,7 +1,7 @@
 """Alpha Vantage's free-tier API — a second, independent data source for
 US equities/ETFs/bonds and several commodities (crude oil, natural gas,
-copper, wheat, corn, coffee, cotton) plus gold/silver spot, used as an
-automatic fallback when Yahoo Finance fails.
+copper, wheat, corn, coffee, cotton), used as an automatic fallback when
+Yahoo Finance fails.
 
 Unlike every other provider in this app, this one needs an API key — but
 it's a genuinely free one: https://www.alphavantage.co/support/#api-key
@@ -12,21 +12,29 @@ immediately and the app behaves exactly as it did before this file
 existed — this redundancy is simply inactive until the key is set, never
 required.
 
-Honesty note on verification: Alpha Vantage's public "demo" key only
-serves real data for their one whitelisted demo symbol (IBM) — every
-other symbol/function returns an "Information" rate-limit-style message
-instead of real data, so the JSON shapes below could NOT be exercised
-live against a real symbol in this environment. They're implemented from
-Alpha Vantage's public, stable API reference, and every parsing step is
-defensively try/except-guarded so a shape mismatch means "silently no
-fallback data" rather than a crash — but treat this file as unverified
-until someone runs one real check with a real key, e.g.:
-    python -c "from app.markets import alphavantage; print(alphavantage.chart('AAPL', '1mo'))"
+Live-verified (real key, real symbols) findings, not just desk-checked:
+- TIME_SERIES_DAILY (equities/ETFs) works as documented — confirmed
+  against AAPL, price matched Yahoo's own AAPL price exactly.
+- The commodity functions (WTI, NATURAL_GAS, COPPER, WHEAT, CORN, COFFEE,
+  COTTON) work, but on the free tier IGNORE the `interval=daily` request
+  parameter for some of them (confirmed live: COPPER always returns
+  `"interval": "monthly"` regardless) — so range slicing here is done by
+  calendar-date cutoff, not a fixed row count, so it degrades correctly
+  (fewer, sparser points) instead of silently showing years of history
+  for a "1 month" range.
+- Gold/silver spot does NOT work here — confirmed live: XAU/XAG aren't in
+  Alpha Vantage's supported physical-currency list at all (checked their
+  own /physical_currency_list/ endpoint), and both FX_DAILY and
+  CURRENCY_EXCHANGE_RATE return "Invalid API call" for XAU/USD. An
+  earlier version of this file assumed this endpoint supported metals
+  based on Alpha Vantage's general documentation; that assumption was
+  wrong and has been removed rather than left in as dead, silently-never-
+  firing code. Gold/silver genuinely have no free fallback right now.
 
-Real, stated limitation: the commodity functions (WTI, NATURAL_GAS, etc.)
-give ONE reference value per day, not real OHLC — open/high/low are set
-equal to that day's value rather than fabricated, same honesty rule this
-codebase uses everywhere else for this kind of data.
+Real, stated limitation: the commodity functions give ONE reference value
+per period, not real OHLC — open/high/low are set equal to that period's
+value rather than fabricated, same honesty rule this codebase uses
+everywhere else for this kind of data.
 """
 
 import datetime
@@ -38,7 +46,12 @@ from app.markets.http import envelope, markets_get
 BASE = "https://www.alphavantage.co/query"
 
 VALID_RANGES = ("1d", "5d", "1mo", "6mo", "1y", "5y", "max")
-RANGE_ROWS = {"1d": 2, "5d": 5, "1mo": 22, "6mo": 132, "1y": 260, "5y": 1300, "max": None}
+# Calendar-day lookback per range, NOT a row count — the free tier's
+# actual returned granularity varies by function/commodity (confirmed
+# live: some ignore `interval=daily` and return monthly bars regardless),
+# so slicing by date keeps "1mo" honestly sparse on monthly data instead
+# of silently spanning years by grabbing N row indices.
+RANGE_DAYS = {"1d": 5, "5d": 10, "1mo": 35, "6mo": 195, "1y": 380, "5y": 1830, "max": None}
 
 # Yahoo commodity-futures ticker -> (Alpha Vantage function, display name).
 COMMODITY_FUNCTIONS = {
@@ -50,12 +63,26 @@ COMMODITY_FUNCTIONS = {
     "KC=F": ("COFFEE", "Coffee"),
     "CT=F": ("COTTON", "Cotton"),
 }
-# Yahoo metal-futures ticker -> (ISO 4217 physical-currency code, display name).
-METAL_CURRENCIES = {"GC=F": ("XAU", "Gold"), "SI=F": ("XAG", "Silver")}
 
 
 def _date_ms(date_str: str) -> float:
     return datetime.datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc).timestamp() * 1000
+
+
+def _slice_by_date(rows_sorted_asc, date_key, range_):
+    """rows_sorted_asc: list of dicts/tuples with an ISO date string,
+    oldest first. Keeps rows within RANGE_DAYS[range_] of the newest row's
+    date — correct regardless of actual data granularity. Always keeps at
+    least the last 2 rows (if available) so change/changePercent can still
+    be computed even when a range is shorter than the data's granularity
+    (e.g. "1mo" against monthly data)."""
+    days = RANGE_DAYS.get(range_)
+    if days is None or len(rows_sorted_asc) <= 2:
+        return rows_sorted_asc
+    newest = datetime.datetime.strptime(date_key(rows_sorted_asc[-1]), "%Y-%m-%d")
+    cutoff = newest - datetime.timedelta(days=days)
+    kept = [r for r in rows_sorted_asc if datetime.datetime.strptime(date_key(r), "%Y-%m-%d") >= cutoff]
+    return kept if len(kept) >= 2 else rows_sorted_asc[-2:]
 
 
 def _api_key() -> str | None:
@@ -95,7 +122,7 @@ def _summary(points, name, symbol, source_dataset):
         "name": name,
         "currency": "USD",
         "exchange": "Alpha Vantage",
-        "instrumentType": "COMMODITY" if symbol.upper() in {**COMMODITY_FUNCTIONS, **METAL_CURRENCIES} else "EQUITY",
+        "instrumentType": "COMMODITY" if symbol.upper() in COMMODITY_FUNCTIONS else "EQUITY",
         "price": price,
         "previousClose": prev_close,
         "change": change,
@@ -135,9 +162,7 @@ def equity_chart(symbol: str, range_: str = "1mo"):
     try:
         series = raw["Time Series (Daily)"]
         rows = sorted(series.items())
-        n = RANGE_ROWS[range_]
-        if n is not None:
-            rows = rows[-n:]
+        rows = _slice_by_date(rows, lambda r: r[0], range_)
         points = []
         for date_str, v in rows:
             points.append(
@@ -170,9 +195,7 @@ def commodity_chart(yahoo_symbol: str, range_: str = "1mo"):
     try:
         rows = [r for r in raw["data"] if r.get("value") not in (None, ".", "")]
         rows.sort(key=lambda r: r["date"])
-        n = RANGE_ROWS[range_]
-        if n is not None:
-            rows = rows[-n:]
+        rows = _slice_by_date(rows, lambda r: r["date"], range_)
         points = []
         for r in rows:
             v = float(r["value"])
@@ -184,60 +207,14 @@ def commodity_chart(yahoo_symbol: str, range_: str = "1mo"):
     return _summary(points, name, yahoo_symbol, function.lower())
 
 
-def metal_chart(yahoo_symbol: str, range_: str = "1mo"):
-    """Daily gold/silver spot via Alpha Vantage's FX_DAILY on the metal's
-    ISO 4217 physical-currency code (XAU/XAG) vs USD."""
-    entry = METAL_CURRENCIES.get(yahoo_symbol.upper())
-    if not entry:
-        return None
-    code, name = entry
-    range_ = range_ if range_ in VALID_RANGES else "1mo"
-    raw = _get(
-        {
-            "function": "FX_DAILY",
-            "from_symbol": code,
-            "to_symbol": "USD",
-            "outputsize": "full" if range_ in ("5y", "max") else "compact",
-        }
-    )
-    if not raw:
-        return None
-    try:
-        series = raw["Time Series FX (Daily)"]
-        rows = sorted(series.items())
-        n = RANGE_ROWS[range_]
-        if n is not None:
-            rows = rows[-n:]
-        points = []
-        for date_str, v in rows:
-            points.append(
-                {
-                    "t": _date_ms(date_str),
-                    "open": float(v["1. open"]),
-                    "high": float(v["2. high"]),
-                    "low": float(v["3. low"]),
-                    "close": float(v["4. close"]),
-                    "volume": None,
-                    "_range": range_,
-                }
-            )
-    except (KeyError, ValueError, TypeError):
-        return None
-    if not points:
-        return None
-    return _summary(points, name, yahoo_symbol, "fx_daily")
-
-
 def chart(yahoo_symbol: str, range_: str = "1mo"):
     """Single entry point fallback call sites use — routes to whichever
-    of the three shapes above applies, or None immediately if no key is
+    of the two shapes above applies, or None immediately if no key is
     configured or this symbol isn't one Alpha Vantage's free tier covers
-    here."""
+    here (this notably excludes gold/silver — see module docstring)."""
     if not _api_key() or not yahoo_symbol:
         return None
     upper = yahoo_symbol.upper()
-    if upper in METAL_CURRENCIES:
-        return metal_chart(yahoo_symbol, range_)
     if upper in COMMODITY_FUNCTIONS:
         return commodity_chart(yahoo_symbol, range_)
     return equity_chart(yahoo_symbol, range_)
