@@ -7,7 +7,7 @@ import cherrypy
 import requests
 
 from app.db import get_session
-from app.markets import coingecko, stooq, yahoo
+from app.markets import coingecko, frankfurter, yahoo
 from app.models import (
     PRICE_ALERT_CONDITIONS,
     TRADE_ASSET_TYPES,
@@ -52,11 +52,11 @@ def _current_quote(symbol: str, asset_type: str):
             yahoo_exc = exc
 
         if yahoo_failed:
-            stooq_symbol = stooq.yahoo_symbol_to_stooq(symbol)
+            pair = frankfurter.yahoo_symbol_to_frankfurter(symbol)
             fallback = None
-            if stooq_symbol is not None:
+            if pair is not None:
                 try:
-                    fallback = stooq.chart(stooq_symbol, "1d")
+                    fallback = frankfurter.chart(pair[0], pair[1], "1d")
                 except requests.exceptions.RequestException:
                     fallback = None
             if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):

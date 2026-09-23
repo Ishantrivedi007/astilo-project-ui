@@ -7,7 +7,7 @@ API key; results are cached the same way as Cosmos's external data.
 import cherrypy
 import requests
 
-from app.markets import coingecko, stooq, worldbank, yahoo
+from app.markets import coingecko, frankfurter, worldbank, yahoo
 
 ASSET_TYPES = ("stock", "crypto")
 
@@ -50,11 +50,11 @@ class MarketsAssetController:
                 yahoo_exc = exc
 
             if yahoo_failed:
-                stooq_symbol = stooq.yahoo_symbol_to_stooq(symbol)
+                pair = frankfurter.yahoo_symbol_to_frankfurter(symbol)
                 fallback = None
-                if stooq_symbol is not None:
+                if pair is not None:
                     try:
-                        fallback = stooq.chart(stooq_symbol, range)
+                        fallback = frankfurter.chart(pair[0], pair[1], range)
                     except requests.exceptions.RequestException:
                         fallback = None
                 if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):

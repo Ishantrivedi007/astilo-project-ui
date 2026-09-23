@@ -12,7 +12,7 @@ import cherrypy
 import requests
 
 from app.db import get_session
-from app.markets import coingecko, stooq, yahoo
+from app.markets import coingecko, frankfurter, yahoo
 from app.models import (
     TRADE_ASSET_TYPES,
     TRADE_ORDER_TYPES,
@@ -49,9 +49,9 @@ def _current_quote(symbol: str, asset_type: str):
     """Real, live price + display name for a symbol — the same adapters
     Markets itself uses. Returns None if the symbol doesn't resolve.
 
-    For non-crypto symbols, falls back to Stooq's free daily-bar data
-    (forex pairs and gold/silver spot only) if Yahoo Finance fails or has
-    no data for the symbol."""
+    For non-crypto symbols, falls back to Frankfurter's free ECB rate data
+    (forex pairs only) if Yahoo Finance fails or has no data for the
+    symbol."""
     if asset_type == "crypto":
         env = _guard(coingecko.market_chart, symbol, "1d")
     else:
@@ -65,11 +65,11 @@ def _current_quote(symbol: str, asset_type: str):
             yahoo_exc = exc
 
         if yahoo_failed:
-            stooq_symbol = stooq.yahoo_symbol_to_stooq(symbol)
+            pair = frankfurter.yahoo_symbol_to_frankfurter(symbol)
             fallback = None
-            if stooq_symbol is not None:
+            if pair is not None:
                 try:
-                    fallback = stooq.chart(stooq_symbol, "1d")
+                    fallback = frankfurter.chart(pair[0], pair[1], "1d")
                 except requests.exceptions.RequestException:
                     fallback = None
             if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):
