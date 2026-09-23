@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { BarChart3, Bitcoin, Building2, Flame, Landmark, Repeat, TrendingUp } from "lucide-react";
+import { BarChart3, Bitcoin, Building2, Flame, Landmark, Repeat, ScrollText, TrendingUp } from "lucide-react";
 
-export type MarketCategory = "stock" | "etf" | "fund" | "index" | "commodity" | "forex" | "crypto";
+export type MarketCategory = "stock" | "etf" | "fund" | "index" | "commodity" | "forex" | "crypto" | "bond";
 
 const CATEGORY_ICON: Record<MarketCategory, typeof TrendingUp> = {
   stock: TrendingUp,
@@ -11,6 +11,7 @@ const CATEGORY_ICON: Record<MarketCategory, typeof TrendingUp> = {
   commodity: Flame,
   forex: Repeat,
   crypto: Bitcoin,
+  bond: ScrollText,
 };
 
 /** quoteType (Yahoo) -> our category, for icon fallback selection. */

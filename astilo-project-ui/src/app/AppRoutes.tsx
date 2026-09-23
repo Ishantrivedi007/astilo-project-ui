@@ -39,6 +39,8 @@ const CosmosReferenceLibrary = lazy(() => import("../components/Cosmos/CosmosRef
 const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
 const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetView"));
 const MarketsWorldMap = lazy(() => import("../components/Markets/MarketsWorldMap"));
+const MarketsCommodities = lazy(() => import("../components/Markets/MarketsCommodities"));
+const MarketsForex = lazy(() => import("../components/Markets/MarketsForex"));
 const TradingHome = lazy(() => import("../components/Markets/TradingHome"));
 const TradingPortfolio = lazy(() => import("../components/Markets/TradingPortfolio"));
 const ResearchHome = lazy(() => import("../components/Research/ResearchHome"));
@@ -174,6 +176,8 @@ const AppRoutes = () => (
       <Route path={AppRoute.markets} element={getAuthRoute(<MarketsHome />)} />
       <Route path={AppRoute.marketsAsset} element={getAuthRoute(<MarketsAssetView />)} />
       <Route path={AppRoute.marketsMap} element={getAuthRoute(<MarketsWorldMap />)} />
+      <Route path={AppRoute.marketsCommodities} element={getAuthRoute(<MarketsCommodities />)} />
+      <Route path={AppRoute.marketsForex} element={getAuthRoute(<MarketsForex />)} />
       <Route path={AppRoute.trading} element={getAuthRoute(<TradingHome />)} />
       <Route path={AppRoute.tradingPortfolio} element={getAuthRoute(<TradingPortfolio />)} />
       <Route path={AppRoute.research} element={getAuthRoute(<ResearchHome />)} />

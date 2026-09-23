@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Globe2, Landmark, LineChart, Search } from "lucide-react";
+import { Flame, Globe2, Landmark, LineChart, Repeat, Search } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
+import { BONDS, COMMODITIES, EXCHANGE_PRESETS, FOREX } from "../../lib/marketsCatalog";
 import MarketQuoteCard from "./MarketQuoteCard";
 import MarketLogo, { categoryFromQuoteType, type MarketCategory } from "./MarketLogo";
 import "./Markets.scss";
@@ -23,20 +24,6 @@ const INDICES = [
   { symbol: "^DJI", label: "Dow Jones" },
   { symbol: "^IXIC", label: "Nasdaq" },
   { symbol: "^FTSE", label: "FTSE 100" },
-];
-
-const COMMODITIES = [
-  { symbol: "GC=F", label: "Gold" },
-  { symbol: "SI=F", label: "Silver" },
-  { symbol: "CL=F", label: "Crude Oil" },
-  { symbol: "NG=F", label: "Natural Gas" },
-];
-
-const FOREX = [
-  { symbol: "EURUSD=X", label: "EUR/USD" },
-  { symbol: "GBPUSD=X", label: "GBP/USD" },
-  { symbol: "JPY=X", label: "USD/JPY" },
-  { symbol: "INR=X", label: "USD/INR" },
 ];
 
 const FUNDS = [
@@ -61,6 +48,8 @@ const MarketsHome = () => {
   const [submitted, setSubmitted] = useState("");
   const [searchType, setSearchType] = useState<AssetType>("stock");
   const [quoteTypeFilter, setQuoteTypeFilter] = useState<string | null>(null);
+  const [exchangeFilter, setExchangeFilter] = useState<string | null>(null);
+  const [exchangeTab, setExchangeTab] = useState(EXCHANGE_PRESETS[0].key);
 
   const searchQuery = useQuery({
     queryKey: ["markets", "search", submitted, searchType],
@@ -86,14 +75,22 @@ const MarketsHome = () => {
     e.preventDefault();
     setSubmitted(query.trim());
     setQuoteTypeFilter(null);
+    setExchangeFilter(null);
   };
 
   const allResults = searchQuery.data?.data.results ?? [];
   const results = useMemo(
-    () => (quoteTypeFilter ? allResults.filter((r) => r.quoteType === quoteTypeFilter) : allResults),
-    [allResults, quoteTypeFilter]
+    () =>
+      allResults.filter(
+        (r) => (!quoteTypeFilter || r.quoteType === quoteTypeFilter) && (!exchangeFilter || r.exchange === exchangeFilter)
+      ),
+    [allResults, quoteTypeFilter, exchangeFilter]
   );
   const availableTypes = useMemo(() => new Set(allResults.map((r) => r.quoteType)), [allResults]);
+  const availableExchanges = useMemo(
+    () => Array.from(new Set(allResults.map((r) => r.exchange).filter((e): e is string => !!e))),
+    [allResults]
+  );
 
   return (
     <div className="markets-page">
@@ -113,6 +110,12 @@ const MarketsHome = () => {
         </button>
         <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.trading)}>
           <Landmark size={12} /> Simulated trading — practice buy/sell with fake money
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsCommodities)}>
+          <Flame size={12} /> Commodity Explorer — compare gold, oil, crops &amp; more
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsForex)}>
+          <Repeat size={12} /> Forex Lab — cross-asset currency comparisons
         </button>
       </div>
 
@@ -148,6 +151,21 @@ const MarketsHome = () => {
               type="button"
               className={`markets-filter-chip ${quoteTypeFilter === f.value ? "active" : ""}`}
               onClick={() => setQuoteTypeFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {submitted && !searchQuery.isLoading && allResults.length > 0 && searchType === "stock" && availableExchanges.length > 1 && (
+        <div className="markets-filter-row">
+          {[{ value: null, label: "All exchanges" }, ...availableExchanges.map((e) => ({ value: e, label: e }))].map((f) => (
+            <button
+              key={f.label}
+              type="button"
+              className={`markets-filter-chip ${exchangeFilter === f.value ? "active" : ""}`}
+              onClick={() => setExchangeFilter(f.value)}
             >
               {f.label}
             </button>
@@ -229,6 +247,20 @@ const MarketsHome = () => {
         ))}
       </div>
 
+      <h2 className="markets-section-title">Browse by exchange</h2>
+      <div className="markets-type-toggle mb-3">
+        {EXCHANGE_PRESETS.map((ex) => (
+          <button key={ex.key} type="button" className={exchangeTab === ex.key ? "active" : ""} onClick={() => setExchangeTab(ex.key)}>
+            {ex.label}
+          </button>
+        ))}
+      </div>
+      <div className="markets-quote-grid">
+        {EXCHANGE_PRESETS.find((ex) => ex.key === exchangeTab)?.symbols.map((s) => (
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="stock" />
+        ))}
+      </div>
+
       <h2 className="markets-section-title">Indices</h2>
       <div className="markets-quote-grid">
         {INDICES.map((s) => (
@@ -247,6 +279,13 @@ const MarketsHome = () => {
       <div className="markets-quote-grid">
         {FOREX.map((s) => (
           <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="forex" />
+        ))}
+      </div>
+
+      <h2 className="markets-section-title">Bonds</h2>
+      <div className="markets-quote-grid">
+        {BONDS.map((s) => (
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="bond" />
         ))}
       </div>
 
