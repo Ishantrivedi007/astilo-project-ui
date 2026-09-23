@@ -189,6 +189,11 @@
   aspect-ratio: 1;
 }
 
+.cosmos-satellite-canvas .cosmos-orbit-canvas {
+  max-width: 640px;
+  aspect-ratio: 2 / 1;
+}
+
 .cosmos-orbit-play {
   display: inline-flex;
   align-items: center;

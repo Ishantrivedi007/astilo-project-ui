@@ -6,24 +6,79 @@ import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import { AppRoute } from "../../app/AppRoute";
 import {
   fetchAsteroid,
+  fetchComet,
   fetchGalaxy,
+  fetchMoon,
+  fetchNebula,
+  fetchSpacecraft,
   fetchStar,
+  isAmbiguousMatch,
   searchExoplanets,
   type AsteroidData,
   type ExoplanetData,
   type GalaxyData,
+  type HorizonsVector,
   type StarData,
 } from "../../lib/cosmosApi";
 import "./Cosmos.scss";
 
-type CompareType = "asteroid" | "exoplanet" | "star" | "galaxy";
+type CompareType = "asteroid" | "exoplanet" | "star" | "galaxy" | "comet" | "nebula" | "moon" | "spacecraft";
 
 const TYPE_LABEL: Record<CompareType, string> = {
-  asteroid: "Asteroid / comet",
+  asteroid: "Asteroid",
   exoplanet: "Exoplanet",
   star: "Star",
   galaxy: "Galaxy",
+  comet: "Comet",
+  nebula: "Nebula",
+  moon: "Moon",
+  spacecraft: "Spacecraft",
 };
+
+const PLACEHOLDER_BY_TYPE: Record<CompareType, string> = {
+  asteroid: "e.g. Apophis",
+  exoplanet: "e.g. TRAPPIST-1 e",
+  star: "e.g. Sirius",
+  galaxy: "e.g. Andromeda Galaxy",
+  comet: "e.g. 1P",
+  nebula: "e.g. Orion Nebula",
+  moon: "e.g. Europa",
+  spacecraft: "e.g. Voyager 1",
+};
+
+/** Horizons returns raw ephemeris text, not structured physical
+ * parameters — this derives real comparable fields from the actual
+ * returned vector (distance from Sun, computed via Pythagorean magnitude
+ * of the real x/y/z), rather than fabricating fields Horizons doesn't
+ * provide. */
+interface HorizonsSummary {
+  name: string;
+  distanceFromSunAu: number | null;
+  resolvedAt: string | null;
+}
+
+function summarizeHorizonsResult(name: string, vectors: HorizonsVector[]): HorizonsSummary {
+  const v = vectors[0];
+  return {
+    name,
+    distanceFromSunAu: v ? Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z) : null,
+    resolvedAt: v ? String(v.jd) : null,
+  };
+}
+
+const MOON_SPACECRAFT_FIELDS: FieldDef<HorizonsSummary>[] = [
+  { label: "Distance from Sun", unit: "AU", get: (d) => d.distanceFromSunAu },
+  { label: "Resolved at (Julian date)", get: (d) => d.resolvedAt },
+];
+
+/** Short window just to resolve one real ephemeris point for comparison —
+ * same idea as CosmosSearch.tsx's HORIZONS_SEARCH_WINDOW, the full
+ * trajectory lives in the Orbit Explorer. */
+function horizonsCompareWindow() {
+  const start = new Date().toISOString().slice(0, 10);
+  const stop = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  return { start, stop };
+}
 
 interface FieldDef<T> {
   label: string;
@@ -74,7 +129,16 @@ const GALAXY_FIELDS: FieldDef<GalaxyData>[] = [
   { label: "Angular size (minor)", unit: "arcmin", get: (d) => d.angularMinorAxisArcmin },
 ];
 
-const FIELD_SETS = { asteroid: ASTEROID_FIELDS, exoplanet: EXOPLANET_FIELDS, star: STAR_FIELDS, galaxy: GALAXY_FIELDS };
+const FIELD_SETS = {
+  asteroid: ASTEROID_FIELDS,
+  exoplanet: EXOPLANET_FIELDS,
+  star: STAR_FIELDS,
+  galaxy: GALAXY_FIELDS,
+  comet: ASTEROID_FIELDS,
+  nebula: GALAXY_FIELDS,
+  moon: MOON_SPACECRAFT_FIELDS,
+  spacecraft: MOON_SPACECRAFT_FIELDS,
+};
 
 function useSlot(type: CompareType) {
   const [query, setQuery] = useState("");
@@ -84,8 +148,16 @@ function useSlot(type: CompareType) {
     queryKey: ["cosmos", "compare", type, submitted],
     queryFn: async () => {
       if (type === "asteroid") return (await fetchAsteroid(submitted)).data;
+      if (type === "comet") return (await fetchComet(submitted)).data;
       if (type === "star") return (await fetchStar(submitted)).data;
       if (type === "galaxy") return (await fetchGalaxy(submitted)).data;
+      if (type === "nebula") return (await fetchNebula(submitted)).data;
+      if (type === "moon" || type === "spacecraft") {
+        const { start, stop } = horizonsCompareWindow();
+        const res = type === "moon" ? await fetchMoon(submitted, start, stop) : await fetchSpacecraft(submitted, start, stop);
+        if (isAmbiguousMatch(res)) throw new Error(`"${submitted}" matches more than one body — try a more specific name.`);
+        return summarizeHorizonsResult(submitted, res.data.vectors ?? []);
+      }
       const res = await searchExoplanets({ name: submitted, limit: 1 });
       return res.data.results[0] ?? null;
     },
@@ -143,7 +215,7 @@ const CosmosCompare = () => {
               className="cosmos-search-input"
               value={slot.query}
               onChange={(e) => slot.setQuery(e.target.value)}
-              placeholder={type === "asteroid" ? "e.g. Apophis" : type === "exoplanet" ? "e.g. TRAPPIST-1 e" : type === "star" ? "e.g. Sirius" : "e.g. Andromeda Galaxy"}
+              placeholder={PLACEHOLDER_BY_TYPE[type]}
             />
           </form>
         ))}

@@ -8,15 +8,23 @@ import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
 import {
   fetchAsteroid,
+  fetchComet,
   fetchGalaxy,
+  fetchMoon,
+  fetchNebula,
+  fetchSpacecraft,
+  fetchSpectrum,
   fetchStar,
+  isAmbiguousMatch,
   saveCosmosItem,
   searchExoplanets,
   searchHighEnergyObservations,
   searchNasaImages,
   searchObservations,
   searchSupernovae,
+  type AmbiguousMatch,
   type AsteroidData,
+  type CosmosEnvelope,
   type CosmosObjectType,
   type ExoplanetData,
   type GalaxyData,
@@ -26,6 +34,7 @@ import {
   type StarData,
   type SupernovaRemnantRow,
 } from "../../lib/cosmosApi";
+import Chart from "../shared/Chart";
 import CosmosField from "./CosmosField";
 import CosmosImagePreview from "./CosmosImagePreview";
 import CosmosSourceBadge from "./CosmosSourceBadge";
@@ -42,10 +51,14 @@ type ResultGroup =
   | "image"
   | "high-energy"
   | "galaxy"
-  | "supernova";
+  | "supernova"
+  | "moon"
+  | "nebula"
+  | "comet"
+  | "spacecraft";
 
 const TYPE_LABELS: Record<ResultGroup, string> = {
-  asteroid: "Asteroids & comets",
+  asteroid: "Asteroids",
   exoplanet: "Exoplanets",
   star: "Stars",
   observation: "Telescope observations",
@@ -53,6 +66,19 @@ const TYPE_LABELS: Record<ResultGroup, string> = {
   "high-energy": "X-ray observations (HEASARC)",
   galaxy: "Galaxies",
   supernova: "Supernova remnants",
+  moon: "Moons",
+  nebula: "Nebulae",
+  comet: "Comets",
+  spacecraft: "Spacecraft",
+};
+
+/** Horizons needs a time window even for a "where is it now" lookup —
+ * search uses a short window ending tomorrow just to resolve/confirm the
+ * body; the Orbit Explorer is where a real trajectory gets plotted. */
+const HORIZONS_SEARCH_WINDOW = () => {
+  const start = new Date().toISOString().slice(0, 10);
+  const stop = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+  return { start, stop };
 };
 
 export const COLLECTIONS = [
@@ -162,6 +188,10 @@ const DEFAULT_QUERY_BY_TYPE: Record<ResultGroup, string> = {
   "high-energy": "Cygnus X-1",
   galaxy: "Andromeda Galaxy",
   supernova: "Crab Nebula",
+  moon: "Europa",
+  nebula: "Orion Nebula",
+  comet: "1P",
+  spacecraft: "Voyager 1",
 };
 
 const CosmosSearch = () => {
@@ -190,6 +220,10 @@ const CosmosSearch = () => {
   const showHighEnergy = !typeFilter || typeFilter === "high-energy";
   const showGalaxies = !typeFilter || typeFilter === "galaxy";
   const showSupernovae = !typeFilter || typeFilter === "supernova";
+  const showMoons = !typeFilter || typeFilter === "moon";
+  const showNebulae = !typeFilter || typeFilter === "nebula";
+  const showComets = !typeFilter || typeFilter === "comet";
+  const showSpacecraft = !typeFilter || typeFilter === "spacecraft";
 
   const asteroidQuery = useQuery({
     queryKey: ["cosmos", "asteroid", q],
@@ -247,6 +281,40 @@ const CosmosSearch = () => {
     retry: false,
   });
 
+  const cometQuery = useQuery({
+    queryKey: ["cosmos", "comet", q],
+    queryFn: () => fetchComet(q),
+    enabled: showComets && q.length > 1,
+    retry: false,
+  });
+
+  const nebulaQuery = useQuery({
+    queryKey: ["cosmos", "nebula", q],
+    queryFn: () => fetchNebula(q),
+    enabled: showNebulae && q.length > 1,
+    retry: false,
+  });
+
+  const moonQuery = useQuery({
+    queryKey: ["cosmos", "moon", q],
+    queryFn: () => {
+      const { start, stop } = HORIZONS_SEARCH_WINDOW();
+      return fetchMoon(q, start, stop);
+    },
+    enabled: showMoons && q.length > 1,
+    retry: false,
+  });
+
+  const spacecraftQuery = useQuery({
+    queryKey: ["cosmos", "spacecraft", q],
+    queryFn: () => {
+      const { start, stop } = HORIZONS_SEARCH_WINDOW();
+      return fetchSpacecraft(q, start, stop);
+    },
+    enabled: showSpacecraft && q.length > 1,
+    retry: false,
+  });
+
   const loading =
     asteroidQuery.isLoading ||
     exoplanetQuery.isLoading ||
@@ -255,7 +323,11 @@ const CosmosSearch = () => {
     imageQuery.isLoading ||
     highEnergyQuery.isLoading ||
     galaxyQuery.isLoading ||
-    supernovaQuery.isLoading;
+    supernovaQuery.isLoading ||
+    cometQuery.isLoading ||
+    nebulaQuery.isLoading ||
+    moonQuery.isLoading ||
+    spacecraftQuery.isLoading;
 
   const exoplanetResults = exoplanetQuery.data?.data.results ?? [];
   const observationResults = observationQuery.data?.data.results ?? [];
@@ -274,7 +346,11 @@ const CosmosSearch = () => {
       imageResults.length === 0 &&
       highEnergyResults.length === 0 &&
       !galaxyQuery.data &&
-      supernovaResults.length === 0
+      supernovaResults.length === 0 &&
+      !cometQuery.data &&
+      !nebulaQuery.data &&
+      !moonQuery.data &&
+      !spacecraftQuery.data
     );
   }, [
     q,
@@ -287,6 +363,10 @@ const CosmosSearch = () => {
     highEnergyResults,
     galaxyQuery.data,
     supernovaResults,
+    cometQuery.data,
+    nebulaQuery.data,
+    moonQuery.data,
+    spacecraftQuery.data,
   ]);
 
   return (
@@ -391,6 +471,44 @@ const CosmosSearch = () => {
               <SupernovaCard key={`${row.name}-${i}`} data={row} />
             ))}
           </div>
+        </>
+      )}
+
+      {showComets && cometQuery.data && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.comet}</h2>
+          <AsteroidCard data={cometQuery.data.data} source={cometQuery.data.source} />
+        </>
+      )}
+
+      {showNebulae && nebulaQuery.data && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.nebula}</h2>
+          <GalaxyCard data={nebulaQuery.data.data} source={nebulaQuery.data.source} />
+        </>
+      )}
+
+      {showMoons && moonQuery.data && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.moon}</h2>
+          <HorizonsBodyCard
+            queried={q}
+            result={moonQuery.data}
+            objectType="moon"
+            onPickCandidate={(name) => setParams({ q: name, type: "moon" })}
+          />
+        </>
+      )}
+
+      {showSpacecraft && spacecraftQuery.data && (
+        <>
+          <h2 className="cosmos-section-title">{TYPE_LABELS.spacecraft}</h2>
+          <HorizonsBodyCard
+            queried={q}
+            result={spacecraftQuery.data}
+            objectType="spacecraft"
+            onPickCandidate={(name) => setParams({ q: name, type: "spacecraft" })}
+          />
         </>
       )}
 
@@ -543,7 +661,16 @@ const StarCard = ({ data, source }: { data: StarData; source: string }) => (
   </div>
 );
 
-const ObservationCard = ({ data }: { data: ObservationData }) => (
+const ObservationCard = ({ data }: { data: ObservationData }) => {
+  const [showSpectrum, setShowSpectrum] = useState(false);
+  const spectrumQuery = useQuery({
+    queryKey: ["cosmos", "spectrum", data.obsid],
+    queryFn: () => fetchSpectrum(data.obsid!),
+    enabled: showSpectrum && !!data.obsid,
+    retry: false,
+  });
+
+  return (
   <div className="cosmos-card">
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <CosmosSourceBadge source="MAST" />
@@ -555,6 +682,11 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
         source="MAST"
         data={data}
       />
+      {data.productType === "spectrum" && data.obsid && (
+        <button type="button" className="cosmos-chip" onClick={() => setShowSpectrum(true)}>
+          View spectrum
+        </button>
+      )}
     </div>
     <h3 className="mb-2 text-base font-bold">{data.target ?? "Unnamed target"}</h3>
     <dl className="cosmos-field-grid">
@@ -564,6 +696,28 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
       <CosmosField label="RA" value={data.raDeg} unit="°" />
       <CosmosField label="Dec" value={data.decDeg} unit="°" />
     </dl>
+    {showSpectrum && (
+      <div className="mt-3">
+        {spectrumQuery.isLoading && <p className="text-xs text-white/60">Downloading &amp; parsing FITS spectrum…</p>}
+        {spectrumQuery.isError && <p className="cosmos-unavailable text-xs">No spectrum data product available.</p>}
+        {spectrumQuery.data && (
+          <Chart
+            type="line"
+            height={180}
+            series={[
+              {
+                name: `Flux (${spectrumQuery.data.data.fluxUnit ?? "unknown unit"})`,
+                data: spectrumQuery.data.data.wavelength.map((w, i) => ({ x: w ?? 0, y: spectrumQuery.data!.data.flux[i] })),
+              },
+            ]}
+            options={{
+              xaxis: { title: { text: `Wavelength (${spectrumQuery.data.data.wavelengthUnit ?? "unknown unit"})` }, type: "numeric" },
+              yaxis: { title: { text: "Flux" } },
+            }}
+          />
+        )}
+      </div>
+    )}
     {data.previewImageUrl ? (
       <img
         src={data.previewImageUrl}
@@ -577,7 +731,8 @@ const ObservationCard = ({ data }: { data: ObservationData }) => (
       </p>
     )}
   </div>
-);
+  );
+};
 
 /** SIMBAD's resolved common name (e.g. "Andromeda") is often just the
  * proper name without "Galaxy" — searching that alone on Wikipedia can
@@ -709,5 +864,62 @@ const NasaImageCard = ({ data }: { data: NasaImageData }) => (
     </div>
   </div>
 );
+
+/** Moons and spacecraft resolve through JPL Horizons' own free-text name
+ * matching — the response is either a real ephemeris result or a
+ * disambiguation list. Never guesses which body was meant; ambiguous
+ * matches are shown as candidates the user picks from explicitly. */
+const HorizonsBodyCard = ({
+  queried,
+  result,
+  objectType,
+  onPickCandidate,
+}: {
+  queried: string;
+  result: CosmosEnvelope<{ result: string }> | AmbiguousMatch;
+  objectType: "moon" | "spacecraft";
+  onPickCandidate: (name: string) => void;
+}) => {
+  if (isAmbiguousMatch(result)) {
+    return (
+      <div className="cosmos-card">
+        <p className="mb-2 text-sm text-white/70">
+          "{queried}" matches more than one body in JPL Horizons — pick one:
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {result.candidates.length === 0 && <span className="cosmos-unavailable">No candidates parsed — try a more specific name.</span>}
+          {result.candidates.map((c) => (
+            <button key={c} type="button" className="cosmos-chip" onClick={() => onPickCandidate(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const resultText = result.data.result ?? "";
+
+  return (
+    <div className="cosmos-card">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <CosmosSourceBadge source={result.source} />
+        <SaveButton objectType={objectType} externalId={queried} title={queried} source={result.source} sourceDataset={result.sourceDataset} data={result.data} />
+        <AddToKanbanButton objectType={objectType} title={queried} source={result.source} sourceDataset={result.sourceDataset} />
+      </div>
+      <h3 className="mb-2 text-lg font-bold">{queried}</h3>
+      <p className="mb-2 text-xs text-white/40">
+        Resolved via JPL Horizons. For a full trajectory over time, use the Orbit Explorer.
+      </p>
+      {resultText ? (
+        <pre className="cosmos-unavailable" style={{ whiteSpace: "pre-wrap", fontSize: "0.7rem", maxHeight: 240, overflow: "auto" }}>
+          {resultText.slice(0, 2000)}
+        </pre>
+      ) : (
+        <p className="cosmos-unavailable">Data unavailable</p>
+      )}
+    </div>
+  );
+};
 
 export default CosmosSearch;

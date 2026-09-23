@@ -3,14 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeftRight,
+  Antenna,
   CircleDot,
+  Cloud,
   Flame,
   Galaxy as Milky,
   Image as ImageIcon,
+  Moon as MoonIcon,
   Orbit,
+  Radio,
   Radar,
   Rocket,
+  Satellite,
   Sparkles,
+  BookOpen,
   Star,
   Sun,
   Telescope,
@@ -36,17 +42,24 @@ const EXAMPLES = ["Apophis", "TRAPPIST-1", "Sirius", "Cygnus X-1", "Andromeda Ga
 
 const NAV_TILES = [
   { label: "Asteroids", icon: CircleDot, href: `${AppRoute.cosmosSearch}?type=asteroid` },
+  { label: "Comets", icon: Sparkles, href: `${AppRoute.cosmosSearch}?type=comet` },
   { label: "Exoplanets", icon: Orbit, href: `${AppRoute.cosmosSearch}?type=exoplanet` },
+  { label: "Moons", icon: MoonIcon, href: `${AppRoute.cosmosSearch}?type=moon` },
   { label: "Stars", icon: Star, href: `${AppRoute.cosmosSearch}?type=star` },
   { label: "Galaxies", icon: Milky, href: `${AppRoute.cosmosSearch}?type=galaxy` },
+  { label: "Nebulae", icon: Cloud, href: `${AppRoute.cosmosSearch}?type=nebula` },
   { label: "Supernovae", icon: Flame, href: `${AppRoute.cosmosSearch}?type=supernova` },
+  { label: "Spacecraft", icon: Radio, href: `${AppRoute.cosmosSearch}?type=spacecraft` },
   { label: "Telescopes", icon: Telescope, href: `${AppRoute.cosmosSearch}?type=observation` },
+  { label: "Observatories", icon: Antenna, href: AppRoute.cosmosMissionBrowse },
   { label: "X-ray sources", icon: Zap, href: `${AppRoute.cosmosSearch}?type=high-energy` },
   { label: "Image Lab", icon: ImageIcon, href: AppRoute.cosmosImageLab },
   { label: "Compare", icon: ArrowLeftRight, href: AppRoute.cosmosCompare },
   { label: "Orbit Explorer", icon: Rocket, href: AppRoute.cosmosOrbitExplorer },
+  { label: "Satellite Tracker", icon: Satellite, href: AppRoute.cosmosSatelliteTracker },
   { label: "Space Weather", icon: Sun, href: AppRoute.cosmosSpaceWeather },
   { label: "Cosmos Library", icon: Sparkles, href: AppRoute.cosmosLibrary },
+  { label: "Reference Library", icon: BookOpen, href: AppRoute.cosmosReferenceLibrary },
 ];
 
 interface FeaturedTileProps {

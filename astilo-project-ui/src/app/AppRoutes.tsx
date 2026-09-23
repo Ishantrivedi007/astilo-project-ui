@@ -33,6 +33,9 @@ const CosmosSpaceWeather = lazy(() => import("../components/Cosmos/CosmosSpaceWe
 const CosmosCompare = lazy(() => import("../components/Cosmos/CosmosCompare"));
 const CosmosImageLab = lazy(() => import("../components/Cosmos/CosmosImageLab"));
 const CosmosOrbitExplorer = lazy(() => import("../components/Cosmos/CosmosOrbitExplorer"));
+const CosmosMissionBrowse = lazy(() => import("../components/Cosmos/CosmosMissionBrowse"));
+const CosmosSatelliteTracker = lazy(() => import("../components/Cosmos/CosmosSatelliteTracker"));
+const CosmosReferenceLibrary = lazy(() => import("../components/Cosmos/CosmosReferenceLibrary"));
 const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
 const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetView"));
 const MarketsWorldMap = lazy(() => import("../components/Markets/MarketsWorldMap"));
@@ -165,6 +168,9 @@ const AppRoutes = () => (
       <Route path={AppRoute.cosmosCompare} element={getAuthRoute(<CosmosCompare />)} />
       <Route path={AppRoute.cosmosImageLab} element={getAuthRoute(<CosmosImageLab />)} />
       <Route path={AppRoute.cosmosOrbitExplorer} element={getAuthRoute(<CosmosOrbitExplorer />)} />
+      <Route path={AppRoute.cosmosMissionBrowse} element={getAuthRoute(<CosmosMissionBrowse />)} />
+      <Route path={AppRoute.cosmosSatelliteTracker} element={getAuthRoute(<CosmosSatelliteTracker />)} />
+      <Route path={AppRoute.cosmosReferenceLibrary} element={getAuthRoute(<CosmosReferenceLibrary />)} />
       <Route path={AppRoute.markets} element={getAuthRoute(<MarketsHome />)} />
       <Route path={AppRoute.marketsAsset} element={getAuthRoute(<MarketsAssetView />)} />
       <Route path={AppRoute.marketsMap} element={getAuthRoute(<MarketsWorldMap />)} />

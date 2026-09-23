@@ -153,6 +153,149 @@ export async function fetchHorizonsEphemeris(command: string, startTime: string,
   return data as CosmosEnvelope<{ result: string }>;
 }
 
+// -- Moons & spacecraft (JPL Horizons, resolved by name — no lookup table) --
+
+export interface AmbiguousMatch {
+  ambiguous: true;
+  candidates: string[];
+}
+
+function isAmbiguousMatch(value: unknown): value is AmbiguousMatch {
+  return Boolean(value) && typeof value === "object" && (value as { ambiguous?: boolean }).ambiguous === true;
+}
+
+export interface HorizonsVector {
+  jd: number;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export async function fetchMoon(name: string, startTime: string, stopTime: string, stepSize = "1d", center?: string) {
+  const { data } = await cosmos.get(`/moons`, {
+    params: { name, start_time: startTime, stop_time: stopTime, step_size: stepSize, center },
+  });
+  return data as CosmosEnvelope<{ result: string; vectors: HorizonsVector[] }> | AmbiguousMatch;
+}
+
+export async function fetchSpacecraft(name: string, startTime: string, stopTime: string, stepSize = "1d", center?: string) {
+  const { data } = await cosmos.get(`/spacecraft`, {
+    params: { name, start_time: startTime, stop_time: stopTime, step_size: stepSize, center },
+  });
+  return data as CosmosEnvelope<{ result: string; vectors: HorizonsVector[] }> | AmbiguousMatch;
+}
+
+export { isAmbiguousMatch };
+
+// -- Comet & nebula (reuse existing SBDB/SIMBAD backing under new categories) --
+
+export async function fetchComet(designation: string): Promise<CosmosEnvelope<AsteroidData>> {
+  const { data } = await cosmos.get(`/comets`, { params: { designation } });
+  return data;
+}
+
+export async function fetchNebula(name: string): Promise<CosmosEnvelope<GalaxyData>> {
+  const { data } = await cosmos.get(`/nebulae`, { params: { name } });
+  return data;
+}
+
+// -- Observatories / mission browse (MAST, free-text mission, no target needed) --
+
+export async function browseMission(
+  mission: string,
+  limit = 25,
+  instrument?: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const { data } = await cosmos.get(`/mission-browse`, {
+    params: { mission, limit, instrument, start_date: startDate, end_date: endDate },
+  });
+  return data as CosmosEnvelope<{ count: number; results: ObservationData[] }>;
+}
+
+export interface SpectrumData {
+  wavelength: (number | null)[];
+  flux: (number | null)[];
+  wavelengthUnit: string | null;
+  fluxUnit: string | null;
+  productFilename: string | null;
+}
+
+export async function fetchSpectrum(obsid: string | number): Promise<CosmosEnvelope<SpectrumData>> {
+  const { data } = await cosmos.get(`/spectrum`, { params: { obsid } });
+  return data;
+}
+
+// -- Satellite tracker (CelesTrak live TLE catalog + SGP4, no API key) --
+
+export interface SatellitePositionData {
+  name: string;
+  latitude: number;
+  longitude: number;
+  altitudeKm: number;
+  timestamp: string;
+}
+
+export async function fetchSatellitePosition(name = "ISS", group = "stations") {
+  const { data } = await cosmos.get(`/satellites`, { params: { name, group } });
+  return data as CosmosEnvelope<SatellitePositionData | AmbiguousMatch>;
+}
+
+export async function searchSatellites(query: string, group = "stations") {
+  const { data } = await cosmos.get(`/satellites/search`, { params: { q: query, group } });
+  return data as { count: number; results: { name: string }[] };
+}
+
+export interface SatellitePass {
+  riseTime: string;
+  maxElevationTime: string;
+  maxElevationDeg: number;
+  azimuthAtMax: number;
+  setTime: string | null;
+}
+
+export async function fetchSatellitePasses(
+  name: string,
+  group: string,
+  lat: number,
+  lon: number,
+  alt = 0,
+  hours = 48,
+  minElevation = 10
+) {
+  const { data } = await cosmos.get(`/satellites/passes`, {
+    params: { name, group, lat, lon, alt, hours, min_elevation: minElevation },
+  });
+  return data as { satellite: string; passes: SatellitePass[] };
+}
+
+// -- Space weather alerts (live-computed on each poll, no persisted alert state) --
+
+export interface SpaceWeatherEvent {
+  messageType: string | null;
+  issueTime: string | null;
+  body: string | null;
+  url: string | null;
+}
+
+export async function fetchSpaceWeatherPulse(sinceHours = 24) {
+  const { data } = await cosmos.get(`/space-weather/pulse`, { params: { since_hours: sinceHours } });
+  return data as CosmosEnvelope<{ count: number; results: SpaceWeatherEvent[] }>;
+}
+
+// -- Astronomy reference library (live Wikipedia category membership) --
+
+export interface AstronomyTopic {
+  title: string;
+  isCategory: boolean;
+}
+
+export async function fetchAstronomyTopics(category = "Astronomy", limit = 30) {
+  const { data } = await cosmos.get(`/astronomy-topics`, { params: { category, limit } });
+  return data as CosmosEnvelope<{ count: number; results: AstronomyTopic[] }>;
+}
+
 // -- Needs NASA_API_KEY on the backend (falls back to the rate-limited DEMO_KEY) --
 
 export async function fetchApod(date?: string): Promise<CosmosEnvelope<ApodData>> {
@@ -251,7 +394,11 @@ export type CosmosObjectType =
   | "observation"
   | "image"
   | "galaxy"
-  | "supernova";
+  | "supernova"
+  | "moon"
+  | "nebula"
+  | "comet"
+  | "spacecraft";
 
 export interface CosmosSavedItem {
   id: number;

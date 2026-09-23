@@ -5,11 +5,18 @@ import { ArrowLeft, Pause, Play } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchHorizonsEphemeris } from "../../lib/cosmosApi";
+import CosmosOrbit3D from "./CosmosOrbit3D";
 import "./Cosmos.scss";
 
 const KM_PER_AU = 149597870.7;
 
-const BODIES = [
+interface Body {
+  command: string;
+  label: string;
+  color: string;
+}
+
+const BODIES: Body[] = [
   { command: "199", label: "Mercury", color: "#a1a1aa" },
   { command: "299", label: "Venus", color: "#facc15" },
   { command: "399", label: "Earth", color: "#60a5fa" },
@@ -18,10 +25,52 @@ const BODIES = [
   { command: "599", label: "Jupiter", color: "#fb923c" },
 ];
 
+/** Deterministic color from a name's hash — lets any user-added body (an
+ * asteroid, comet, spacecraft, anything Horizons resolves) get a distinct,
+ * stable color without maintaining a fixed palette list. */
+function colorFromName(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  const hue = hash % 360;
+  return `hsl(${hue}, 70%, 62%)`;
+}
+
+/** Horizons' own disambiguation message ("Multiple major-bodies/small-
+ * bodies match string...") — mirrors jpl.py's is_ambiguous_match/
+ * extract_match_candidates for the generic /horizons endpoint, which
+ * (unlike /moons and /spacecraft) doesn't pre-check ambiguity server-side. */
+function isHorizonsAmbiguous(text: string): boolean {
+  return text.includes("match string") && text.includes("Multiple");
+}
+
+function extractHorizonsCandidates(text: string): string[] {
+  const idx = text.indexOf("match string");
+  if (idx === -1) return [];
+  const lines = text.slice(idx).split("\n");
+  const candidates: string[] = [];
+  let inTable = false;
+  for (const line of lines) {
+    const stripped = line.trim();
+    if (!inTable) {
+      if (stripped.toLowerCase().startsWith("id#")) inTable = true;
+      continue;
+    }
+    const isUnderline = stripped.length > 0 && /^[- ]+$/.test(stripped);
+    if (!stripped || isUnderline || stripped.toLowerCase().startsWith("number of matches")) {
+      if (candidates.length) break;
+      continue;
+    }
+    const m = line.match(/^\s*(-?\d+)\s{2,}(.+?)\s{2,}/);
+    if (m) candidates.push(m[2].trim());
+  }
+  return candidates;
+}
+
 interface Vector {
   jd: number;
   x: number;
   y: number;
+  z: number;
 }
 
 /** Parses JPL Horizons' plain-text VECTORS ephemeris ($$SOE ... $$EOE block)
@@ -41,7 +90,12 @@ function parseVectors(raw: string): Vector[] {
     }
     const xyz = line.match(/X\s*=\s*([-\d.E+]+)\s*Y\s*=\s*([-\d.E+]+)\s*Z\s*=\s*([-\d.E+]+)/);
     if (xyz) {
-      vectors.push({ jd, x: Number(xyz[1]) / KM_PER_AU, y: Number(xyz[2]) / KM_PER_AU });
+      vectors.push({
+        jd,
+        x: Number(xyz[1]) / KM_PER_AU,
+        y: Number(xyz[2]) / KM_PER_AU,
+        z: Number(xyz[3]) / KM_PER_AU,
+      });
     }
   }
   return vectors;
@@ -60,7 +114,15 @@ const CosmosOrbitExplorer = () => {
   const [submitted, setSubmitted] = useState<{ start: string; end: string; step: string; bodies: string[] } | null>(null);
   const [dayIndex, setDayIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  const [customBodies, setCustomBodies] = useState<Body[]>([]);
+  const [bodyInput, setBodyInput] = useState("");
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<string[]>([]);
   const playRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const allBodies = useMemo(() => [...BODIES, ...customBodies], [customBodies]);
 
   const results = useQuery({
     queryKey: ["cosmos", "orbit", submitted],
@@ -77,6 +139,35 @@ const CosmosOrbitExplorer = () => {
     enabled: !!submitted,
     retry: false,
   });
+
+  const addBody = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setResolving(true);
+    setResolveError(null);
+    setCandidates([]);
+    try {
+      const res = await fetchHorizonsEphemeris(trimmed, startDate, endDate, stepSize);
+      const text = res.data.result ?? "";
+      if (isHorizonsAmbiguous(text)) {
+        const found = extractHorizonsCandidates(text);
+        if (found.length > 0) {
+          setCandidates(found);
+        } else {
+          setResolveError(`"${trimmed}" matches more than one body — try a more specific name.`);
+        }
+        return;
+      }
+      const body: Body = { command: trimmed, label: trimmed, color: colorFromName(trimmed) };
+      setCustomBodies((prev) => [...prev.filter((b) => b.command !== body.command), body]);
+      setSelected((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+      setBodyInput("");
+    } catch {
+      setResolveError(`Couldn't resolve "${trimmed}" via JPL Horizons.`);
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const data = results.data ?? {};
   const maxLen = Math.max(0, ...Object.values(data).map((v) => v.length));
@@ -122,13 +213,14 @@ const CosmosOrbitExplorer = () => {
         Real ephemeris, top-down
       </h1>
       <p className="cosmos-tagline">
-        Positions come straight from JPL Horizons (heliocentric, ecliptic plane) — not a
-        simulation. A 2D top-down view for now; full 3D is a documented future addition.
+        Positions come straight from JPL Horizons (heliocentric, ecliptic plane) — plot the 6
+        presets, or add any body Horizons resolves (asteroid, comet, spacecraft, any name/date
+        range) as its own real trajectory.
       </p>
 
       <div className="cosmos-orbit-controls">
         <div className="cosmos-orbit-bodies">
-          {BODIES.map((b) => (
+          {allBodies.map((b) => (
             <label key={b.command} className="cosmos-orbit-body-toggle">
               <input
                 type="checkbox"
@@ -142,6 +234,34 @@ const CosmosOrbitExplorer = () => {
           ))}
         </div>
         <div className="cosmos-orbit-dates">
+          <input
+            className="cosmos-search-input"
+            value={bodyInput}
+            onChange={(e) => setBodyInput(e.target.value)}
+            placeholder="Add any body — Ceres, Halley, Voyager 1…"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addBody(bodyInput);
+              }
+            }}
+          />
+          <button type="button" className="cosmos-chip" onClick={() => addBody(bodyInput)} disabled={resolving || !bodyInput.trim()}>
+            {resolving ? "Resolving…" : "Add body"}
+          </button>
+        </div>
+        {resolveError && <p className="cosmos-unavailable">{resolveError}</p>}
+        {candidates.length > 0 && (
+          <div className="cosmos-search-examples">
+            <span>Multiple matches — pick one:</span>
+            {candidates.map((c) => (
+              <button key={c} type="button" className="cosmos-chip" onClick={() => addBody(c)}>
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="cosmos-orbit-dates">
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           <select value={stepSize} onChange={(e) => setStepSize(e.target.value)}>
@@ -153,6 +273,22 @@ const CosmosOrbitExplorer = () => {
             Load
           </button>
         </div>
+        <div className="cosmos-orbit-bodies">
+          <button
+            type="button"
+            className={`cosmos-chip${viewMode === "2d" ? " cosmos-chip--active" : ""}`}
+            onClick={() => setViewMode("2d")}
+          >
+            2D top-down
+          </button>
+          <button
+            type="button"
+            className={`cosmos-chip${viewMode === "3d" ? " cosmos-chip--active" : ""}`}
+            onClick={() => setViewMode("3d")}
+          >
+            3D
+          </button>
+        </div>
       </div>
 
       {results.isLoading && <p className="mt-4 text-sm text-white/60">Fetching ephemeris from JPL Horizons…</p>}
@@ -160,25 +296,31 @@ const CosmosOrbitExplorer = () => {
 
       {maxLen > 0 && (
         <>
-          <div className="cosmos-orbit-canvas-wrap">
-            <svg viewBox="0 0 200 200" className="cosmos-orbit-canvas">
-              <circle cx={100} cy={100} r={3} fill="#fbbf24" />
-              {submitted?.bodies.map((command) => {
-                const series = data[command] ?? [];
-                const body = BODIES.find((b) => b.command === command);
-                if (!body || series.length === 0) return null;
-                const points = series.map((v) => toSvg(v.x, v.y));
-                const path = points.map((p) => `${p.cx},${p.cy}`).join(" ");
-                const current = points[Math.min(dayIndex, points.length - 1)];
-                return (
-                  <g key={command}>
-                    <polyline points={path} fill="none" stroke={body.color} strokeWidth={0.4} opacity={0.5} />
-                    {current && <circle cx={current.cx} cy={current.cy} r={1.8} fill={body.color} />}
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
+          {viewMode === "2d" ? (
+            <div className="cosmos-orbit-canvas-wrap">
+              <svg viewBox="0 0 200 200" className="cosmos-orbit-canvas">
+                <circle cx={100} cy={100} r={3} fill="#fbbf24" />
+                {submitted?.bodies.map((command) => {
+                  const series = data[command] ?? [];
+                  const body = allBodies.find((b) => b.command === command);
+                  if (!body || series.length === 0) return null;
+                  const points = series.map((v) => toSvg(v.x, v.y));
+                  const path = points.map((p) => `${p.cx},${p.cy}`).join(" ");
+                  const current = points[Math.min(dayIndex, points.length - 1)];
+                  return (
+                    <g key={command}>
+                      <polyline points={path} fill="none" stroke={body.color} strokeWidth={0.4} opacity={0.5} />
+                      {current && <circle cx={current.cx} cy={current.cy} r={1.8} fill={body.color} />}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          ) : (
+            <div className="cosmos-orbit-canvas-wrap">
+              <CosmosOrbit3D data={data} bodies={allBodies} submittedBodies={submitted?.bodies ?? []} dayIndex={dayIndex} />
+            </div>
+          )}
 
           <div className="cosmos-orbit-timeline">
             <button type="button" className="cosmos-orbit-play" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause" : "Play"}>
