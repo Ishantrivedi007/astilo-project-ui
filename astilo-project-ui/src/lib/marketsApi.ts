@@ -119,6 +119,123 @@ export async function fetchTrendingSymbols() {
   return data as MarketEnvelope<{ symbols: string[] }>;
 }
 
+export interface SimilarCompany {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  quoteType: string | null;
+  sector: string | null;
+  logoUrl: string | null;
+}
+
+export type FundamentalsData =
+  | { available: false; reason: string }
+  | {
+      available: true;
+      peRatioTrailing: number | null;
+      peRatioForward: number | null;
+      dividendYield: number | null;
+      dividendRate: number | null;
+      exDividendDate: string | null;
+      payoutRatio: number | null;
+      beta: number | null;
+      marketCap: number | null;
+      eps: number | null;
+      bookValue: number | null;
+      priceToBook: number | null;
+      fiftyTwoWeekChangePercent: number | null;
+      sector: string | null;
+      industry: string | null;
+      fullTimeEmployees: number | null;
+      website: string | null;
+      longBusinessSummary: string | null;
+      similarCompanies: SimilarCompany[];
+    };
+
+export async function fetchMarketFundamentals(symbol: string) {
+  const { data } = await markets.get(`/fundamentals`, { params: { symbol } });
+  return data as MarketEnvelope<FundamentalsData>;
+}
+
+export interface MacroIndicatorPoint {
+  year: number;
+  value: number | null;
+}
+
+export interface IndicatorData {
+  countryCode: string;
+  countryName: string | null;
+  indicator: string;
+  indicatorCode: string;
+  points: MacroIndicatorPoint[];
+  latestKnown: { year: number; value: number } | null;
+}
+
+export type MacroIndicatorKey = "gdp" | "gdpGrowth" | "inflation" | "unemployment" | "interestRate";
+
+export interface MacroDashboardData {
+  countryCode: string;
+  countryName: string | null;
+  indicators: Record<MacroIndicatorKey, IndicatorData | null>;
+}
+
+export async function fetchMacroDashboard(countryCode: string) {
+  const { data } = await markets.get(`/macro`, { params: { country: countryCode } });
+  return data as MarketEnvelope<MacroDashboardData>;
+}
+
+export async function fetchMacroIndicator(countryCode: string, indicator: MacroIndicatorKey) {
+  const { data } = await markets.get(`/macro/indicator`, { params: { country: countryCode, indicator } });
+  return data as MarketEnvelope<IndicatorData>;
+}
+
+export interface NewsClusterArticle {
+  title: string;
+  link: string;
+  description: string;
+  publishedAt: string;
+  symbol: string;
+  source: string;
+}
+
+export interface NewsCluster {
+  headline: string;
+  timeline: NewsClusterArticle[];
+  sources: string[];
+  symbols: string[];
+}
+
+export async function fetchNewsClusters(symbols: string[], limitPerSymbol = 10) {
+  const { data } = await markets.get(`/news-clusters`, {
+    params: { symbols: symbols.join(","), limit_per_symbol: limitPerSymbol },
+  });
+  return data as MarketEnvelope<{ count: number; clusters: NewsCluster[] }>;
+}
+
+export const INDICATOR_LABEL: Record<MacroIndicatorKey, string> = {
+  gdp: "GDP",
+  gdpGrowth: "GDP Growth",
+  inflation: "Inflation (CPI)",
+  unemployment: "Unemployment",
+  interestRate: "Real Interest Rate",
+};
+
+export interface MacroCountry {
+  code: string;
+  name: string;
+}
+
+export const MACRO_COUNTRIES: MacroCountry[] = [
+  { code: "US", name: "United States" },
+  { code: "IN", name: "India" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CN", name: "China" },
+  { code: "DE", name: "Germany" },
+  { code: "JP", name: "Japan" },
+  { code: "BR", name: "Brazil" },
+  { code: "ZA", name: "South Africa" },
+];
+
 export const RANGE_LABEL: Record<MarketRange, string> = {
   "1d": "1D",
   "5d": "5D",

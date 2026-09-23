@@ -41,6 +41,9 @@ const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetVi
 const MarketsWorldMap = lazy(() => import("../components/Markets/MarketsWorldMap"));
 const MarketsCommodities = lazy(() => import("../components/Markets/MarketsCommodities"));
 const MarketsForex = lazy(() => import("../components/Markets/MarketsForex"));
+const MarketsCompare = lazy(() => import("../components/Markets/MarketsCompare"));
+const MarketsMacro = lazy(() => import("../components/Markets/MarketsMacro"));
+const MarketsNews = lazy(() => import("../components/Markets/MarketsNews"));
 const TradingHome = lazy(() => import("../components/Markets/TradingHome"));
 const TradingPortfolio = lazy(() => import("../components/Markets/TradingPortfolio"));
 const ResearchHome = lazy(() => import("../components/Research/ResearchHome"));
@@ -178,6 +181,9 @@ const AppRoutes = () => (
       <Route path={AppRoute.marketsMap} element={getAuthRoute(<MarketsWorldMap />)} />
       <Route path={AppRoute.marketsCommodities} element={getAuthRoute(<MarketsCommodities />)} />
       <Route path={AppRoute.marketsForex} element={getAuthRoute(<MarketsForex />)} />
+      <Route path={AppRoute.marketsCompare} element={getAuthRoute(<MarketsCompare />)} />
+      <Route path={AppRoute.marketsMacro} element={getAuthRoute(<MarketsMacro />)} />
+      <Route path={AppRoute.marketsNews} element={getAuthRoute(<MarketsNews />)} />
       <Route path={AppRoute.trading} element={getAuthRoute(<TradingHome />)} />
       <Route path={AppRoute.tradingPortfolio} element={getAuthRoute(<TradingPortfolio />)} />
       <Route path={AppRoute.research} element={getAuthRoute(<ResearchHome />)} />

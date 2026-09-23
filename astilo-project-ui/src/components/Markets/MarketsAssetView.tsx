@@ -6,7 +6,16 @@ import { toast } from "sonner";
 
 import { AppRoute } from "../../app/AppRoute";
 import { Chart } from "../shared";
-import { fetchMarketAsset, fetchMarketNews, RANGE_LABEL, RANGES, type AssetType, type MarketPoint, type MarketRange } from "../../lib/marketsApi";
+import {
+  fetchMarketAsset,
+  fetchMarketFundamentals,
+  fetchMarketNews,
+  RANGE_LABEL,
+  RANGES,
+  type AssetType,
+  type MarketPoint,
+  type MarketRange,
+} from "../../lib/marketsApi";
 import { fetchResearchSummary } from "../../lib/cosmosApi";
 import {
   fetchTradingAccount,
@@ -284,6 +293,9 @@ const fmtNum = (n: number | null | undefined, decimals = 2) =>
 const fmtCompact = (n: number | null | undefined) =>
   n == null ? "Data unavailable" : Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 2 }).format(n);
 
+const fmtPct = (n: number | null | undefined, decimals = 2) =>
+  n == null ? "Data unavailable" : `${n >= 0 ? "+" : ""}${(n * 100).toFixed(decimals)}%`;
+
 const MarketsAssetView = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -313,6 +325,15 @@ const MarketsAssetView = () => {
     retry: false,
   });
   const articles = newsQuery.data?.data.results ?? [];
+
+  const fundamentalsQuery = useQuery({
+    queryKey: ["markets", "fundamentals", symbol],
+    queryFn: () => fetchMarketFundamentals(symbol),
+    enabled: !!symbol && assetType === "stock",
+    retry: false,
+  });
+  const fundamentals = fundamentalsQuery.data?.data;
+
   const insights = useTrendInsights(d?.points ?? []);
   const forecast = useLinearForecast(d?.points ?? [], insights?.volatilityPct);
 
@@ -670,6 +691,77 @@ const MarketsAssetView = () => {
                   </>
                 )}
               </dl>
+            </div>
+          )}
+
+          {assetType === "stock" && (
+            <div style={{ marginTop: "1.5rem" }}>
+              <h2 className="markets-section-title">Fundamentals</h2>
+              {fundamentalsQuery.isLoading && <p className="markets-unavailable">Loading fundamentals…</p>}
+              {fundamentals && !fundamentals.available && (
+                <p className="markets-unavailable">Fundamentals data isn't available for this symbol right now — {fundamentals.reason}</p>
+              )}
+              {fundamentals && fundamentals.available && (
+                <>
+                  <dl className="markets-stats-grid">
+                    <div className="markets-stat">
+                      <dt>P/E (trailing)</dt>
+                      <dd>{fmtNum(fundamentals.peRatioTrailing)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>P/E (forward)</dt>
+                      <dd>{fmtNum(fundamentals.peRatioForward)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Dividend yield</dt>
+                      <dd>{fmtPct(fundamentals.dividendYield)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Payout ratio</dt>
+                      <dd>{fmtPct(fundamentals.payoutRatio)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Beta</dt>
+                      <dd>{fmtNum(fundamentals.beta)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Market cap</dt>
+                      <dd>{fmtCompact(fundamentals.marketCap)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>EPS</dt>
+                      <dd>{fmtNum(fundamentals.eps)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Price / book</dt>
+                      <dd>{fmtNum(fundamentals.priceToBook)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>52-week change</dt>
+                      <dd>{fmtPct(fundamentals.fiftyTwoWeekChangePercent)}</dd>
+                    </div>
+                  </dl>
+
+                  {fundamentals.similarCompanies.length > 0 && (
+                    <div style={{ marginTop: "1rem" }}>
+                      <h3 className="markets-result-meta" style={{ marginBottom: "0.4rem" }}>Similar companies (same industry)</h3>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {fundamentals.similarCompanies.map((c) => (
+                          <button
+                            key={c.symbol}
+                            type="button"
+                            className="markets-chip inline-flex items-center gap-1"
+                            onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(c.symbol)}&type=stock`)}
+                          >
+                            <MarketLogo logoUrl={c.logoUrl} category={categoryFromQuoteType(c.quoteType)} name={c.name} size={16} />
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

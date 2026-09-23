@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Flame, Globe2, Landmark, LineChart, Repeat, Search } from "lucide-react";
+import { Flame, Globe2, Landmark, LineChart, Newspaper, Repeat, Scale, Search } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
@@ -116,6 +116,15 @@ const MarketsHome = () => {
         </button>
         <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsForex)}>
           <Repeat size={12} /> Forex Lab — cross-asset currency comparisons
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsCompare)}>
+          <Scale size={12} /> Compare Companies — side-by-side fundamentals
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsMacro)}>
+          <LineChart size={12} /> Macro Dashboard — GDP, inflation &amp; more
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsNews)}>
+          <Newspaper size={12} /> News Clusters — related stories, grouped
         </button>
       </div>
 

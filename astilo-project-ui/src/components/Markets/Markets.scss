@@ -503,3 +503,60 @@
     grid-template-columns: 1fr;
   }
 }
+
+.markets-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 480px;
+
+  th,
+  td {
+    padding: 0.55rem 0.85rem;
+    text-align: left;
+    border-bottom: 1px solid rgb(var(--hair-rgb) / 0.15);
+    white-space: nowrap;
+  }
+
+  th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: rgb(var(--ink-rgb) / 0.6);
+  }
+
+  td {
+    color: rgb(var(--ink-rgb) / 0.85);
+    font-weight: 600;
+  }
+}
+
+.markets-news-cluster {
+  border: 1px solid rgb(var(--hair-rgb) / 0.18);
+  border-radius: 0.9rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+  background: rgb(var(--surface-rgb) / 0.35);
+}
+
+.markets-news-cluster-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.5rem;
+}
+
+.markets-news-cluster-tag {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--hair-rgb) / 0.25);
+  color: rgb(var(--ink-rgb) / 0.55);
+}
+
+.markets-news-cluster-headline {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgb(var(--ink-rgb));
+  margin-bottom: 0.6rem;
+}
