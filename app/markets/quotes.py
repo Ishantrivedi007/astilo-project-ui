@@ -5,11 +5,14 @@ endpoints, simulated trading, watchlist, price alerts) so the fallback
 policy can't drift between them.
 
 Non-crypto: Yahoo Finance -> Frankfurter/ECB (forex pairs only) -> Alpha
-Vantage (equities/ETFs/bonds/commodities, only if a free API key is
-configured — see app/markets/alphavantage.py) -> gold-api.com (gold/silver
-spot only — see app/markets/goldapi.py; CURRENT PRICE ONLY, no history,
-so a chart built from this last-resort fallback will only ever have one
-point, flagged `spotOnly: True` in the response).
+Vantage (US equities/ETFs, Treasury-yield tickers, BSE/LSE-suffixed
+international equities, and 7 named commodities — only if a free API key
+is configured; see app/markets/alphavantage.py for exactly what is/isn't
+covered, notably NOT gold/silver, NSE-suffixed tickers, or broad index
+tickers like ^GSPC) -> gold-api.com (gold/silver spot only — see
+app/markets/goldapi.py; CURRENT PRICE ONLY, no history, so a chart built
+from this last-resort fallback will only ever have one point, flagged
+`spotOnly: True` in the response).
 
 Crypto: CoinGecko -> Binance (real trading data, keyless).
 

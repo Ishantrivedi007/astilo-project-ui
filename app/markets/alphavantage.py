@@ -35,6 +35,26 @@ Real, stated limitation: the commodity functions give ONE reference value
 per period, not real OHLC — open/high/low are set equal to that period's
 value rather than fabricated, same honesty rule this codebase uses
 everywhere else for this kind of data.
+
+Also live-verified and added later:
+- TREASURY_YIELD is a real economic-indicator endpoint (not equity
+  data) that directly covers Yahoo's ^IRX/^FVX/^TNX/^TYX yield tickers —
+  confirmed live for the 10-year maturity, real Fed/FRED-sourced data.
+- International equities work via Alpha Vantage's own exchange-suffix
+  convention, confirmed live for India: `RELIANCE.BSE` returned real
+  data. Their docs also list `.LON` for London — not independently
+  verified live but used from the same, already-proven TIME_SERIES_DAILY
+  function and documented consistently, so mapped with reasonable
+  confidence. Deliberately NOT mapping Yahoo's NSE suffix (`.NS`): Alpha
+  Vantage's docs only list a BSE suffix for India, no NSE-specific one —
+  guessing a suffix here risks silently serving the wrong exchange's
+  data, worse than no fallback at all.
+- Deliberately did NOT add an ETF-proxy fallback for broad index tickers
+  (^GSPC, ^DJI, ^IXIC) via SPY/DIA/QQQ: those ETF prices are a different
+  number from the actual index level (SPY trades at roughly 1/10th the
+  S&P 500's value), so showing one as a stand-in for the other — even
+  labeled — risks reading as a data bug rather than a clearly-scaled
+  approximation. No fallback beats a misleading one.
 """
 
 import datetime
@@ -63,6 +83,20 @@ COMMODITY_FUNCTIONS = {
     "KC=F": ("COFFEE", "Coffee"),
     "CT=F": ("COTTON", "Cotton"),
 }
+
+# Yahoo Treasury-yield index ticker -> (TREASURY_YIELD maturity, display name).
+TREASURY_MATURITIES = {
+    "^IRX": ("3month", "US 13-Week Treasury Yield"),
+    "^FVX": ("5year", "US 5-Year Treasury Yield"),
+    "^TNX": ("10year", "US 10-Year Treasury Yield"),
+    "^TYX": ("30year", "US 30-Year Treasury Yield"),
+}
+
+# Yahoo exchange suffix -> Alpha Vantage's own suffix for the same
+# exchange, on their real, live-verified TIME_SERIES_DAILY. NSE (Yahoo's
+# ".NS") intentionally has no entry — Alpha Vantage's docs only list a
+# BSE suffix for India, not an NSE one.
+YAHOO_TO_AV_SUFFIX = {".BO": ".BSE", ".L": ".LON"}
 
 
 def _date_ms(date_str: str) -> float:
@@ -107,7 +141,7 @@ def _get(params: dict):
     return raw
 
 
-def _summary(points, name, symbol, source_dataset):
+def _summary(points, name, symbol, source_dataset, instrument_type="EQUITY"):
     last = points[-1]
     prev = points[-2] if len(points) >= 2 else None
     price = last["close"]
@@ -122,7 +156,7 @@ def _summary(points, name, symbol, source_dataset):
         "name": name,
         "currency": "USD",
         "exchange": "Alpha Vantage",
-        "instrumentType": "COMMODITY" if symbol.upper() in COMMODITY_FUNCTIONS else "EQUITY",
+        "instrumentType": instrument_type,
         "price": price,
         "previousClose": prev_close,
         "change": change,
@@ -141,19 +175,16 @@ def _summary(points, name, symbol, source_dataset):
     return envelope("Alpha Vantage", source_dataset, symbol, data)
 
 
-def equity_chart(symbol: str, range_: str = "1mo"):
-    """Daily OHLCV for a plain US-listed equity/ETF/bond-ETF ticker — no
-    support for "^"-prefixed indices or dotted non-US exchange-suffixed
-    tickers (e.g. "RELIANCE.NS"): Alpha Vantage's own suffix convention
-    for international listings differs from Yahoo's and wasn't reliably
-    mappable here, so those symbols intentionally have no fallback."""
-    if not symbol or symbol.startswith("^") or "." in symbol:
-        return None
+def _time_series_daily(av_symbol: str, display_symbol: str, name: str, range_: str):
+    """Shared TIME_SERIES_DAILY fetch/parse, used for both plain US
+    tickers and international ones (where av_symbol has AV's own suffix
+    but display_symbol keeps Yahoo's, so the response stays consistent
+    with what the caller asked for)."""
     range_ = range_ if range_ in VALID_RANGES else "1mo"
     raw = _get(
         {
             "function": "TIME_SERIES_DAILY",
-            "symbol": symbol,
+            "symbol": av_symbol,
             "outputsize": "full" if range_ in ("5y", "max") else "compact",
         }
     )
@@ -180,7 +211,59 @@ def equity_chart(symbol: str, range_: str = "1mo"):
         return None
     if not points:
         return None
-    return _summary(points, symbol, symbol, "time_series_daily")
+    return _summary(points, name, display_symbol, "time_series_daily")
+
+
+def equity_chart(symbol: str, range_: str = "1mo"):
+    """Daily OHLCV for a plain US-listed equity/ETF/bond-ETF ticker — no
+    support for "^"-prefixed tickers (indices/yields, handled elsewhere)
+    or dotted non-US exchange-suffixed tickers (handled by
+    intl_equity_chart for the suffixes that have a mapping, otherwise
+    unsupported)."""
+    if not symbol or symbol.startswith("^") or "." in symbol:
+        return None
+    return _time_series_daily(symbol, symbol, symbol, range_)
+
+
+def intl_equity_chart(yahoo_symbol: str, range_: str = "1mo"):
+    """Daily OHLCV for a non-US ticker, translating Yahoo's exchange
+    suffix to Alpha Vantage's own (see YAHOO_TO_AV_SUFFIX) — live-verified
+    for India (.BO -> .BSE); London (.L -> .LON) is used from the same,
+    already-proven function per Alpha Vantage's own docs but wasn't
+    independently exercised live."""
+    for yahoo_suffix, av_suffix in YAHOO_TO_AV_SUFFIX.items():
+        if yahoo_symbol.upper().endswith(yahoo_suffix):
+            base = yahoo_symbol[: -len(yahoo_suffix)]
+            av_symbol = f"{base}{av_suffix}"
+            return _time_series_daily(av_symbol, yahoo_symbol, yahoo_symbol, range_)
+    return None
+
+
+def treasury_yield_chart(yahoo_symbol: str, range_: str = "1mo"):
+    """Real US Treasury yield data (Fed/FRED-sourced, via Alpha Vantage's
+    TREASURY_YIELD economic-indicator endpoint) for Yahoo's ^IRX/^FVX/
+    ^TNX/^TYX tickers — live-verified for the 10-year maturity."""
+    entry = TREASURY_MATURITIES.get(yahoo_symbol.upper())
+    if not entry:
+        return None
+    maturity, name = entry
+    range_ = range_ if range_ in VALID_RANGES else "1mo"
+    raw = _get({"function": "TREASURY_YIELD", "interval": "daily", "maturity": maturity})
+    if not raw:
+        return None
+    try:
+        rows = [r for r in raw["data"] if r.get("value") not in (None, ".", "")]
+        rows.sort(key=lambda r: r["date"])
+        rows = _slice_by_date(rows, lambda r: r["date"], range_)
+        points = []
+        for r in rows:
+            v = float(r["value"])
+            points.append({"t": _date_ms(r["date"]), "open": v, "high": v, "low": v, "close": v, "volume": None, "_range": range_})
+    except (KeyError, ValueError, TypeError):
+        return None
+    if not points:
+        return None
+    return _summary(points, name, yahoo_symbol, "treasury_yield", instrument_type="INDEX")
 
 
 def commodity_chart(yahoo_symbol: str, range_: str = "1mo"):
@@ -204,17 +287,21 @@ def commodity_chart(yahoo_symbol: str, range_: str = "1mo"):
         return None
     if not points:
         return None
-    return _summary(points, name, yahoo_symbol, function.lower())
+    return _summary(points, name, yahoo_symbol, function.lower(), instrument_type="COMMODITY")
 
 
 def chart(yahoo_symbol: str, range_: str = "1mo"):
     """Single entry point fallback call sites use — routes to whichever
-    of the two shapes above applies, or None immediately if no key is
-    configured or this symbol isn't one Alpha Vantage's free tier covers
-    here (this notably excludes gold/silver — see module docstring)."""
+    shape above applies, or None immediately if no key is configured or
+    this symbol isn't one Alpha Vantage's free tier covers here (this
+    notably excludes gold/silver and NSE — see module docstring)."""
     if not _api_key() or not yahoo_symbol:
         return None
     upper = yahoo_symbol.upper()
     if upper in COMMODITY_FUNCTIONS:
         return commodity_chart(yahoo_symbol, range_)
+    if upper in TREASURY_MATURITIES:
+        return treasury_yield_chart(yahoo_symbol, range_)
+    if any(upper.endswith(suffix) for suffix in YAHOO_TO_AV_SUFFIX):
+        return intl_equity_chart(yahoo_symbol, range_)
     return equity_chart(yahoo_symbol, range_)
