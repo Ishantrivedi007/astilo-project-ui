@@ -12,7 +12,7 @@ import cherrypy
 import requests
 
 from app.db import get_session
-from app.markets import coingecko, yahoo
+from app.markets import coingecko, stooq, yahoo
 from app.models import (
     TRADE_ASSET_TYPES,
     TRADE_ORDER_TYPES,
@@ -41,13 +41,41 @@ def _guard(fn, *args, **kwargs):
         raise cherrypy.HTTPError(502, f"Upstream market data service failed: {exc}")
 
 
+def _raise(exc):
+    raise exc
+
+
 def _current_quote(symbol: str, asset_type: str):
     """Real, live price + display name for a symbol — the same adapters
-    Markets itself uses. Returns None if the symbol doesn't resolve."""
+    Markets itself uses. Returns None if the symbol doesn't resolve.
+
+    For non-crypto symbols, falls back to Stooq's free daily-bar data
+    (forex pairs and gold/silver spot only) if Yahoo Finance fails or has
+    no data for the symbol."""
     if asset_type == "crypto":
         env = _guard(coingecko.market_chart, symbol, "1d")
     else:
-        env = _guard(yahoo.chart, symbol, "1d")
+        try:
+            env = yahoo.chart(symbol, "1d")
+            yahoo_failed = not env or (isinstance(env, dict) and env.get("error"))
+            yahoo_exc = None
+        except requests.exceptions.RequestException as exc:
+            env = None
+            yahoo_failed = True
+            yahoo_exc = exc
+
+        if yahoo_failed:
+            stooq_symbol = stooq.yahoo_symbol_to_stooq(symbol)
+            fallback = None
+            if stooq_symbol is not None:
+                try:
+                    fallback = stooq.chart(stooq_symbol, "1d")
+                except requests.exceptions.RequestException:
+                    fallback = None
+            if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):
+                env = fallback
+            elif yahoo_exc is not None:
+                _guard(_raise, yahoo_exc)
     if not env or (isinstance(env, dict) and env.get("error")):
         return None
     data = env.get("data") if isinstance(env, dict) else None

@@ -7,7 +7,7 @@ API key; results are cached the same way as Cosmos's external data.
 import cherrypy
 import requests
 
-from app.markets import coingecko, yahoo
+from app.markets import coingecko, stooq, yahoo
 
 ASSET_TYPES = ("stock", "crypto")
 
@@ -19,6 +19,10 @@ def _guard(fn, *args, **kwargs):
         raise cherrypy.HTTPError(504, "Upstream market data service timed out")
     except requests.exceptions.RequestException as exc:
         raise cherrypy.HTTPError(502, f"Upstream market data service failed: {exc}")
+
+
+def _raise(exc):
+    raise exc
 
 
 class MarketsAssetController:
@@ -36,7 +40,28 @@ class MarketsAssetController:
         if asset_type == "crypto":
             result = _guard(coingecko.market_chart, symbol, range)
         else:
-            result = _guard(yahoo.chart, symbol, range)
+            try:
+                result = yahoo.chart(symbol, range)
+                yahoo_failed = result is None or (isinstance(result, dict) and result.get("error"))
+                yahoo_exc = None
+            except requests.exceptions.RequestException as exc:
+                result = None
+                yahoo_failed = True
+                yahoo_exc = exc
+
+            if yahoo_failed:
+                stooq_symbol = stooq.yahoo_symbol_to_stooq(symbol)
+                fallback = None
+                if stooq_symbol is not None:
+                    try:
+                        fallback = stooq.chart(stooq_symbol, range)
+                    except requests.exceptions.RequestException:
+                        fallback = None
+                if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):
+                    result = fallback
+                elif yahoo_exc is not None:
+                    # No viable fallback — surface Yahoo's original error.
+                    result = _guard(_raise, yahoo_exc)
 
         if result is None:
             raise cherrypy.HTTPError(404, f"No data found for symbol '{symbol}'")
