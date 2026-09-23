@@ -55,7 +55,7 @@ const MarketsCommodities = () => {
       <h2 className="markets-section-title">All commodities</h2>
       <div className="markets-quote-grid">
         {COMMODITIES.map((c) => (
-          <MarketQuoteCard key={c.symbol} symbol={c.symbol} assetType="stock" label={c.label} category="commodity" />
+          <MarketQuoteCard key={c.symbol} symbol={c.symbol} assetType="stock" label={c.label} category="commodity" showWatchlistToggle />
         ))}
       </div>
 

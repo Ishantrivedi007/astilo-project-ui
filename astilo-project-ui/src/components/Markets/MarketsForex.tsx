@@ -75,7 +75,7 @@ const MarketsForex = () => {
       <h2 className="markets-section-title">Currency pairs</h2>
       <div className="markets-quote-grid">
         {FOREX.map((f) => (
-          <MarketQuoteCard key={f.symbol} symbol={f.symbol} assetType="stock" label={f.label} category="forex" />
+          <MarketQuoteCard key={f.symbol} symbol={f.symbol} assetType="stock" label={f.label} category="forex" showWatchlistToggle />
         ))}
       </div>
 

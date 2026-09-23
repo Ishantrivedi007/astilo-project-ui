@@ -179,6 +179,23 @@
     transform: translateY(-1px);
   }
 
+  &:focus-visible {
+    outline: 2px solid rgba(127, 176, 255, 0.6);
+    outline-offset: 2px;
+  }
+
+  .markets-quote-card-star {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    color: rgb(var(--ink-rgb) / 0.4);
+    cursor: pointer;
+
+    &:hover {
+      color: rgb(var(--ink-rgb) / 0.8);
+    }
+  }
+
   .markets-quote-symbol {
     font-size: 0.7rem;
     text-transform: uppercase;

@@ -245,7 +245,7 @@ const MarketsHome = () => {
       <h2 className="markets-section-title">Trending today</h2>
       <div className="markets-quote-grid">
         {trendingQuery.data?.data.symbols.slice(0, 12).map((s) => (
-          <MarketQuoteCard key={s} symbol={s} assetType="stock" />
+          <MarketQuoteCard key={s} symbol={s} assetType="stock" showWatchlistToggle />
         ))}
         {trendingQuery.isError && <p className="markets-unavailable">Trending list unavailable right now.</p>}
       </div>
@@ -269,35 +269,35 @@ const MarketsHome = () => {
       )}
       <div className="markets-quote-grid">
         {exchangeTrendingQuery.data?.data.symbols.map((s) => (
-          <MarketQuoteCard key={s} symbol={s} assetType="stock" category="stock" />
+          <MarketQuoteCard key={s} symbol={s} assetType="stock" category="stock" showWatchlistToggle />
         ))}
       </div>
 
       <h2 className="markets-section-title">Indices</h2>
       <div className="markets-quote-grid">
         {INDICES.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="index" />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="index" showWatchlistToggle />
         ))}
       </div>
 
       <h2 className="markets-section-title">Commodities</h2>
       <div className="markets-quote-grid">
         {COMMODITIES.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="commodity" />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="commodity" showWatchlistToggle />
         ))}
       </div>
 
       <h2 className="markets-section-title">Forex</h2>
       <div className="markets-quote-grid">
         {FOREX.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="forex" />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="forex" showWatchlistToggle />
         ))}
       </div>
 
       <h2 className="markets-section-title">Bonds</h2>
       <div className="markets-quote-grid">
         {BONDS.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="bond" />
+          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="bond" showWatchlistToggle />
         ))}
       </div>
 
