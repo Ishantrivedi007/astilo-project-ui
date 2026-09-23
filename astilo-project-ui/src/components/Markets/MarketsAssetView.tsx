@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, Newspaper, PieChart, Satellite, TrendingUp } from "lucide-react";
+import { ArrowLeft, Bell, ExternalLink, Newspaper, PieChart, Satellite, Star, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppRoute } from "../../app/AppRoute";
@@ -25,6 +25,8 @@ import {
   tradingErrorMessage,
   type TradingOrderType,
 } from "../../lib/tradingApi";
+import { addToWatchlist, fetchWatchlist, removeFromWatchlist } from "../../lib/watchlistApi";
+import { createPriceAlert, type PriceAlertCondition } from "../../lib/priceAlertsApi";
 import { bollingerBands, macd, rsi, vwap } from "../../lib/technicalIndicators";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import WhatIfCalculator from "./WhatIfCalculator";
@@ -181,6 +183,102 @@ const AssetTradePanel = ({ symbol, assetType }: { symbol: string; assetType: Ass
         </button>
         <span className="markets-result-meta">Cash: {money(accountQuery.data?.account.cashBalance)}</span>
       </div>
+    </div>
+  );
+};
+
+/** Toggle button for adding/removing this symbol from the user's watchlist —
+ * queries the whole watchlist (same query key MarketsWatchlist reads) and
+ * checks membership by symbol+assetType, same invalidation pattern as the
+ * trade panel's mutations. */
+const WatchlistToggle = ({ symbol, assetType, name }: { symbol: string; assetType: AssetType; name: string }) => {
+  const queryClient = useQueryClient();
+  const watchlistQuery = useQuery({ queryKey: ["markets", "watchlist"], queryFn: fetchWatchlist });
+  const entry = watchlistQuery.data?.find((w) => w.symbol === symbol && w.assetType === assetType);
+
+  const addMutation = useMutation({
+    mutationFn: () => addToWatchlist({ symbol, assetType }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["markets", "watchlist"] });
+      toast.success(`Added ${symbol} to your watchlist.`);
+    },
+    onError: (err: unknown) => toast.error(tradingErrorMessage(err, "Couldn't add that to your watchlist.")),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: (id: number) => removeFromWatchlist(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["markets", "watchlist"] });
+      toast.success(`Removed ${symbol} from your watchlist.`);
+    },
+    onError: (err: unknown) => toast.error(tradingErrorMessage(err, "Couldn't remove that from your watchlist.")),
+  });
+
+  const pending = addMutation.isPending || removeMutation.isPending;
+
+  return (
+    <button
+      type="button"
+      className={`markets-chip inline-flex items-center gap-1 ${entry ? "active" : ""}`}
+      disabled={pending || watchlistQuery.isLoading}
+      onClick={() => (entry ? removeMutation.mutate(entry.id) : addMutation.mutate())}
+      title={entry ? `Remove ${name} from watchlist` : `Add ${name} to watchlist`}
+    >
+      <Star size={12} fill={entry ? "currentColor" : "none"} /> {entry ? "On watchlist" : "Add to watchlist"}
+    </button>
+  );
+};
+
+/** Small "set a price alert" form near the trade panel — same
+ * markets-type-toggle Above/Below styling as buy/sell, posts to the shared
+ * price-alerts list MarketsAlerts reads. */
+const PriceAlertForm = ({ symbol, assetType }: { symbol: string; assetType: AssetType }) => {
+  const queryClient = useQueryClient();
+  const [condition, setCondition] = useState<PriceAlertCondition>("above");
+  const [targetPrice, setTargetPrice] = useState("");
+
+  const createMutation = useMutation({
+    mutationFn: () => createPriceAlert({ symbol, assetType, condition, targetPrice: Number(targetPrice) }),
+    onSuccess: (alert) => {
+      queryClient.invalidateQueries({ queryKey: ["markets", "price-alerts"] });
+      toast.success(`Alert set: ${symbol} ${alert.condition} ${money(alert.targetPrice)}.`);
+      setTargetPrice("");
+    },
+    onError: (err: unknown) => toast.error(tradingErrorMessage(err, "Couldn't set that alert.")),
+  });
+
+  return (
+    <div className="trading-order-panel" style={{ marginTop: "1.2rem" }}>
+      <h2 className="markets-section-title" style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
+        <Bell size={16} /> Set a price alert
+      </h2>
+      <p className="markets-unavailable" style={{ marginBottom: "0.6rem" }}>
+        Get notified when {symbol} crosses your target price.
+      </p>
+
+      <div className="markets-type-toggle" style={{ margin: "0.6rem 0" }}>
+        <button type="button" className={condition === "above" ? "active" : ""} onClick={() => setCondition("above")}>
+          Above
+        </button>
+        <button type="button" className={condition === "below" ? "active" : ""} onClick={() => setCondition("below")}>
+          Below
+        </button>
+      </div>
+
+      <label className="trading-field">
+        <span>Target price</span>
+        <input type="number" min={0} step="any" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} />
+      </label>
+
+      <button
+        type="button"
+        className="markets-chip"
+        style={{ marginTop: "0.6rem" }}
+        disabled={createMutation.isPending || !Number(targetPrice)}
+        onClick={() => createMutation.mutate()}
+      >
+        {createMutation.isPending ? "Setting alert…" : `Set alert (${symbol} ${condition} ${targetPrice || "…"})`}
+      </button>
     </div>
   );
 };
@@ -554,10 +652,13 @@ const MarketsAssetView = () => {
                 </div>
               </div>
             </div>
-            <span className="markets-source-badge">
-              <Satellite size={11} strokeWidth={2.5} />
-              {assetQuery.data?.source}
-            </span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+              <span className="markets-source-badge">
+                <Satellite size={11} strokeWidth={2.5} />
+                {assetQuery.data?.source}
+              </span>
+              <WatchlistToggle symbol={d.symbol} assetType={assetType} name={d.name} />
+            </div>
           </div>
 
           <div className="markets-range-row">
@@ -637,6 +738,8 @@ const MarketsAssetView = () => {
           )}
 
           <AssetTradePanel symbol={d.symbol} assetType={assetType} />
+
+          <PriceAlertForm symbol={d.symbol} assetType={assetType} />
 
           {insights && (
             <div style={{ marginTop: "1.5rem" }}>
