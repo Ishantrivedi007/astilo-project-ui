@@ -67,10 +67,12 @@ export const useChartTheme = () => {
   }, [theme]);
 };
 
-type ChartSeries = { name?: string; data: number[] | { x: number; y: number | null }[] }[] | number[];
+type ChartSeries =
+  | { name?: string; data: number[] | { x: number; y: number | null }[] | { x: number; y: (number | null)[] }[] }[]
+  | number[];
 
 interface ChartProps {
-  type: "area" | "bar" | "line" | "donut";
+  type: "area" | "bar" | "line" | "donut" | "candlestick";
   series: ChartSeries;
   options?: ApexOptions;
   height?: number | string;
@@ -92,8 +94,23 @@ const Chart = ({ type, series, options, height = 280, themeKey }: ChartProps) =>
   // identical to a line chart but uses the render path that actually works.
   const effectiveType = type === "line" ? "area" : type;
 
-  const merged: ApexOptions = useMemo(
-    () => ({
+  const merged: ApexOptions = useMemo(() => {
+    // Candlestick series carry {x, y:[o,h,l,c]} data — a fundamentally
+    // different shape than the numeric-y line/area series the remapping
+    // below assumes. Skip the line->area substitution and the stroke/fill
+    // overrides entirely; only merge the base chart-level chrome (font,
+    // grid, toolbar) so candlesticks render with their own default look.
+    if (type === "candlestick") {
+      return {
+        ...base,
+        ...options,
+        chart: { ...base.chart, ...options?.chart, type: "candlestick" },
+        grid: { ...base.grid, ...options?.grid },
+        xaxis: { ...base.xaxis, ...options?.xaxis },
+        yaxis: { ...base.yaxis, ...options?.yaxis },
+      };
+    }
+    return {
       ...base,
       ...options,
       chart: { ...base.chart, ...options?.chart, type: effectiveType },
@@ -112,9 +129,8 @@ const Chart = ({ type, series, options, height = 280, themeKey }: ChartProps) =>
       // overlapping blocks instead of lines.
       fill: type === "line" ? { type: "solid", opacity: 0 } : options?.fill ?? (type === "area" ? base.fill : { type: "solid", opacity: 1 }),
       stroke: { ...base.stroke, ...options?.stroke },
-    }),
-    [base, options, type, effectiveType]
-  );
+    };
+  }, [base, options, type, effectiveType]);
 
   return (
     <ReactApexChart

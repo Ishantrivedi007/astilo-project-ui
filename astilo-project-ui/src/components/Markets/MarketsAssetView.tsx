@@ -8,8 +8,17 @@ import { AppRoute } from "../../app/AppRoute";
 import { Chart } from "../shared";
 import { fetchMarketAsset, fetchMarketNews, RANGE_LABEL, RANGES, type AssetType, type MarketPoint, type MarketRange } from "../../lib/marketsApi";
 import { fetchResearchSummary } from "../../lib/cosmosApi";
-import { fetchTradingAccount, placeTradingOrder, suggestionForHolding, fetchTradingInsights, tradingErrorMessage } from "../../lib/tradingApi";
+import {
+  fetchTradingAccount,
+  placeTradingOrder,
+  suggestionForHolding,
+  fetchTradingInsights,
+  tradingErrorMessage,
+  type TradingOrderType,
+} from "../../lib/tradingApi";
+import { bollingerBands, macd, rsi, vwap } from "../../lib/technicalIndicators";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
+import WhatIfCalculator from "./WhatIfCalculator";
 import "./Markets.scss";
 import "./Trading.scss";
 
@@ -24,6 +33,9 @@ const AssetTradePanel = ({ symbol, assetType }: { symbol: string; assetType: Ass
   const queryClient = useQueryClient();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [quantity, setQuantity] = useState("1");
+  const [orderType, setOrderType] = useState<TradingOrderType>("market");
+  const [limitPrice, setLimitPrice] = useState("");
+  const [stopPrice, setStopPrice] = useState("");
 
   const accountQuery = useQuery({ queryKey: ["trading", "account"], queryFn: fetchTradingAccount });
   const insightsQuery = useQuery({
@@ -34,11 +46,26 @@ const AssetTradePanel = ({ symbol, assetType }: { symbol: string; assetType: Ass
   const holding = accountQuery.data?.holdings.find((h) => h.symbol === symbol && h.assetType === assetType);
 
   const orderMutation = useMutation({
-    mutationFn: () => placeTradingOrder({ symbol, assetType, side, quantity: Number(quantity) }),
+    mutationFn: () =>
+      placeTradingOrder({
+        symbol,
+        assetType,
+        side,
+        quantity: Number(quantity),
+        orderType,
+        limitPrice: orderType === "limit" ? Number(limitPrice) : undefined,
+        stopPrice: orderType === "stop" ? Number(stopPrice) : undefined,
+      }),
     onSuccess: (result) => {
       queryClient.setQueryData(["trading", "account"], result);
       queryClient.invalidateQueries({ queryKey: ["trading", "orders"] });
-      toast.success(`${side === "buy" ? "Bought" : "Sold"} ${quantity} ${symbol} @ ${money(result.transaction.price)} (simulated).`);
+      if ("transaction" in result) {
+        toast.success(`${side === "buy" ? "Bought" : "Sold"} ${quantity} ${symbol} @ ${money(result.transaction.price)} (simulated).`);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["trading", "pending-orders"] });
+        const price = orderType === "limit" ? Number(limitPrice) : Number(stopPrice);
+        toast.success(`Placed ${orderType} ${side} order for ${quantity} ${symbol} at ${money(price)} (simulated, pending fill).`);
+      }
       setQuantity("1");
     },
     onError: (err: unknown) => {
@@ -103,11 +130,42 @@ const AssetTradePanel = ({ symbol, assetType }: { symbol: string; assetType: Ass
         <input type="number" min={0.0001} step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
       </label>
 
+      <div className="markets-type-toggle" style={{ margin: "0.6rem 0" }}>
+        <button type="button" className={orderType === "market" ? "active" : ""} onClick={() => setOrderType("market")}>
+          Market
+        </button>
+        <button type="button" className={orderType === "limit" ? "active" : ""} onClick={() => setOrderType("limit")}>
+          Limit
+        </button>
+        <button type="button" className={orderType === "stop" ? "active" : ""} onClick={() => setOrderType("stop")}>
+          Stop
+        </button>
+      </div>
+
+      {orderType === "limit" && (
+        <label className="trading-field">
+          <span>Limit price</span>
+          <input type="number" min={0} step="any" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} />
+        </label>
+      )}
+      {orderType === "stop" && (
+        <label className="trading-field">
+          <span>Stop price</span>
+          <input type="number" min={0} step="any" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} />
+        </label>
+      )}
+
       <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.6rem", alignItems: "center" }}>
         <button
           type="button"
           className="markets-chip active"
-          disabled={orderMutation.isPending || !Number(quantity) || (side === "sell" && !holding)}
+          disabled={
+            orderMutation.isPending ||
+            !Number(quantity) ||
+            (side === "sell" && !holding) ||
+            (orderType === "limit" && !Number(limitPrice)) ||
+            (orderType === "stop" && !Number(stopPrice))
+          }
           onClick={() => orderMutation.mutate()}
         >
           {orderMutation.isPending ? "Placing order…" : `${side === "buy" ? "Buy" : "Sell"} ${symbol} (simulated)`}
@@ -258,6 +316,80 @@ const MarketsAssetView = () => {
   const insights = useTrendInsights(d?.points ?? []);
   const forecast = useLinearForecast(d?.points ?? [], insights?.volatilityPct);
 
+  // Same query key AssetTradePanel uses below — React Query dedupes this
+  // into a single request, just read here too for the risk-metrics stats.
+  const tradingInsightsQuery = useQuery({
+    queryKey: ["trading", "insights", symbol, assetType],
+    queryFn: () => fetchTradingInsights(symbol, assetType),
+    enabled: !!symbol,
+    retry: false,
+  });
+  const riskMetrics = tradingInsightsQuery.data;
+
+  const [chartMode, setChartMode] = useState<"line" | "candlestick">("line");
+  const [showBollinger, setShowBollinger] = useState(false);
+  const [showVwap, setShowVwap] = useState(false);
+  const [showRsi, setShowRsi] = useState(false);
+  const [showMacd, setShowMacd] = useState(false);
+
+  const hasOhlc = useMemo(() => (d?.points ?? []).some((p) => p.open != null && p.high != null && p.low != null), [d]);
+  const hasVolume = useMemo(() => (d?.points ?? []).some((p) => p.volume != null), [d]);
+
+  const candlestickSeries = useMemo(() => {
+    if (!d || !hasOhlc) return null;
+    const data = d.points
+      .filter((p) => p.open != null && p.high != null && p.low != null)
+      .map((p) => ({ x: p.t, y: [p.open, p.high, p.low, p.close] as number[] }));
+    return data.length > 0 ? [{ data }] : null;
+  }, [d, hasOhlc]);
+
+  const bands = useMemo(() => (d ? bollingerBands(d.points) : null), [d]);
+  const vwapValues = useMemo(() => (d ? vwap(d.points) : null), [d]);
+  const rsiValues = useMemo(() => (d ? rsi(d.points) : null), [d]);
+  const macdValues = useMemo(() => (d ? macd(d.points) : null), [d]);
+
+  const hasEnoughForBollinger = (d?.points.length ?? 0) >= 20;
+  const hasEnoughForRsi = (d?.points.length ?? 0) > 14 && (rsiValues ?? []).some((v) => v != null);
+  const hasEnoughForMacd = (d?.points.length ?? 0) > 26 && (macdValues?.macdLine ?? []).some((v) => v != null);
+
+  const rsiChartData = useMemo(() => {
+    if (!d || !rsiValues) return null;
+    const pts = d.points.map((p, i) => ({ x: p.t, y: rsiValues[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+    if (pts.length < 2) return null;
+    return {
+      series: [{ name: "RSI (14)", data: pts }],
+      options: {
+        ...interactiveChart,
+        colors: ["#a78bfa"],
+        xaxis: { type: "datetime" as const },
+        yaxis: { min: 0, max: 100, labels: { formatter: (v: number) => v?.toFixed(0) } },
+        annotations: { yaxis: [{ y: 70, borderColor: "#f87171", label: { text: "70" } }, { y: 30, borderColor: "#4ade80", label: { text: "30" } }] },
+        dataLabels: { enabled: false },
+        legend: { show: false },
+      },
+    };
+  }, [d, rsiValues]);
+
+  const macdChartData = useMemo(() => {
+    if (!d || !macdValues) return null;
+    const macdPts = d.points.map((p, i) => ({ x: p.t, y: macdValues.macdLine[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+    const signalPts = d.points.map((p, i) => ({ x: p.t, y: macdValues.signalLine[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+    if (macdPts.length < 2) return null;
+    return {
+      series: [
+        { name: "MACD", data: macdPts },
+        { name: "Signal", data: signalPts },
+      ],
+      options: {
+        ...interactiveChart,
+        colors: ["#60a5fa", "#facc15"],
+        xaxis: { type: "datetime" as const },
+        dataLabels: { enabled: false },
+        legend: { show: true },
+      },
+    };
+  }, [d, macdValues]);
+
   // Built once per actual data change rather than as a fresh object/array
   // literal on every render (the chart JSX previously constructed these
   // inline) — react-apexcharts calls both updateOptions() and updateSeries()
@@ -306,6 +438,29 @@ const MarketsAssetView = () => {
       seriesWidths.push(2);
       seriesDash.push(6);
     }
+    if (showBollinger && bands && hasEnoughForBollinger) {
+      const upperPts = d.points.map((p, i) => ({ x: p.t, y: bands.upper[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+      const lowerPts = d.points.map((p, i) => ({ x: p.t, y: bands.lower[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+      if (upperPts.length > 1 && lowerPts.length > 1) {
+        chartSeries.push({ name: "Bollinger upper", data: upperPts });
+        seriesColors.push("#22d3ee");
+        seriesWidths.push(1);
+        seriesDash.push(2);
+        chartSeries.push({ name: "Bollinger lower", data: lowerPts });
+        seriesColors.push("#22d3ee");
+        seriesWidths.push(1);
+        seriesDash.push(2);
+      }
+    }
+    if (showVwap && vwapValues && hasVolume) {
+      const pts = d.points.map((p, i) => ({ x: p.t, y: vwapValues[i] })).filter((p): p is { x: number; y: number } => p.y != null);
+      if (pts.length > 1) {
+        chartSeries.push({ name: "VWAP", data: pts });
+        seriesColors.push("#fb923c");
+        seriesWidths.push(1.5);
+        seriesDash.push(0);
+      }
+    }
 
     const chartOptions = {
       ...interactiveChart,
@@ -320,7 +475,7 @@ const MarketsAssetView = () => {
 
     return { chartSeries, chartOptions };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d, insights?.sma7, insights?.sma30, forecast, seriesColor]);
+  }, [d, insights?.sma7, insights?.sma30, forecast, seriesColor, showBollinger, bands, hasEnoughForBollinger, showVwap, vwapValues, hasVolume]);
 
   // For stocks/ETFs there's no "about/founded" from Yahoo — reuse the
   // Research module's Wikipedia summary for the company itself. Crypto
@@ -392,10 +547,72 @@ const MarketsAssetView = () => {
             ))}
           </div>
 
-          {chartData ? (
+          <div className="markets-range-row" style={{ marginTop: "0.4rem" }}>
+            <button type="button" className={`markets-range-chip ${chartMode === "line" ? "active" : ""}`} onClick={() => setChartMode("line")}>
+              Line
+            </button>
+            <button
+              type="button"
+              className={`markets-range-chip ${chartMode === "candlestick" ? "active" : ""}`}
+              onClick={() => setChartMode("candlestick")}
+              disabled={!hasOhlc}
+            >
+              Candlestick
+            </button>
+          </div>
+
+          {chartMode === "candlestick" ? (
+            candlestickSeries ? (
+              <Chart type="candlestick" height={340} series={candlestickSeries} options={{ xaxis: { type: "datetime" as const } }} />
+            ) : (
+              <p className="markets-unavailable">Candlestick (OHLC) data isn't available for {d.symbol} in this range.</p>
+            )
+          ) : chartData ? (
             <Chart type="line" height={340} series={chartData.chartSeries} options={chartData.chartOptions} />
           ) : (
             <p className="markets-unavailable">No historical points for this range.</p>
+          )}
+
+          {chartMode === "line" && chartData && (
+            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginTop: "0.5rem", fontSize: "0.82rem" }}>
+              {hasEnoughForBollinger && (
+                <label className="markets-result-meta" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" checked={showBollinger} onChange={(e) => setShowBollinger(e.target.checked)} />
+                  Show Bollinger Bands
+                </label>
+              )}
+              {hasVolume && (
+                <label className="markets-result-meta" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" checked={showVwap} onChange={(e) => setShowVwap(e.target.checked)} />
+                  Show VWAP
+                </label>
+              )}
+              {hasEnoughForRsi && (
+                <label className="markets-result-meta" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" checked={showRsi} onChange={(e) => setShowRsi(e.target.checked)} />
+                  Show RSI
+                </label>
+              )}
+              {hasEnoughForMacd && (
+                <label className="markets-result-meta" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" checked={showMacd} onChange={(e) => setShowMacd(e.target.checked)} />
+                  Show MACD
+                </label>
+              )}
+            </div>
+          )}
+
+          {showRsi && hasEnoughForRsi && rsiChartData && (
+            <div style={{ marginTop: "0.8rem" }}>
+              <p className="markets-result-meta" style={{ marginBottom: "0.2rem" }}>RSI (14)</p>
+              <Chart type="line" height={120} series={rsiChartData.series} options={rsiChartData.options} />
+            </div>
+          )}
+          {showMacd && hasEnoughForMacd && macdChartData && (
+            <div style={{ marginTop: "0.8rem" }}>
+              <p className="markets-result-meta" style={{ marginBottom: "0.2rem" }}>MACD (12, 26, 9)</p>
+              <Chart type="line" height={120} series={macdChartData.series} options={macdChartData.options} />
+            </div>
           )}
 
           <AssetTradePanel symbol={d.symbol} assetType={assetType} />
@@ -436,9 +653,27 @@ const MarketsAssetView = () => {
                   <dt>Period low</dt>
                   <dd>{fmtNum(insights.periodLow)}</dd>
                 </div>
+                {riskMetrics && !riskMetrics.insufficientData && (
+                  <>
+                    <div className="markets-stat">
+                      <dt>Sharpe ratio (annualized)</dt>
+                      <dd>{fmtNum(riskMetrics.sharpeRatioAnnualized)}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Max drawdown</dt>
+                      <dd>{riskMetrics.maxDrawdownPct != null ? `-${Math.abs(riskMetrics.maxDrawdownPct).toFixed(2)}%` : "Data unavailable"}</dd>
+                    </div>
+                    <div className="markets-stat">
+                      <dt>Beta{riskMetrics.betaBenchmark ? ` (vs ${riskMetrics.betaBenchmark})` : ""}</dt>
+                      <dd>{fmtNum(riskMetrics.beta)}</dd>
+                    </div>
+                  </>
+                )}
               </dl>
             </div>
           )}
+
+          {symbol && <WhatIfCalculator symbol={symbol} assetType={assetType} />}
 
           {forecast && (
             <div style={{ marginTop: "1.5rem" }}>

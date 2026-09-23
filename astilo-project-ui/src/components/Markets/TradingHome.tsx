@@ -10,13 +10,16 @@ import { searchMarkets, fetchTopCrypto, type AssetType, type MarketSearchResult 
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import {
   amountInWords,
+  cancelPendingOrder,
   depositTradingFunds,
+  fetchPendingOrders,
   fetchTradingAccount,
   fetchTradingInsights,
   fetchTradingOrders,
   placeTradingOrder,
   suggestionForHolding,
   tradingErrorMessage,
+  type TradingOrderType,
 } from "../../lib/tradingApi";
 import { cardCvc, cardExpiry, cardNumber as validateCardNumber, required } from "../../lib/validators";
 import "./Markets.scss";
@@ -265,9 +268,13 @@ const TradingHome = () => {
   const [selected, setSelected] = useState<{ symbol: string; name: string } | null>(null);
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [quantity, setQuantity] = useState("1");
+  const [orderType, setOrderType] = useState<TradingOrderType>("market");
+  const [limitPrice, setLimitPrice] = useState("");
+  const [stopPrice, setStopPrice] = useState("");
 
   const accountQuery = useQuery({ queryKey: ["trading", "account"], queryFn: fetchTradingAccount, refetchInterval: 30_000 });
   const ordersQuery = useQuery({ queryKey: ["trading", "orders"], queryFn: fetchTradingOrders });
+  const pendingOrdersQuery = useQuery({ queryKey: ["trading", "pending-orders"], queryFn: fetchPendingOrders, refetchInterval: 30_000 });
   const cryptoQuery = useQuery({ queryKey: ["markets", "top", "crypto"], queryFn: () => fetchTopCrypto(8), staleTime: 60_000 });
   const searchQuery = useQuery({
     queryKey: ["trading", "search", submitted, assetType],
@@ -286,11 +293,26 @@ const TradingHome = () => {
   const holding = portfolio?.holdings.find((h) => h.symbol === selected?.symbol && h.assetType === assetType);
 
   const orderMutation = useMutation({
-    mutationFn: () => placeTradingOrder({ symbol: selected!.symbol, assetType, side, quantity: Number(quantity) }),
+    mutationFn: () =>
+      placeTradingOrder({
+        symbol: selected!.symbol,
+        assetType,
+        side,
+        quantity: Number(quantity),
+        orderType,
+        limitPrice: orderType === "limit" ? Number(limitPrice) : undefined,
+        stopPrice: orderType === "stop" ? Number(stopPrice) : undefined,
+      }),
     onSuccess: (result) => {
       queryClient.setQueryData(["trading", "account"], result);
       queryClient.invalidateQueries({ queryKey: ["trading", "orders"] });
-      toast.success(`${side === "buy" ? "Bought" : "Sold"} ${quantity} ${selected!.symbol} @ ${money(result.transaction.price)} (simulated).`);
+      if ("transaction" in result) {
+        toast.success(`${side === "buy" ? "Bought" : "Sold"} ${quantity} ${selected!.symbol} @ ${money(result.transaction.price)} (simulated).`);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["trading", "pending-orders"] });
+        const price = orderType === "limit" ? Number(limitPrice) : Number(stopPrice);
+        toast.success(`Placed ${orderType} ${side} order for ${quantity} ${selected!.symbol} at ${money(price)} (simulated, pending fill).`);
+      }
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { status?: number } };
@@ -324,9 +346,33 @@ const TradingHome = () => {
       .then((result) => {
         queryClient.setQueryData(["trading", "account"], result);
         queryClient.invalidateQueries({ queryKey: ["trading", "orders"] });
-        toast.success(`Sold ${h.quantity} ${h.symbol} @ ${money(result.transaction.price)} (simulated).`);
+        if ("transaction" in result) {
+          toast.success(`Sold ${h.quantity} ${h.symbol} @ ${money(result.transaction.price)} (simulated).`);
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["trading", "pending-orders"] });
+          toast.success(`Placed sell order for ${h.quantity} ${h.symbol} (simulated, pending fill).`);
+        }
       })
       .catch((err: unknown) => toast.error(tradingErrorMessage(err, "Sell failed.")));
+  };
+
+  const cancelPendingMutation = useMutation({
+    mutationFn: (id: number) => cancelPendingOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trading", "pending-orders"] });
+      toast.success("Cancelled pending order.");
+    },
+    onError: (err: unknown) => toast.error(tradingErrorMessage(err, "Couldn't cancel that order.")),
+  });
+
+  const cancelPending = async (id: number, symbol: string) => {
+    const ok = await confirm({
+      title: "Cancel pending order?",
+      message: `Cancel the pending order for ${symbol}?`,
+      confirmLabel: "Cancel order",
+    });
+    if (!ok) return;
+    cancelPendingMutation.mutate(id);
   };
 
   const submitSearch = (e: React.FormEvent) => {
@@ -463,6 +509,11 @@ const TradingHome = () => {
                   </span>
                   <span className="markets-result-meta">Volatility: {insightsQuery.data.volatilityPct?.toFixed(2)}%/period</span>
                   <span className="markets-result-meta">Current: {money(insightsQuery.data.currentPrice)}</span>
+                  <span className="markets-result-meta">Sharpe: {insightsQuery.data.sharpeRatioAnnualized != null ? insightsQuery.data.sharpeRatioAnnualized.toFixed(2) : "—"}</span>
+                  <span className="markets-result-meta">Max drawdown: {insightsQuery.data.maxDrawdownPct != null ? `-${Math.abs(insightsQuery.data.maxDrawdownPct).toFixed(2)}%` : "—"}</span>
+                  <span className="markets-result-meta">
+                    Beta{insightsQuery.data.betaBenchmark ? ` (vs ${insightsQuery.data.betaBenchmark})` : ""}: {insightsQuery.data.beta != null ? insightsQuery.data.beta.toFixed(2) : "—"}
+                  </span>
                   <p className="markets-unavailable" style={{ marginTop: "0.3rem" }}>{insightsQuery.data.disclaimer}</p>
                 </div>
               )}
@@ -498,11 +549,41 @@ const TradingHome = () => {
                 <input type="number" min={0.0001} step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
               </label>
 
+              <div className="markets-type-toggle" style={{ margin: "0.6rem 0" }}>
+                <button type="button" className={orderType === "market" ? "active" : ""} onClick={() => setOrderType("market")}>
+                  Market
+                </button>
+                <button type="button" className={orderType === "limit" ? "active" : ""} onClick={() => setOrderType("limit")}>
+                  Limit
+                </button>
+                <button type="button" className={orderType === "stop" ? "active" : ""} onClick={() => setOrderType("stop")}>
+                  Stop
+                </button>
+              </div>
+
+              {orderType === "limit" && (
+                <label className="trading-field">
+                  <span>Limit price</span>
+                  <input type="number" min={0} step="any" value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} />
+                </label>
+              )}
+              {orderType === "stop" && (
+                <label className="trading-field">
+                  <span>Stop price</span>
+                  <input type="number" min={0} step="any" value={stopPrice} onChange={(e) => setStopPrice(e.target.value)} />
+                </label>
+              )}
+
               <button
                 type="button"
                 className="markets-chip"
                 style={{ marginTop: "0.6rem" }}
-                disabled={orderMutation.isPending || !Number(quantity)}
+                disabled={
+                  orderMutation.isPending ||
+                  !Number(quantity) ||
+                  (orderType === "limit" && !Number(limitPrice)) ||
+                  (orderType === "stop" && !Number(stopPrice))
+                }
                 onClick={() => orderMutation.mutate()}
               >
                 {orderMutation.isPending ? "Placing order…" : `${side === "buy" ? "Buy" : "Sell"} ${selected.symbol} (simulated)`}
@@ -541,6 +622,28 @@ const TradingHome = () => {
                 <button type="button" className="markets-chip" style={{ marginTop: "0.5rem", alignSelf: "flex-start" }} onClick={() => sellFromHolding(h)}>
                   Sell all
                 </button>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="markets-section-title">Pending orders</h2>
+          {(pendingOrdersQuery.data?.length ?? 0) === 0 && <p className="markets-unavailable">No pending simulated orders.</p>}
+          <div className="trading-history-list">
+            {pendingOrdersQuery.data?.map((o) => (
+              <div key={o.id} className="trading-history-row">
+                <span className={o.side === "buy" ? "positive" : "negative"}>{o.side.toUpperCase()}</span>
+                <span>
+                  {o.quantity} {o.symbol}
+                </span>
+                <span className="markets-result-meta">
+                  {o.orderType} @ {money(o.orderType === "limit" ? o.limitPrice : o.stopPrice)}
+                </span>
+                <span className="markets-result-meta">{o.status}</span>
+                {o.status === "pending" && (
+                  <button type="button" className="markets-chip" onClick={() => cancelPending(o.id, o.symbol)}>
+                    Cancel
+                  </button>
+                )}
               </div>
             ))}
           </div>

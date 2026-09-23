@@ -100,6 +100,30 @@ export interface TradingOrderResult extends TradingPortfolio {
   transaction: TradingTransaction;
 }
 
+export type TradingOrderType = "market" | "limit" | "stop";
+export type TradingOrderStatus = "pending" | "filled" | "cancelled";
+
+export interface TradingPendingOrder {
+  id: number;
+  symbol: string;
+  assetType: AssetType;
+  name: string | null;
+  side: "buy" | "sell";
+  orderType: TradingOrderType;
+  quantity: number;
+  limitPrice: number | null;
+  stopPrice: number | null;
+  status: TradingOrderStatus;
+  createdAt: string | null;
+  filledAt: string | null;
+  filledPrice: number | null;
+  cancelledAt: string | null;
+}
+
+export interface TradingPendingOrderResult extends TradingPortfolio {
+  pendingOrder: TradingPendingOrder;
+}
+
 export interface TradingInsights {
   symbol: string;
   insufficientData?: boolean;
@@ -111,20 +135,59 @@ export interface TradingInsights {
   rangePosition?: number;
   currentPrice?: number;
   disclaimer?: string;
+  maxDrawdownPct?: number | null;
+  sharpeRatioAnnualized?: number | null;
+  beta?: number | null;
+  betaBenchmark?: "S&P 500" | "Bitcoin" | null;
+}
+
+export interface WhatIfResult {
+  symbol: string;
+  insufficientData?: boolean;
+  amountInvested?: number;
+  requestedYears?: number;
+  actualYears?: number;
+  investedAtDate?: string;
+  investedAtPrice?: number;
+  currentDate?: string;
+  currentPrice?: number;
+  sharesBought?: number;
+  currentValue?: number;
+  totalReturn?: number;
+  totalReturnPct?: number;
+  cagr?: number | null;
+  disclaimer?: string;
 }
 
 export const fetchTradingAccount = () => apiClient.get<TradingPortfolio>("/trading/account").then((r) => r.data);
 
 export const fetchTradingOrders = () => apiClient.get<TradingTransaction[]>("/trading/orders").then((r) => r.data);
 
-export const placeTradingOrder = (payload: { symbol: string; assetType: AssetType; side: "buy" | "sell"; quantity: number }) =>
-  apiClient.post<TradingOrderResult>("/trading/orders", payload).then((r) => r.data);
+export const placeTradingOrder = (payload: {
+  symbol: string;
+  assetType: AssetType;
+  side: "buy" | "sell";
+  quantity: number;
+  orderType?: TradingOrderType;
+  limitPrice?: number;
+  stopPrice?: number;
+}) => apiClient.post<TradingOrderResult | TradingPendingOrderResult>("/trading/orders", payload).then((r) => r.data);
 
 export const depositTradingFunds = (payload: { amount: number; name: string; cardNumber: string; expiry: string; cvv: string }) =>
   apiClient.post<TradingPortfolio>("/trading/deposit", payload).then((r) => r.data);
 
 export const fetchTradingInsights = (symbol: string, assetType: AssetType) =>
   apiClient.get<TradingInsights>("/trading/insights", { params: { symbol, asset_type: assetType } }).then((r) => r.data);
+
+export const fetchPendingOrders = () => apiClient.get<TradingPendingOrder[]>("/trading/pending-orders").then((r) => r.data);
+
+export const cancelPendingOrder = (id: number) =>
+  apiClient.delete<{ cancelled: boolean }>(`/trading/pending-orders/${id}`).then((r) => r.data);
+
+export const fetchWhatIf = (symbol: string, assetType: AssetType, amount: number, years: number) =>
+  apiClient
+    .get<WhatIfResult>("/trading/what-if", { params: { symbol, asset_type: assetType, amount, years } })
+    .then((r) => r.data);
 
 export interface HoldingSuggestion {
   label: string;

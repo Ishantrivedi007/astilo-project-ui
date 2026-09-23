@@ -1,14 +1,18 @@
 import { useNavigate } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Landmark, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { AppRoute } from "../../app/AppRoute";
-import { Chart } from "../shared";
+import { Chart, useConfirm } from "../shared";
 import {
+  cancelPendingOrder,
+  fetchPendingOrders,
   fetchTradingAccount,
   fetchTradingInsights,
   fetchTradingOrders,
   suggestionForHolding,
+  tradingErrorMessage,
   type TradingHolding,
 } from "../../lib/tradingApi";
 import "./Markets.scss";
@@ -21,9 +25,31 @@ const ALLOCATION_COLORS = ["#4ade80", "#60a5fa", "#facc15", "#a78bfa", "#f87171"
 
 const TradingPortfolio = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const accountQuery = useQuery({ queryKey: ["trading", "account"], queryFn: fetchTradingAccount, refetchInterval: 30_000 });
   const ordersQuery = useQuery({ queryKey: ["trading", "orders"], queryFn: fetchTradingOrders });
+  const pendingOrdersQuery = useQuery({ queryKey: ["trading", "pending-orders"], queryFn: fetchPendingOrders, refetchInterval: 30_000 });
+
+  const cancelPendingMutation = useMutation({
+    mutationFn: (id: number) => cancelPendingOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trading", "pending-orders"] });
+      toast.success("Cancelled pending order.");
+    },
+    onError: (err: unknown) => toast.error(tradingErrorMessage(err, "Couldn't cancel that order.")),
+  });
+
+  const cancelPending = async (id: number, symbol: string) => {
+    const ok = await confirm({
+      title: "Cancel pending order?",
+      message: `Cancel the pending order for ${symbol}?`,
+      confirmLabel: "Cancel order",
+    });
+    if (!ok) return;
+    cancelPendingMutation.mutate(id);
+  };
   const portfolio = accountQuery.data;
   const holdings = portfolio?.holdings ?? [];
 
@@ -177,6 +203,28 @@ const TradingPortfolio = () => {
           </div>
         </div>
       )}
+
+      <h2 className="markets-section-title">Pending orders</h2>
+      {(pendingOrdersQuery.data?.length ?? 0) === 0 && <p className="markets-unavailable">No pending simulated orders.</p>}
+      <div className="trading-history-list">
+        {pendingOrdersQuery.data?.map((o) => (
+          <div key={o.id} className="trading-history-row">
+            <span className={o.side === "buy" ? "positive" : "negative"}>{o.side.toUpperCase()}</span>
+            <span>
+              {o.quantity} {o.symbol}
+            </span>
+            <span className="markets-result-meta">
+              {o.orderType} @ {money(o.orderType === "limit" ? o.limitPrice : o.stopPrice)}
+            </span>
+            <span className="markets-result-meta">{o.status}</span>
+            {o.status === "pending" && (
+              <button type="button" className="markets-chip" onClick={() => cancelPending(o.id, o.symbol)}>
+                Cancel
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
 
       <h2 className="markets-section-title">Order history</h2>
       {(ordersQuery.data?.length ?? 0) === 0 && <p className="markets-unavailable">No simulated trades yet.</p>}
