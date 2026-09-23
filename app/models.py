@@ -1273,6 +1273,54 @@ class TradingHolding(Base):
         }
 
 
+TRADE_ORDER_TYPES = ("market", "limit", "stop")
+TRADE_ORDER_STATUSES = ("pending", "filled", "cancelled")
+
+
+class TradingOrder(Base):
+    """A pending limit/stop order — market orders never become a row here;
+    they execute immediately and only ever produce a TradingTransaction.
+    Pending orders are checked lazily (there is no background scheduler)
+    whenever the account/orders endpoints are hit, since the frontend
+    already polls /trading/account every 30s."""
+
+    __tablename__ = "trading_orders"
+
+    id = Column(Integer, primary_key=True)
+    account_id = Column(Integer, ForeignKey("trading_accounts.id"), nullable=False)
+    symbol = Column(String(40), nullable=False)
+    asset_type = Column(String(10), nullable=False)
+    name = Column(String(200), nullable=True)
+    side = Column(String(4), nullable=False)  # buy | sell
+    order_type = Column(String(10), nullable=False)  # limit | stop
+    quantity = Column(Float, nullable=False)
+    limit_price = Column(Float, nullable=True)
+    stop_price = Column(Float, nullable=True)
+    status = Column(String(10), nullable=False, default="pending")  # pending | filled | cancelled
+    created_at = Column(DateTime, default=utcnow)
+    filled_at = Column(DateTime, nullable=True)
+    filled_price = Column(Float, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "assetType": self.asset_type,
+            "name": self.name,
+            "side": self.side,
+            "orderType": self.order_type,
+            "quantity": self.quantity,
+            "limitPrice": self.limit_price,
+            "stopPrice": self.stop_price,
+            "status": self.status,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "filledAt": self.filled_at.isoformat() if self.filled_at else None,
+            "filledPrice": self.filled_price,
+            "cancelledAt": self.cancelled_at.isoformat() if self.cancelled_at else None,
+        }
+
+
 class TradingTransaction(Base):
     __tablename__ = "trading_transactions"
 

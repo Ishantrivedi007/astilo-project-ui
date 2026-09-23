@@ -12,6 +12,32 @@ BASE = "https://api.coingecko.com/api/v3"
 # (5-min for <=1 day, hourly for <=90 days, daily beyond that).
 RANGE_DAYS = {"1d": "1", "5d": "5", "1mo": "30", "6mo": "180", "1y": "365", "5y": "1825", "max": "max"}
 
+# The free /ohlc endpoint only accepts specific `days` values and picks
+# bucket granularity automatically; 5y/max are best-effort capped at
+# CoinGecko's own max free-tier lookback of 365 days for this endpoint —
+# a real provider limitation, not a bug.
+OHLC_RANGE_DAYS = {"1d": 1, "5d": 7, "1mo": 30, "6mo": 90, "1y": 365, "5y": 365, "max": 365}
+
+
+def ohlc(coin_id: str, range_: str = "1mo"):
+    """Real OHLC candles from CoinGecko's free /ohlc endpoint — a second,
+    independent data path from market_chart's close-only `prices` array, so
+    if one shape is briefly malformed the other still degrades gracefully.
+    Returns a list of [timestamp_ms, open, high, low, close] rows, or None
+    on a 404 (matches market_chart's behavior)."""
+    days = OHLC_RANGE_DAYS.get(range_, 30)
+    params = {"vs_currency": "usd", "days": days}
+
+    def fetch():
+        resp = markets_get(f"{BASE}/coins/{coin_id}/ohlc", params=params)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp.json()
+
+    ttl = 120 if range_ == "1d" else 1800
+    return cached_fetch(f"coingecko_ohlc_{range_}", {"id": coin_id}, fetch, ttl_seconds=ttl)
+
 
 def market_chart(coin_id: str, range_: str = "1mo"):
     days = RANGE_DAYS.get(range_, "30")
@@ -48,7 +74,31 @@ def market_chart(coin_id: str, range_: str = "1mo"):
     if len(description) > 600:
         description = description[:600].rsplit(". ", 1)[0] + "."
 
-    points = [{"t": int(t), "close": price, "open": None, "high": None, "low": None, "volume": None} for t, price in (raw.get("prices") or [])]
+    points = None
+    try:
+        ohlc_rows = ohlc(coin_id, range_)
+    except Exception:
+        ohlc_rows = None
+
+    if ohlc_rows:
+        volumes = raw.get("total_volumes") or []
+
+        def _nearest_volume(t):
+            if not volumes:
+                return None
+            best = min(volumes, key=lambda v: abs(v[0] - t))
+            return best[1]
+
+        try:
+            points = [
+                {"t": int(t), "open": o, "high": h, "low": l, "close": c, "volume": _nearest_volume(t)}
+                for t, o, h, l, c in ohlc_rows
+            ]
+        except (TypeError, ValueError):
+            points = None
+
+    if not points:
+        points = [{"t": int(t), "close": price, "open": None, "high": None, "low": None, "volume": None} for t, price in (raw.get("prices") or [])]
 
     price = market_data.get("current_price", {}).get("usd")
     change_pct = market_data.get("price_change_percentage_24h")

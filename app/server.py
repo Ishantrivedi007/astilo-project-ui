@@ -109,6 +109,8 @@ from app.controllers.trading_controller import (
     TradingDepositController,
     TradingInsightsController,
     TradingOrdersController,
+    TradingPendingOrdersController,
+    TradingWhatIfController,
 )
 from app.controllers.users_controller import UsersController
 from app.db import init_db
@@ -202,7 +204,9 @@ def build_app():
     cherrypy.tree.mount(TradingAccountController(), "/api/trading/account", conf)
     cherrypy.tree.mount(TradingDepositController(), "/api/trading/deposit", conf)
     cherrypy.tree.mount(TradingOrdersController(), "/api/trading/orders", conf)
+    cherrypy.tree.mount(TradingPendingOrdersController(), "/api/trading/pending-orders", conf)
     cherrypy.tree.mount(TradingInsightsController(), "/api/trading/insights", conf)
+    cherrypy.tree.mount(TradingWhatIfController(), "/api/trading/what-if", conf)
 
     cherrypy.tree.mount(NimroseProjectsController(), "/api/nimrose/projects", conf)
     cherrypy.tree.mount(NimroseTasksController(), "/api/nimrose/tasks", conf)
