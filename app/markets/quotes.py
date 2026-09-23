@@ -9,10 +9,13 @@ Vantage (US equities/ETFs, Treasury-yield tickers, BSE/LSE-suffixed
 international equities, and 7 named commodities — only if a free API key
 is configured; see app/markets/alphavantage.py for exactly what is/isn't
 covered, notably NOT gold/silver, NSE-suffixed tickers, or broad index
-tickers like ^GSPC) -> gold-api.com (gold/silver spot only — see
-app/markets/goldapi.py; CURRENT PRICE ONLY, no history, so a chart built
-from this last-resort fallback will only ever have one point, flagged
-`spotOnly: True` in the response).
+tickers like ^GSPC) -> Twelve Data (gold ONLY, real historical OHLC —
+only if a free API key is configured; see app/markets/twelvedata.py —
+their free tier gates silver/indices/NSE stocks behind a paid plan,
+confirmed live, so this is deliberately narrow) -> gold-api.com
+(gold/silver spot only, the true last resort — see app/markets/goldapi.py;
+CURRENT PRICE ONLY, no history, so a chart built from this fallback will
+only ever have one point, flagged `spotOnly: True` in the response).
 
 Crypto: CoinGecko -> Binance (real trading data, keyless).
 
@@ -25,7 +28,7 @@ else has an answer, rather than a generic "fallback also failed" message.
 
 import requests
 
-from app.markets import alphavantage, binance, coingecko, frankfurter, goldapi, yahoo
+from app.markets import alphavantage, binance, coingecko, frankfurter, goldapi, twelvedata, yahoo
 
 
 def _ok(result) -> bool:
@@ -60,6 +63,10 @@ def stock_chart_with_fallback(symbol: str, range_: str):
             return fallback
 
     fallback = _try(alphavantage.chart, symbol, range_)
+    if fallback is not None:
+        return fallback
+
+    fallback = _try(twelvedata.metal_chart, symbol, range_)
     if fallback is not None:
         return fallback
 

@@ -33,6 +33,13 @@ class Config:
     # leaving it empty is a supported, fully working default.
     ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "")
 
+    # Optional — a free, instant-signup key from https://twelvedata.com/pricing
+    # (basic/free plan). Used only for real historical gold (XAU/USD) data as
+    # part of the Markets fallback chain — their free tier gates everything
+    # else we tried (indices, silver, NSE stocks) behind a paid plan, so this
+    # is intentionally narrow. Empty by default; a no-op when unset.
+    TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "")
+
     # Absolute override for where downloaded songs are written (and checked
     # against). Defaults to the sibling astilo-project-ui/public/downloads
     # next to this backend — set this when the frontend being served lives
