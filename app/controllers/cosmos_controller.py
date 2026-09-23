@@ -1,7 +1,9 @@
+import datetime
+
 import cherrypy
 import requests
 
-from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa, simbad, wikipedia
+from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa, satellites, simbad, wikipedia
 from app.db import get_session
 from app.models import CosmosSavedItem
 
@@ -15,6 +17,14 @@ def _guard(fn, *args, **kwargs):
         raise cherrypy.HTTPError(504, "Upstream astronomy service timed out")
     except requests.exceptions.RequestException as exc:
         raise cherrypy.HTTPError(502, f"Upstream astronomy service failed: {exc}")
+
+
+def _with_parsed_vectors(result: dict, raw_text: str | None) -> dict:
+    """Adds a `data.vectors` array (parsed via jpl.parse_vectors) alongside
+    the raw Horizons text, so callers like the comparison tool get
+    structured numbers without re-parsing text client-side."""
+    result["data"]["vectors"] = jpl.parse_vectors(raw_text)
+    return result
 
 
 class AsteroidController:
@@ -192,6 +202,193 @@ class SupernovaController:
         return result
 
 
+class MoonController:
+    """Moon position/trajectory via JPL Horizons — no API key required.
+    `name` is resolved by Horizons itself (e.g. 'Europa', 'Titan'), not a
+    lookup table Astilo maintains; an ambiguous name comes back as a
+    candidate list rather than a guess."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name=None, start_time=None, stop_time=None, step_size="1d", center="500@10"):
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required (e.g. ?name=Europa)")
+        if not (start_time and stop_time):
+            raise cherrypy.HTTPError(400, "start_time and stop_time are required")
+        # Sun-centered by default, matching HorizonsController — a moon's
+        # parent planet varies (Europa orbits Jupiter, Titan orbits Saturn),
+        # so a single hardcoded center would be wrong for most of them; the
+        # caller can override `center` for a planet-relative view instead.
+        result = _guard(jpl.horizons_ephemeris, name, start_time, stop_time, step_size, center)
+        raw_text = result.get("data", {}).get("result")
+        if jpl.is_ambiguous_match(raw_text):
+            return {"ambiguous": True, "candidates": jpl.extract_match_candidates(raw_text)}
+        return _with_parsed_vectors(result, raw_text)
+
+
+class NebulaController:
+    """SIMBAD generic object lookup — nebulae are deep-sky objects SIMBAD
+    covers the same way as galaxies, just a distinct UI category. No API
+    key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name=None):
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required (e.g. ?name=Orion Nebula)")
+        result = _guard(simbad.lookup_object, name)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No object found matching '{name}'")
+        return result
+
+
+class CometController:
+    """JPL Small-Body Database, same backing as AsteroidController — comets
+    are distinguished by the `kind` field SBDB already returns. No API key
+    required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, designation=None):
+        if not designation:
+            raise cherrypy.HTTPError(400, "designation is required (e.g. ?designation=Halley)")
+        result = _guard(jpl.sbdb_lookup, designation)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No comet found matching '{designation}'")
+        return result
+
+
+class SpacecraftController:
+    """Spacecraft position/trajectory via JPL Horizons — no API key
+    required. `name` is resolved by Horizons itself (e.g. 'Voyager 1',
+    'James Webb Space Telescope'), not a lookup table Astilo maintains."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name=None, start_time=None, stop_time=None, step_size="1d", center="500@10"):
+        if not name:
+            raise cherrypy.HTTPError(400, "name is required (e.g. ?name=Voyager 1)")
+        if not (start_time and stop_time):
+            raise cherrypy.HTTPError(400, "start_time and stop_time are required")
+        result = _guard(jpl.horizons_ephemeris, name, start_time, stop_time, step_size, center)
+        raw_text = result.get("data", {}).get("result")
+        if jpl.is_ambiguous_match(raw_text):
+            return {"ambiguous": True, "candidates": jpl.extract_match_candidates(raw_text)}
+        return _with_parsed_vectors(result, raw_text)
+
+
+class MissionBrowseController:
+    """MAST browse-by-mission, no target name required. `mission` and
+    `instrument` are free text — any obs_collection/instrument_name value
+    MAST recognizes, not a fixed list. `start_date`/`end_date` are ISO
+    YYYY-MM-DD, filtering on the observation's own timestamp."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, mission=None, limit=25, instrument=None, start_date=None, end_date=None):
+        if not mission:
+            raise cherrypy.HTTPError(400, "mission is required (e.g. ?mission=JWST)")
+        return _guard(mast.browse_mission, mission, int(limit), instrument, start_date, end_date)
+
+
+class SpectrumController:
+    """A real, parsed wavelength/flux spectrum for one MAST observation —
+    downloads and parses the actual FITS data product. No API key
+    required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, obsid=None):
+        if not obsid:
+            raise cherrypy.HTTPError(400, "obsid is required")
+        result = _guard(mast.fetch_spectrum, obsid)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No spectrum data product found for observation '{obsid}'")
+        return result
+
+
+class SatelliteController:
+    """Live satellite position via CelesTrak TLE data + local SGP4
+    propagation — no API key required. `name`/`group` resolve against
+    CelesTrak's live, continuously-updated catalogs, not a satellite list
+    Astilo maintains; defaults to the ISS but any tracked satellite works."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name="ISS", group="stations"):
+        result = _guard(satellites.satellite_position, name, group)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No satellite found matching '{name}' in group '{group}'")
+        return result
+
+
+class SatelliteSearchController:
+    """Live-searches a CelesTrak satellite group by name, for the tracker's
+    picker UI. No API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, q="", group="stations"):
+        results = _guard(satellites.search_satellites, q, group)
+        return {"count": len(results), "results": [{"name": r["name"]} for r in results]}
+
+
+class SatellitePassesController:
+    """Upcoming visibility windows for a satellite from a real observer
+    location — computed live via SGP4 propagation + topocentric look-angle
+    math, not a lookup or fabricated schedule. No API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, name="ISS", group="stations", lat=None, lon=None, alt=0.0, hours=48, min_elevation=10.0):
+        if lat is None or lon is None:
+            raise cherrypy.HTTPError(400, "lat and lon are required (from the browser's own location)")
+        result = _guard(
+            satellites.next_passes,
+            name, group, float(lat), float(lon),
+            observer_alt_km=float(alt), hours_ahead=float(hours), min_elevation_deg=float(min_elevation),
+        )
+        if result is None:
+            raise cherrypy.HTTPError(404, f"'{name}' does not resolve to exactly one satellite in group '{group}'")
+        return result
+
+
+class SpaceWeatherPulseController:
+    """DONKI events from the last `since_hours` — a thin, live-computed
+    convenience wrapper for an in-app alerts widget, following the same
+    compute-on-request pattern as NimrosePulse (no persisted alert state,
+    no background scheduler — none exists in this backend)."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, since_hours=24):
+        now = datetime.datetime.utcnow()
+        start = now - datetime.timedelta(hours=float(since_hours))
+        return _guard(nasa.donki_notifications, start.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d"), "all")
+
+
+class AstronomyTopicsController:
+    """Live Wikipedia category membership — powers the reference library's
+    topic list from a real, currently-existing Wikipedia category rather
+    than any list Astilo curates and freezes in code."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, category="Astronomy", limit=30):
+        return _guard(wikipedia.category_members, category, int(limit))
+
+
 class ResearchSummaryController:
     """A real, sourced background summary for an object — pulled live from
     Wikipedia's public API (not scraped HTML, not fabricated). Used to give
@@ -234,7 +431,10 @@ class CosmosLibraryController:
         object_type = body.get("objectType")
         external_id = str(body.get("externalId", ""))
 
-        valid_types = ("planet", "asteroid", "exoplanet", "star", "observation", "image", "galaxy", "supernova")
+        valid_types = (
+            "planet", "asteroid", "exoplanet", "star", "observation", "image", "galaxy", "supernova",
+            "moon", "nebula", "comet", "spacecraft",
+        )
         if object_type not in valid_types or not external_id:
             raise cherrypy.HTTPError(400, f"objectType ({'|'.join(valid_types)}) and externalId are required")
 

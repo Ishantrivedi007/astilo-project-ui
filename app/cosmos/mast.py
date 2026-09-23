@@ -6,12 +6,23 @@ Used here: Mashup "Mast.Caom.Cone" service for observation search by target
 name or coordinates, across Hubble/JWST/TESS/Kepler/GALEX/Spitzer.
 """
 
+import datetime
+import io
 import json
+import math
 
 from app.cosmos.cache import cached_fetch
 from app.cosmos.http import cosmos_get, envelope
 
 MASHUP_URL = "https://mast.stsci.edu/api/v0/invoke"
+DOWNLOAD_URL = "https://mast.stsci.edu/api/v0.1/Download/file"
+
+_MJD_EPOCH = datetime.date(1858, 11, 17)
+
+
+def _iso_to_mjd(iso_date: str) -> float:
+    d = datetime.date.fromisoformat(iso_date)
+    return (d - _MJD_EPOCH).days
 
 
 def search_observations(target_name: str, mission: str | None = None, limit: int = 25):
@@ -52,6 +63,157 @@ def search_observations(target_name: str, mission: str | None = None, limit: int
     results.sort(key=lambda r: r["previewImageUrl"] is None)
     results = results[:limit]
     return envelope("MAST", "Mast.Caom.Filtered", None, {"count": total_count, "results": results}, None)
+
+
+def browse_mission(
+    mission: str,
+    limit: int = 25,
+    instrument: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+):
+    """Latest observations for a mission with no target name required —
+    powers an Observatories/mission-browse view. `mission` is free text
+    (any obs_collection value MAST itself recognizes, e.g. JWST/HST/TESS/
+    KEPLER/GALEX/SPITZER), not restricted to a curated list. `instrument`
+    filters on instrument_name (also free text — any value MAST recognizes,
+    e.g. NIRCAM, NIRSPEC, WFC3/UVIS). `start_date`/`end_date` (ISO
+    YYYY-MM-DD) filter on the observation's t_min (MJD)."""
+    filters = [{"paramName": "obs_collection", "values": [mission.upper()]}]
+    if instrument:
+        filters.append({"paramName": "instrument_name", "values": [instrument.upper()]})
+    if start_date or end_date:
+        min_mjd = _iso_to_mjd(start_date) if start_date else 0
+        max_mjd = _iso_to_mjd(end_date) if end_date else _iso_to_mjd(datetime.date.today().isoformat())
+        filters.append({"paramName": "t_min", "values": [{"min": min_mjd, "max": max_mjd}]})
+
+    fetch_size = max(limit * 4, 40)
+    request_payload = {
+        "service": "Mast.Caom.Filtered",
+        "format": "json",
+        "params": {
+            "columns": "obs_id,obs_collection,instrument_name,filters,target_name,t_min,s_ra,s_dec,dataproduct_type,jpegURL,obsid",
+            "filters": filters,
+        },
+        "pagesize": fetch_size,
+        "page": 1,
+    }
+    params = {"request": json.dumps(request_payload)}
+
+    def fetch():
+        resp = cosmos_get(MASHUP_URL, params=params, timeout=20)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("mast_mission_browse", request_payload, fetch, ttl_seconds=6 * 3600)
+
+    rows = raw.get("data", [])
+    results = [_normalize_observation(row) for row in rows]
+    total_count = len(results)
+    # Most recent observations first, with image-bearing ones surfaced —
+    # same preview-first tie-break used by search_observations.
+    results.sort(key=lambda r: r["observationDate"] or 0, reverse=True)
+    results = results[:limit]
+    return envelope("MAST", "Mast.Caom.Filtered", None, {"count": total_count, "results": results}, None)
+
+
+def get_data_products(obsid: str):
+    """Lists the actual downloadable data-product files for one observation
+    (FITS spectra, images, etc.) via MAST's Mast.Caom.Products service."""
+    request_payload = {
+        "service": "Mast.Caom.Products",
+        "format": "json",
+        "params": {"obsid": str(obsid)},
+    }
+    params = {"request": json.dumps(request_payload)}
+
+    def fetch():
+        resp = cosmos_get(MASHUP_URL, params=params, timeout=20)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("mast_products", request_payload, fetch, ttl_seconds=6 * 3600)
+    return raw.get("data", [])
+
+
+def _json_safe_float(v) -> float | None:
+    f = float(v)
+    return f if math.isfinite(f) else None
+
+
+_SPECTRUM_COLUMN_PAIRS = (
+    ("WAVELENGTH", "FLUX"),
+    ("WAVE", "FLUX"),
+    ("wavelength", "flux"),
+    ("wave", "flux"),
+)
+
+
+def fetch_spectrum(obsid: str):
+    """Finds and parses a real spectral data product (FITS table) for an
+    observation — actual downloaded/parsed flux-vs-wavelength data, not a
+    placeholder. Returns None (with the caller responsible for a 404) if no
+    spectrum product exists or its column layout isn't one we recognize,
+    rather than guessing at unfamiliar columns."""
+    from astropy.io import fits
+
+    products = get_data_products(obsid)
+    candidates = [
+        p
+        for p in products
+        if (p.get("dataproduct_type") or "").lower() == "spectrum"
+        and str(p.get("productFilename", "")).lower().endswith(".fits")
+    ]
+    if not candidates:
+        return None
+
+    # "X1D"/"X1DSUM" (JWST/HST's standard extracted-1D-spectrum product,
+    # a real wavelength/flux table) is what we actually want — CAL/RATE/S2D
+    # are calibration cubes or 2D images, not the table we can plot.
+    # Prefer real extraction products; fall back to any spectrum-typed FITS
+    # rather than refusing outright if a mission doesn't use X1D naming.
+    priority = ("X1D", "X1DSUM", "X1DSUM3", "SX1")
+    candidates.sort(key=lambda p: (p.get("productSubGroupDescription") or "") not in priority)
+    spectrum_row = candidates[0]
+
+    data_uri = spectrum_row.get("dataURI")
+    if not data_uri:
+        return None
+
+    def fetch_bytes():
+        resp = cosmos_get(DOWNLOAD_URL, params={"uri": data_uri}, timeout=30)
+        resp.raise_for_status()
+        return resp.content
+
+    raw_bytes = fetch_bytes()
+
+    with fits.open(io.BytesIO(raw_bytes)) as hdul:
+        for hdu in hdul:
+            data = getattr(hdu, "data", None)
+            if data is None or not hasattr(data, "names") or not data.names:
+                continue
+            names = {n.upper(): n for n in data.names}
+            for wave_col, flux_col in _SPECTRUM_COLUMN_PAIRS:
+                w, f = wave_col.upper(), flux_col.upper()
+                if w in names and f in names:
+                    # NaN is not valid JSON — masked/invalid detector pixels
+                    # commonly show up as NaN in real spectra; null them out
+                    # rather than emit a token the frontend's JSON.parse
+                    # would choke on.
+                    wavelength = [_json_safe_float(v) for v in data[names[w]].tolist()]
+                    flux = [_json_safe_float(v) for v in data[names[f]].tolist()]
+                    unit = hdu.header.get(f"TUNIT{list(data.names).index(names[w]) + 1}")
+                    flux_unit = hdu.header.get(f"TUNIT{list(data.names).index(names[f]) + 1}")
+                    result = {
+                        "wavelength": wavelength,
+                        "flux": flux,
+                        "wavelengthUnit": unit,
+                        "fluxUnit": flux_unit,
+                        "productFilename": spectrum_row.get("productFilename"),
+                    }
+                    return envelope("MAST", "spectrum", str(obsid), result, None)
+
+    return None
 
 
 def _normalize_observation(row: dict):

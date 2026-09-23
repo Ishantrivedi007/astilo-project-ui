@@ -4,17 +4,28 @@ from app.config import config
 from app.controllers.auth_controller import AuthController
 from app.controllers.cosmos_controller import (
     ApodController,
+    AstronomyTopicsController,
     AsteroidController,
     CloseApproachController,
+    CometController,
     CosmosLibraryController,
     DonkiController,
     ExoplanetController,
     GalaxyController,
     HighEnergyObservationController,
     HorizonsController,
+    MissionBrowseController,
+    MoonController,
     NasaImagesController,
+    NebulaController,
     NeoWsController,
     ResearchSummaryController,
+    SatelliteController,
+    SatellitePassesController,
+    SatelliteSearchController,
+    SpacecraftController,
+    SpaceWeatherPulseController,
+    SpectrumController,
     StarController,
     SupernovaController,
     TelescopeObservationController,
@@ -171,6 +182,17 @@ def build_app():
     cherrypy.tree.mount(SupernovaController(), "/api/cosmos/supernovae", conf)
     cherrypy.tree.mount(CosmosLibraryController(), "/api/cosmos/library", conf)
     cherrypy.tree.mount(ResearchSummaryController(), "/api/cosmos/research-summary", conf)
+    cherrypy.tree.mount(MoonController(), "/api/cosmos/moons", conf)
+    cherrypy.tree.mount(NebulaController(), "/api/cosmos/nebulae", conf)
+    cherrypy.tree.mount(CometController(), "/api/cosmos/comets", conf)
+    cherrypy.tree.mount(SpacecraftController(), "/api/cosmos/spacecraft", conf)
+    cherrypy.tree.mount(MissionBrowseController(), "/api/cosmos/mission-browse", conf)
+    cherrypy.tree.mount(SatelliteController(), "/api/cosmos/satellites", conf)
+    cherrypy.tree.mount(SatelliteSearchController(), "/api/cosmos/satellites/search", conf)
+    cherrypy.tree.mount(SatellitePassesController(), "/api/cosmos/satellites/passes", conf)
+    cherrypy.tree.mount(SpectrumController(), "/api/cosmos/spectrum", conf)
+    cherrypy.tree.mount(SpaceWeatherPulseController(), "/api/cosmos/space-weather/pulse", conf)
+    cherrypy.tree.mount(AstronomyTopicsController(), "/api/cosmos/astronomy-topics", conf)
     cherrypy.tree.mount(WebImageSearchController(), "/api/images/search", conf)
     cherrypy.tree.mount(MarketsAssetController(), "/api/markets/asset", conf)
     cherrypy.tree.mount(MarketsSearchController(), "/api/markets/search", conf)

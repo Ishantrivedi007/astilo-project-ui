@@ -7,3 +7,5 @@ python-dotenv==1.0.1
 requests==2.32.3
 yt-dlp==2026.8.19
 mutagen==1.48.1
+sgp4==2.23
+astropy==6.1.7

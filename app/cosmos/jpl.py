@@ -6,6 +6,8 @@ CAD (close approaches): https://ssd-api.jpl.nasa.gov/doc/cad.html
 Horizons: https://ssd-api.jpl.nasa.gov/doc/horizons.html
 """
 
+import re
+
 from app.cosmos.cache import cached_fetch
 from app.cosmos.http import cosmos_get, envelope
 
@@ -122,3 +124,79 @@ def horizons_ephemeris(command: str, start_time: str, stop_time: str, step_size:
     raw = cached_fetch("jpl_horizons", params, fetch, ttl_seconds=6 * 3600)
 
     return envelope("JPL Horizons", "vectors", command, {"result": raw.get("result")}, None)
+
+
+_VECTOR_LINE = re.compile(r"X\s*=\s*([-\d.E+]+)\s*Y\s*=\s*([-\d.E+]+)\s*Z\s*=\s*([-\d.E+]+)")
+_JD_LINE = re.compile(r"^(\d+\.\d+)\s*=")
+KM_PER_AU = 149597870.7
+
+
+def parse_vectors(raw_result: str) -> list[dict]:
+    """Parses Horizons' VECTORS ephemeris text ($$SOE ... $$EOE block) into
+    a list of {jd, x, y, z} positions in AU — a Python port of the same
+    parsing already done client-side in CosmosOrbitExplorer.tsx, reused
+    server-side so features like the comparison tool don't need to
+    re-implement text parsing to get structured numbers out of Horizons."""
+    text = raw_result or ""
+    if "$$SOE" not in text or "$$EOE" not in text:
+        return []
+    block = text.split("$$SOE")[1].split("$$EOE")[0]
+
+    vectors = []
+    jd = 0.0
+    for line in block.splitlines():
+        jd_match = _JD_LINE.match(line)
+        if jd_match:
+            jd = float(jd_match.group(1))
+            continue
+        xyz = _VECTOR_LINE.search(line)
+        if xyz:
+            vectors.append({
+                "jd": jd,
+                "x": float(xyz.group(1)) / KM_PER_AU,
+                "y": float(xyz.group(2)) / KM_PER_AU,
+                "z": float(xyz.group(3)) / KM_PER_AU,
+            })
+    return vectors
+
+
+def is_ambiguous_match(raw_result: str) -> bool:
+    """True when Horizons couldn't resolve `command` to one body and
+    returned a disambiguation listing instead of ephemeris data."""
+    return "match string" in (raw_result or "") and "Multiple" in (raw_result or "")
+
+
+_CANDIDATE_ROW = re.compile(r"^\s*(-?\d+)\s{2,}(.+?)\s{2,}")
+
+
+def extract_match_candidates(raw_result: str) -> list[str]:
+    """Parses Horizons' disambiguation block (a fixed-width table of
+    ID#/Name/Designation/aliases columns following its "Multiple
+    major-bodies/small-bodies match string..." message) into a list of
+    candidate names. Column widths are split on runs of 2+ spaces, which
+    Horizons uses as its column separator, rather than a fixed offset —
+    parses defensively, returns [] rather than guessing if the expected
+    shape isn't found."""
+    text = raw_result or ""
+    idx = text.find("match string")
+    if idx == -1:
+        return []
+
+    lines = text[idx:].splitlines()
+    candidates: list[str] = []
+    in_table = False
+    for line in lines:
+        stripped = line.strip()
+        if not in_table:
+            if stripped.lower().startswith("id#"):
+                in_table = True
+            continue
+        is_underline = stripped and set(stripped) <= {"-", " "}
+        if not stripped or is_underline or stripped.lower().startswith("number of matches"):
+            if candidates:
+                break
+            continue
+        m = _CANDIDATE_ROW.match(line)
+        if m:
+            candidates.append(m.group(2).strip())
+    return candidates

@@ -186,6 +186,39 @@ def categories(title: str, limit: int = 10) -> list[str]:
     return names[:limit]
 
 
+def category_members(category: str, limit: int = 30) -> dict:
+    """Real, live page titles currently in a Wikipedia category (e.g.
+    "Astronomy", "Observational astronomy") — powers the reference library's
+    topic list from Wikipedia's own live category membership rather than
+    any topic list Astilo curates and freezes in code. Subcategories are
+    included (flagged via `isCategory`) so callers can drill down."""
+    params = {
+        "action": "query",
+        "list": "categorymembers",
+        "cmtitle": f"Category:{category}",
+        "cmlimit": limit,
+        "cmtype": "page|subcat",
+        "format": "json",
+    }
+
+    def fetch():
+        resp = cosmos_get(ACTION_API_URL, params=params, timeout=12, headers=_HEADERS)
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("wikipedia_category_members", params, fetch, ttl_seconds=24 * 3600)
+    members = raw.get("query", {}).get("categorymembers") or []
+    results = []
+    for m in members:
+        title = m.get("title", "")
+        is_category = title.startswith("Category:")
+        results.append({
+            "title": title.replace("Category:", "") if is_category else title,
+            "isCategory": is_category,
+        })
+    return envelope("Wikipedia", "action_api/categorymembers", category, {"count": len(results), "results": results}, None)
+
+
 def research_summary(query: str) -> dict:
     """Searches Wikipedia for `query` and returns the best-matching article's
     summary (short lead + a longer multi-paragraph extract), wrapped with
