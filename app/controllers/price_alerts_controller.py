@@ -7,7 +7,7 @@ import cherrypy
 import requests
 
 from app.db import get_session
-from app.markets import coingecko, frankfurter, yahoo
+from app.markets.quotes import crypto_chart_with_fallback, stock_chart_with_fallback
 from app.models import (
     PRICE_ALERT_CONDITIONS,
     TRADE_ASSET_TYPES,
@@ -30,39 +30,14 @@ def _guard(fn, *args, **kwargs):
         raise cherrypy.HTTPError(502, f"Upstream market data service failed: {exc}")
 
 
-def _raise(exc):
-    raise exc
-
-
 def _current_quote(symbol: str, asset_type: str):
-    """Real, live price + display name for a symbol — same adapters as
-    trading_controller.py's _current_quote. Returns None if the symbol
-    doesn't resolve. Kept as a local copy rather than imported since
-    trading_controller.py doesn't expose it as a shared/public helper."""
+    """Real, live price + display name for a symbol — same multi-provider
+    fallback chain as Markets/Trading (app.markets.quotes). Returns None
+    if the symbol doesn't resolve on any provider."""
     if asset_type == "crypto":
-        env = _guard(coingecko.market_chart, symbol, "1d")
+        env = _guard(crypto_chart_with_fallback, symbol, "1d")
     else:
-        try:
-            env = yahoo.chart(symbol, "1d")
-            yahoo_failed = not env or (isinstance(env, dict) and env.get("error"))
-            yahoo_exc = None
-        except requests.exceptions.RequestException as exc:
-            env = None
-            yahoo_failed = True
-            yahoo_exc = exc
-
-        if yahoo_failed:
-            pair = frankfurter.yahoo_symbol_to_frankfurter(symbol)
-            fallback = None
-            if pair is not None:
-                try:
-                    fallback = frankfurter.chart(pair[0], pair[1], "1d")
-                except requests.exceptions.RequestException:
-                    fallback = None
-            if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):
-                env = fallback
-            elif yahoo_exc is not None:
-                _guard(_raise, yahoo_exc)
+        env = _guard(stock_chart_with_fallback, symbol, "1d")
     if not env or (isinstance(env, dict) and env.get("error")):
         return None
     data = env.get("data") if isinstance(env, dict) else None

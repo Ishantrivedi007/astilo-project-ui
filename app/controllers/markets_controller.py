@@ -1,13 +1,18 @@
 """Astilo Markets — real historical + current data for stocks, ETFs/funds,
 indices, commodities, forex (via Yahoo Finance's public chart/search
-endpoints) and crypto (via CoinGecko's free API). Both are free and need no
-API key; results are cached the same way as Cosmos's external data.
+endpoints) and crypto (via CoinGecko's free API). Both primary providers
+are free and need no API key; results are cached the same way as Cosmos's
+external data. Multi-provider redundancy for quote lookups (see
+app.markets.quotes) is layered on top so no single provider outage takes
+Markets down — see that module for which fallbacks cover which asset
+classes.
 """
 
 import cherrypy
 import requests
 
-from app.markets import coingecko, frankfurter, worldbank, yahoo
+from app.markets import coingecko, worldbank, yahoo
+from app.markets.quotes import crypto_chart_with_fallback, stock_chart_with_fallback
 
 ASSET_TYPES = ("stock", "crypto")
 
@@ -19,10 +24,6 @@ def _guard(fn, *args, **kwargs):
         raise cherrypy.HTTPError(504, "Upstream market data service timed out")
     except requests.exceptions.RequestException as exc:
         raise cherrypy.HTTPError(502, f"Upstream market data service failed: {exc}")
-
-
-def _raise(exc):
-    raise exc
 
 
 class MarketsAssetController:
@@ -38,30 +39,9 @@ class MarketsAssetController:
             raise cherrypy.HTTPError(400, f"asset_type must be one of {ASSET_TYPES}")
 
         if asset_type == "crypto":
-            result = _guard(coingecko.market_chart, symbol, range)
+            result = _guard(crypto_chart_with_fallback, symbol, range)
         else:
-            try:
-                result = yahoo.chart(symbol, range)
-                yahoo_failed = result is None or (isinstance(result, dict) and result.get("error"))
-                yahoo_exc = None
-            except requests.exceptions.RequestException as exc:
-                result = None
-                yahoo_failed = True
-                yahoo_exc = exc
-
-            if yahoo_failed:
-                pair = frankfurter.yahoo_symbol_to_frankfurter(symbol)
-                fallback = None
-                if pair is not None:
-                    try:
-                        fallback = frankfurter.chart(pair[0], pair[1], range)
-                    except requests.exceptions.RequestException:
-                        fallback = None
-                if fallback is not None and not (isinstance(fallback, dict) and fallback.get("error")):
-                    result = fallback
-                elif yahoo_exc is not None:
-                    # No viable fallback — surface Yahoo's original error.
-                    result = _guard(_raise, yahoo_exc)
+            result = _guard(stock_chart_with_fallback, symbol, range)
 
         if result is None:
             raise cherrypy.HTTPError(404, f"No data found for symbol '{symbol}'")

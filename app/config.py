@@ -26,6 +26,13 @@ class Config:
     # the JPL, Exoplanet Archive, and MAST adapters need no key at all.
     NASA_API_KEY = os.getenv("NASA_API_KEY", "DEMO_KEY")
 
+    # Optional — a free, instant-signup key from
+    # https://www.alphavantage.co/support/#api-key enables a real second
+    # data source (redundancy) for equities/indices/bonds/commodities in
+    # Markets. Every Alpha Vantage call is a no-op when this is unset, so
+    # leaving it empty is a supported, fully working default.
+    ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "")
+
     # Absolute override for where downloaded songs are written (and checked
     # against). Defaults to the sibling astilo-project-ui/public/downloads
     # next to this backend — set this when the frontend being served lives
