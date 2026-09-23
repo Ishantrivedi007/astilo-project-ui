@@ -5,6 +5,12 @@ interface ImportMetaEnv {
   readonly VITE_TMDB_TOKEN: string;
   readonly VITE_TMDB_API_KEY: string;
   readonly VITE_GENIUS_ACCESS_TOKEN: string;
+  // Display label for the admin-only extra genre filter (see lib/tmdb.ts) —
+  // unset falls back to a generic label.
+  readonly VITE_ADMIN_GENRE_LABEL?: string;
+  // TMDB query-param name that toggles adult-title visibility (see
+  // lib/tmdb.ts ADMIN_PARAM) — unset omits the param from requests entirely.
+  readonly VITE_TMDB_ADMIN_PARAM?: string;
   // Streaming-server base URLs + display names (see lib/streams.ts) —
   // both optional; a server is left out of the switcher entirely if its
   // base URL var isn't set, and falls back to a generic "Server N" label
@@ -57,6 +63,18 @@ interface ImportMetaEnv {
   readonly VITE_PROVIDER_23_NAME?: string;
   readonly VITE_PROVIDER_24?: string;
   readonly VITE_PROVIDER_24_NAME?: string;
+  readonly VITE_PROVIDER_25?: string;
+  readonly VITE_PROVIDER_25_NAME?: string;
+  readonly VITE_PROVIDER_26?: string;
+  readonly VITE_PROVIDER_26_NAME?: string;
+  readonly VITE_PROVIDER_27?: string;
+  readonly VITE_PROVIDER_27_NAME?: string;
+  readonly VITE_PROVIDER_28?: string;
+  readonly VITE_PROVIDER_28_NAME?: string;
+  readonly VITE_PROVIDER_29?: string;
+  readonly VITE_PROVIDER_29_NAME?: string;
+  readonly VITE_PROVIDER_30?: string;
+  readonly VITE_PROVIDER_30_NAME?: string;
 }
 
 interface ImportMeta {

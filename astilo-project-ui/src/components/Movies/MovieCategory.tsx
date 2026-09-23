@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { PageHeading } from "../shared";
-import { fetchRowPage, filterByCertification, type MediaItem, type TmdbEndpoint } from "../../lib/tmdb";
+import { ADMIN_PARAM, EXTRA_ADMIN_GENRE_ID, fetchRowPage, filterByCertification, type MediaItem, type TmdbEndpoint } from "../../lib/tmdb";
 import { MOVIE_ROWS, buildMockRow } from "./catalog";
 import { useMovieStore } from "./useMovieStore";
 import PosterCard from "./PosterCard";
@@ -56,7 +56,11 @@ const MovieCategory = ({
         kind: effectiveKind,
         params: {
           ...row.endpoint.params,
-          ...(extra.genreId ? { with_genres: extra.genreId } : {}),
+          ...(extra.genreId === EXTRA_ADMIN_GENRE_ID && ADMIN_PARAM
+            ? { [ADMIN_PARAM]: "true" }
+            : extra.genreId
+              ? { with_genres: extra.genreId }
+              : {}),
           ...(extra.year
             ? {
                 [effectiveKind === "tv" ? "first_air_date_year" : "primary_release_year"]: extra.year,

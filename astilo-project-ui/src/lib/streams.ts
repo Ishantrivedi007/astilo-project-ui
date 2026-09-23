@@ -236,6 +236,62 @@ const DEFS: StreamProviderDef[] = [
     movie: (id) => `${env.VITE_PROVIDER_24}/embed/movie/${id}`,
     tv: (id, s, e) => `${env.VITE_PROVIDER_24}/embed/tv/${id}/${s}/${e}`,
   },
+  {
+    id: "server25",
+    name: name(25, "Server 25"),
+    base: env.VITE_PROVIDER_25,
+    movie: (id) => `${env.VITE_PROVIDER_25}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_25}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server26",
+    name: name(26, "Server 26"),
+    base: env.VITE_PROVIDER_26,
+    movie: (id) => `${env.VITE_PROVIDER_26}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_26}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server27",
+    name: name(27, "Server 27"),
+    base: env.VITE_PROVIDER_27,
+    movie: (id) => `${env.VITE_PROVIDER_27}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_27}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server28",
+    name: name(28, "Server 28"),
+    base: env.VITE_PROVIDER_28,
+    movie: (id) => `${env.VITE_PROVIDER_28}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_28}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server29",
+    name: name(29, "Server 29"),
+    base: env.VITE_PROVIDER_29,
+    movie: (id) => `${env.VITE_PROVIDER_29}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_29}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server30",
+    name: name(30, "Server 30"),
+    base: env.VITE_PROVIDER_30,
+    movie: (id) => `${env.VITE_PROVIDER_30}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_30}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server31",
+    name: name(31, "Server 31"),
+    base: env.VITE_PROVIDER_31,
+    movie: (id) => `${env.VITE_PROVIDER_31}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_31}/embed/tv/${id}/${s}/${e}`,
+  },
+  {
+    id: "server32",
+    name: name(32, "Server 32"),
+    base: env.VITE_PROVIDER_32,
+    movie: (id) => `${env.VITE_PROVIDER_32}/embed/movie/${id}`,
+    tv: (id, s, e) => `${env.VITE_PROVIDER_32}/embed/tv/${id}/${s}/${e}`,
+  },
 ];
 
 export const STREAM_PROVIDERS: StreamProvider[] = DEFS.filter((p) => p.base);

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { PageHeading } from "../shared";
-import { discoverMedia } from "../../lib/tmdb";
+import { discoverMedia, EXTRA_ADMIN_GENRE_ID } from "../../lib/tmdb";
 import { useMovieStore } from "./useMovieStore";
 import PosterCard from "./PosterCard";
 import MovieFilterBar, { type FilterState } from "./MovieFilterBar";
@@ -50,12 +50,13 @@ const MovieSearch = ({ basePath = "/movies" }: MovieSearchProps) => {
       discoverMedia({
         kind: filters.kind,
         query: q,
-        genreId: filters.genreId,
+        genreId: filters.genreId === EXTRA_ADMIN_GENRE_ID ? undefined : filters.genreId,
         year: filters.year,
         language: filters.language,
         country: filters.country,
         watchProviderId: filters.watchProviderId,
         certification: filters.certification,
+        isAdult: filters.genreId === EXTRA_ADMIN_GENRE_ID,
         page,
       }),
     placeholderData: (prev) => prev,

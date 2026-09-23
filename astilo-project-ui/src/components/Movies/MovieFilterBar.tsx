@@ -3,12 +3,15 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronDown } from "lucide-react";
 import {
+  EXTRA_ADMIN_GENRE_ID,
+  EXTRA_ADMIN_GENRE_LABEL,
   fetchCertifications,
   fetchGenres,
   fetchWatchProviders,
   MOVIE_CERTIFICATIONS,
   TV_CERTIFICATIONS,
 } from "../../lib/tmdb";
+import { useAuth } from "../../auth/AuthProvider";
 
 export interface FilterState {
   kind: "movie" | "tv";
@@ -155,6 +158,8 @@ const CustomSelect = ({ value, onChange, options, className = "" }: CustomSelect
 
 /** Filter row for the search-results and category ("view more") pages. */
 const MovieFilterBar = ({ value, onChange, showKindToggle = true }: MovieFilterBarProps) => {
+  const { isAdmin } = useAuth();
+
   const { data: genres } = useQuery({
     queryKey: ["tmdb-genres", value.kind],
     staleTime: 1000 * 60 * 60,
@@ -205,6 +210,7 @@ const MovieFilterBar = ({ value, onChange, showKindToggle = true }: MovieFilterB
         options={[
           { value: "", label: "Any genre" },
           ...(genres ?? []).map((g) => ({ value: String(g.id), label: g.name })),
+          ...(isAdmin ? [{ value: String(EXTRA_ADMIN_GENRE_ID), label: EXTRA_ADMIN_GENRE_LABEL }] : []),
         ]}
       />
 

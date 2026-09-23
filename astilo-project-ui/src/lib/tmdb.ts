@@ -16,6 +16,11 @@ const client = axios.create({
 
 const IMG = "https://image.tmdb.org/t/p";
 
+/** TMDB query-param name that toggles adult-title visibility — read from env
+ * so the literal name isn't checked into source. Empty/unset means the
+ * request omits the param entirely (TMDB's own default applies). */
+export const ADMIN_PARAM = import.meta.env.VITE_TMDB_ADMIN_PARAM?.trim() || "";
+
 export const posterUrl = (path: string | null, size: "w342" | "w500" = "w342") =>
   path ? `${IMG}/${size}${path}` : "";
 
@@ -78,7 +83,7 @@ export async function searchMedia(query: string): Promise<MediaItem[]> {
   if (!q || !hasTmdb) return [];
   const { data } = await client.get<{ results: (TmdbRaw & { media_type: string })[] }>(
     "/search/multi",
-    { params: { query: q, include_adult: false } }
+    { params: { query: q, ...(ADMIN_PARAM ? { [ADMIN_PARAM]: false } : {}) } }
   );
   return (data.results ?? [])
     .filter((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path)
@@ -103,7 +108,7 @@ export async function searchMediaPage(
     results: (TmdbRaw & { media_type: string })[];
     page: number;
     total_pages: number;
-  }>("/search/multi", { params: { query: q, include_adult: false, page } });
+  }>("/search/multi", { params: { query: q, ...(ADMIN_PARAM ? { [ADMIN_PARAM]: false } : {}), page } });
   return {
     items: (data.results ?? [])
       .filter((r) => (r.media_type === "movie" || r.media_type === "tv") && r.poster_path)
@@ -134,9 +139,13 @@ export async function fetchRowPage(
     page: number;
     total_pages: number;
   }>(endpoint.path, { params: { ...endpoint.params, page } });
+  // Adult-flagged TMDB titles frequently have no poster art at all — the
+  // usual "must have a poster" filter would zero out the admin-only extra
+  // genre's results, so it's skipped for that request.
+  const isAdultRequest = ADMIN_PARAM ? endpoint.params?.[ADMIN_PARAM] === "true" : false;
   return {
     items: (data.results ?? [])
-      .filter((r) => r.poster_path)
+      .filter((r) => isAdultRequest || r.poster_path)
       .map((r) => normalize(r, endpoint.kind)),
     page: data.page ?? 1,
     totalPages: data.total_pages ?? 1,
@@ -190,9 +199,17 @@ export interface DiscoverFilters {
   watchProviderId?: number;
   region?: string; // watch_region, defaults to "US"
   certification?: string; // e.g. "PG-13" (movie) or "TV-MA" (tv), US ratings board
+  isAdult?: boolean; // admin-only extra genre option — sets the ADMIN_PARAM flag
   page?: number;
   sortBy?: string;
 }
+
+/** Synthetic genre id for the admin-only extra filter option — not a real
+ * TMDB genre, it just flips the ADMIN_PARAM flag on instead of `with_genres`.
+ * Its display label is read from an env var so the name isn't in source. */
+export const EXTRA_ADMIN_GENRE_ID = -18;
+export const EXTRA_ADMIN_GENRE_LABEL =
+  import.meta.env.VITE_ADMIN_GENRE_LABEL?.trim() || "Extra";
 
 /** US content-rating options for the filter bar, grouped by kind — used as an
  * instant fallback before `fetchCertifications` resolves (or if it fails). */
@@ -308,6 +325,7 @@ async function searchMediaFiltered(filters: DiscoverFilters): Promise<SearchPage
     country,
     watchProviderId,
     certification,
+    isAdult,
     region = "US",
     page = 1,
   } = filters;
@@ -316,13 +334,20 @@ async function searchMediaFiltered(filters: DiscoverFilters): Promise<SearchPage
     results: (TmdbRaw & { media_type: string })[];
     page: number;
     total_pages: number;
-  }>("/search/multi", { params: { query: query!.trim(), include_adult: false, page } });
+  }>("/search/multi", {
+    params: {
+      query: query!.trim(),
+      ...(ADMIN_PARAM ? { [ADMIN_PARAM]: Boolean(isAdult) } : {}),
+      page,
+    },
+  });
 
   let results = (data.results ?? []).filter(
-    (r) => r.media_type === kind && r.poster_path
+    (r) => r.media_type === kind && (isAdult || r.poster_path)
   );
 
-  if (genreId) results = results.filter((r) => r.genre_ids?.includes(genreId));
+  if (isAdult) results = results.filter((r) => (r as unknown as { adult?: boolean }).adult);
+  if (genreId && !isAdult) results = results.filter((r) => r.genre_ids?.includes(genreId));
   if (year) {
     results = results.filter((r) => {
       const date = r.release_date || r.first_air_date || "";
@@ -369,6 +394,7 @@ export async function discoverMedia(filters: DiscoverFilters): Promise<SearchPag
     country,
     watchProviderId,
     certification,
+    isAdult,
     region = "US",
     page = 1,
     sortBy = "popularity.desc",
@@ -377,7 +403,11 @@ export async function discoverMedia(filters: DiscoverFilters): Promise<SearchPag
   if (query?.trim()) return searchMediaFiltered(filters);
 
   const params: Record<string, string | number> = { page, sort_by: sortBy };
-  if (genreId) params.with_genres = genreId;
+  if (isAdult && ADMIN_PARAM) {
+    params[ADMIN_PARAM] = "true";
+  } else if (genreId) {
+    params.with_genres = genreId;
+  }
   if (year) params[kind === "tv" ? "first_air_date_year" : "primary_release_year"] = year;
   if (language) params.with_original_language = language;
   if (country) params.with_origin_country = country;
@@ -399,7 +429,7 @@ export async function discoverMedia(filters: DiscoverFilters): Promise<SearchPag
     total_pages: number;
   }>(`/discover/${kind}`, { params });
 
-  let results = (data.results ?? []).filter((r) => r.poster_path);
+  let results = (data.results ?? []).filter((r) => isAdult || r.poster_path);
   if (certification && kind === "tv") {
     results = await filterByCertification(kind, results, certification);
   }
