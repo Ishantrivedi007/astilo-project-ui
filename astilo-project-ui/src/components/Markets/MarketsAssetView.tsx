@@ -683,7 +683,13 @@ const MarketsAssetView = () => {
             </button>
           </div>
 
-          {chartMode === "candlestick" ? (
+          {d.spotOnly ? (
+            <p className="markets-unavailable">
+              This price is coming from a last-resort fallback source (every other provider, including Yahoo, had
+              nothing right now) that only offers the current spot price — no historical chart is available until
+              Yahoo or another provider recovers.
+            </p>
+          ) : chartMode === "candlestick" ? (
             candlestickSeries ? (
               <Chart type="candlestick" height={340} series={candlestickSeries} options={{ xaxis: { type: "datetime" as const } }} />
             ) : (

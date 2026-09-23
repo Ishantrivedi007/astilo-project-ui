@@ -42,6 +42,10 @@ export interface MarketAssetData {
   range: string;
   interval: string;
   points: MarketPoint[];
+  /** Set only by the gold/silver last-resort fallback (gold-api.com) when
+   * every other provider — including Yahoo itself — had nothing: a real
+   * current price, but genuinely no historical series to chart. */
+  spotOnly?: boolean;
 }
 
 export interface MarketEnvelope<T> {
