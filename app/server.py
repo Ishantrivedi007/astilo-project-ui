@@ -99,6 +99,7 @@ from app.controllers.markets_controller import (
     MarketsTopController,
 )
 from app.controllers.playlists_controller import PlaylistsController
+from app.controllers.price_alerts_controller import PriceAlertsController
 from app.controllers.research_controller import ResearchController
 from app.controllers.sessions_controller import SessionsController
 from app.controllers.songs_controller import (
@@ -117,6 +118,7 @@ from app.controllers.trading_controller import (
     TradingWhatIfController,
 )
 from app.controllers.users_controller import UsersController
+from app.controllers.watchlist_controller import WatchlistController
 from app.db import init_db
 
 
@@ -209,6 +211,8 @@ def build_app():
     cherrypy.tree.mount(MarketsMacroController(), "/api/markets/macro", conf)
     cherrypy.tree.mount(MarketsMacroIndicatorController(), "/api/markets/macro/indicator", conf)
     cherrypy.tree.mount(MarketsNewsClustersController(), "/api/markets/news-clusters", conf)
+    cherrypy.tree.mount(WatchlistController(), "/api/markets/watchlist", conf)
+    cherrypy.tree.mount(PriceAlertsController(), "/api/markets/price-alerts", conf)
     cherrypy.tree.mount(TradingAccountController(), "/api/trading/account", conf)
     cherrypy.tree.mount(TradingDepositController(), "/api/trading/deposit", conf)
     cherrypy.tree.mount(TradingOrdersController(), "/api/trading/orders", conf)

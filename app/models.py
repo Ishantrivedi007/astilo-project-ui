@@ -1349,3 +1349,67 @@ class TradingTransaction(Base):
             "realizedPnl": self.realized_pnl,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class WatchlistItem(Base):
+    __tablename__ = "watchlist_items"
+    __table_args__ = (UniqueConstraint("user_id", "symbol", "asset_type", name="uq_watchlist_item"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    symbol = Column(String(40), nullable=False)
+    asset_type = Column(String(10), nullable=False)
+    name = Column(String(200), nullable=True)
+    notes = Column(String(500), nullable=True)
+    added_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "assetType": self.asset_type,
+            "name": self.name,
+            "notes": self.notes,
+            "addedAt": self.added_at.isoformat() if self.added_at else None,
+        }
+
+
+PRICE_ALERT_CONDITIONS = ("above", "below")
+PRICE_ALERT_STATUSES = ("active", "triggered", "cancelled")
+
+
+class PriceAlert(Base):
+    """Time-based, but this app has no background scheduler — active alerts
+    are checked lazily whenever PriceAlertsController.GET is polled, the
+    same "lazy check on poll" pattern trading_controller.py uses for pending
+    limit/stop orders."""
+
+    __tablename__ = "price_alerts"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    symbol = Column(String(40), nullable=False)
+    asset_type = Column(String(10), nullable=False)
+    name = Column(String(200), nullable=True)
+    condition = Column(String(10), nullable=False)  # above | below
+    target_price = Column(Float, nullable=False)
+    status = Column(String(10), nullable=False, default="active")  # active | triggered | cancelled
+    created_at = Column(DateTime, default=utcnow)
+    triggered_at = Column(DateTime, nullable=True)
+    triggered_price = Column(Float, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "symbol": self.symbol,
+            "assetType": self.asset_type,
+            "name": self.name,
+            "condition": self.condition,
+            "targetPrice": self.target_price,
+            "status": self.status,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "triggeredAt": self.triggered_at.isoformat() if self.triggered_at else None,
+            "triggeredPrice": self.triggered_price,
+            "cancelledAt": self.cancelled_at.isoformat() if self.cancelled_at else None,
+        }
