@@ -6,10 +6,10 @@ import { ArrowLeft, LineChart } from "lucide-react";
 import { AppRoute } from "../../app/AppRoute";
 import { Chart } from "../shared";
 import {
+  fetchMacroCountries,
   fetchMacroDashboard,
   fetchMacroIndicator,
   INDICATOR_LABEL,
-  MACRO_COUNTRIES,
   type MacroIndicatorKey,
 } from "../../lib/marketsApi";
 import "./Markets.scss";
@@ -29,6 +29,24 @@ const MarketsMacro = () => {
   const [country, setCountry] = useState("US");
   const [indicator, setIndicator] = useState<MacroIndicatorKey>("gdp");
   const [compareCountries, setCompareCountries] = useState<string[]>(["US", "IN"]);
+  const [countryFilter, setCountryFilter] = useState("");
+
+  // The real, full list of countries the World Bank publishes data for —
+  // fetched live rather than a curated shortlist, so it never drifts from
+  // what the backend can actually serve.
+  const countriesQuery = useQuery({
+    queryKey: ["markets", "macro", "countries"],
+    queryFn: fetchMacroCountries,
+    staleTime: 24 * 3600_000,
+    retry: false,
+  });
+  const allCountries = countriesQuery.data?.data.results ?? [];
+  const filteredCountries = useMemo(() => {
+    const q = countryFilter.trim().toLowerCase();
+    if (!q) return allCountries;
+    return allCountries.filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q);
+  }, [allCountries, countryFilter]);
+  const countryName = (code: string) => allCountries.find((c) => c.code === code)?.name ?? code;
 
   const dashboardQuery = useQuery({
     queryKey: ["markets", "macro", "dashboard", country],
@@ -58,11 +76,10 @@ const MarketsMacro = () => {
         .map((q, i) => {
           const d = q.data?.data;
           if (!d) return null;
-          const countryName = MACRO_COUNTRIES.find((c) => c.code === compareCountries[i])?.name ?? compareCountries[i];
-          return { name: countryName, data: d.points.map((p) => ({ x: p.year, y: p.value })) };
+          return { name: countryName(compareCountries[i]), data: d.points.map((p) => ({ x: p.year, y: p.value })) };
         })
         .filter((s): s is { name: string; data: { x: number; y: number | null }[] } => s != null),
-    [compareQueries, compareCountries]
+    [compareQueries, compareCountries, allCountries]
   );
 
   const indicators = dashboardQuery.data?.data.indicators;
@@ -94,8 +111,16 @@ const MarketsMacro = () => {
 
       {mode === "dashboard" && (
         <>
-          <div className="markets-filter-row">
-            {MACRO_COUNTRIES.map((c) => (
+          <input
+            className="markets-search-input"
+            style={{ marginBottom: "0.6rem", maxWidth: 320 }}
+            placeholder="Filter countries…"
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+          />
+          {countriesQuery.isLoading && <p className="markets-unavailable">Loading country list…</p>}
+          <div className="markets-filter-row" style={{ maxHeight: 160, overflowY: "auto" }}>
+            {filteredCountries.map((c) => (
               <button
                 key={c.code}
                 type="button"
@@ -105,6 +130,9 @@ const MarketsMacro = () => {
                 {c.name}
               </button>
             ))}
+            {!countriesQuery.isLoading && filteredCountries.length === 0 && (
+              <p className="markets-unavailable">No countries match "{countryFilter}".</p>
+            )}
           </div>
 
           {dashboardQuery.isLoading && <p className="markets-unavailable">Loading macro data…</p>}
@@ -157,8 +185,15 @@ const MarketsMacro = () => {
           <p className="markets-unavailable" style={{ margin: "0.5rem 0" }}>
             Pick 2-4 countries to compare on {INDICATOR_LABEL[indicator]}.
           </p>
-          <div className="markets-filter-row">
-            {MACRO_COUNTRIES.map((c) => (
+          <input
+            className="markets-search-input"
+            style={{ marginBottom: "0.6rem", maxWidth: 320 }}
+            placeholder="Filter countries…"
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+          />
+          <div className="markets-filter-row" style={{ maxHeight: 160, overflowY: "auto" }}>
+            {filteredCountries.map((c) => (
               <button
                 key={c.code}
                 type="button"

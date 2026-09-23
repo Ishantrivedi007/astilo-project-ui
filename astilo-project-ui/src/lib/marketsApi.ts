@@ -114,9 +114,9 @@ export async function fetchTopCrypto(limit = 20) {
   return data as MarketEnvelope<{ count: number; results: TopCoin[] }>;
 }
 
-export async function fetchTrendingSymbols() {
-  const { data } = await markets.get(`/top`, { params: { asset_type: "stock" } });
-  return data as MarketEnvelope<{ symbols: string[] }>;
+export async function fetchTrendingSymbols(region = "US") {
+  const { data } = await markets.get(`/top`, { params: { asset_type: "stock", region } });
+  return data as MarketEnvelope<{ region: string; symbols: string[] }>;
 }
 
 export interface SimilarCompany {
@@ -223,18 +223,16 @@ export const INDICATOR_LABEL: Record<MacroIndicatorKey, string> = {
 export interface MacroCountry {
   code: string;
   name: string;
+  region: string | null;
 }
 
-export const MACRO_COUNTRIES: MacroCountry[] = [
-  { code: "US", name: "United States" },
-  { code: "IN", name: "India" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "CN", name: "China" },
-  { code: "DE", name: "Germany" },
-  { code: "JP", name: "Japan" },
-  { code: "BR", name: "Brazil" },
-  { code: "ZA", name: "South Africa" },
-];
+/** The real, full list of countries the World Bank publishes indicators
+ * for (not a curated shortlist) — fetched live so it never drifts from
+ * what the backend's macro dashboard can actually serve. */
+export async function fetchMacroCountries() {
+  const { data } = await markets.get(`/countries`);
+  return data as MarketEnvelope<{ count: number; results: MacroCountry[] }>;
+}
 
 export const RANGE_LABEL: Record<MarketRange, string> = {
   "1d": "1D",

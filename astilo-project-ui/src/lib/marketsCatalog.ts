@@ -61,60 +61,26 @@ export const CROSS_ASSET_REFERENCES: CrossAssetSymbol[] = [
   { symbol: "bitcoin", label: "Bitcoin", assetType: "crypto" },
 ];
 
-export interface ExchangePreset {
+/** Exchange -> the Yahoo Finance trending region that best covers it, used
+ * to drive "Browse by exchange" from real, live trending data instead of a
+ * curated ticker list. Yahoo's trending endpoint is genuinely keyed by
+ * country, not by individual exchange, so NYSE and NASDAQ (both US) share
+ * a region and NSE/BSE (both India) share one too — that's a real
+ * limitation of the free data source, not something we can subdivide
+ * further without fabricating a split Yahoo doesn't provide. When a
+ * region's trending list comes back empty (which happens — India's has no
+ * trending results as of this writing), the UI shows that honestly rather
+ * than padding it with a fallback list. */
+export interface ExchangeRegion {
   key: string;
   label: string;
-  symbols: CatalogSymbol[];
+  region: string;
 }
 
-export const EXCHANGE_PRESETS: ExchangePreset[] = [
-  {
-    key: "NYSE",
-    label: "NYSE",
-    symbols: [
-      { symbol: "JPM", label: "JPMorgan Chase" },
-      { symbol: "KO", label: "Coca-Cola" },
-      { symbol: "DIS", label: "Disney" },
-      { symbol: "WMT", label: "Walmart" },
-      { symbol: "V", label: "Visa" },
-    ],
-  },
-  {
-    key: "NASDAQ",
-    label: "NASDAQ",
-    symbols: [
-      { symbol: "AAPL", label: "Apple" },
-      { symbol: "MSFT", label: "Microsoft" },
-      { symbol: "GOOGL", label: "Alphabet" },
-      { symbol: "AMZN", label: "Amazon" },
-      { symbol: "NVDA", label: "Nvidia" },
-    ],
-  },
-  {
-    key: "NSE",
-    label: "NSE",
-    symbols: [
-      { symbol: "RELIANCE.NS", label: "Reliance Industries" },
-      { symbol: "TCS.NS", label: "Tata Consultancy" },
-      { symbol: "HDFCBANK.NS", label: "HDFC Bank" },
-      { symbol: "INFY.NS", label: "Infosys" },
-    ],
-  },
-  {
-    key: "BSE",
-    label: "BSE",
-    symbols: [
-      { symbol: "RELIANCE.BO", label: "Reliance Industries" },
-      { symbol: "TCS.BO", label: "Tata Consultancy" },
-    ],
-  },
-  {
-    key: "LSE",
-    label: "LSE",
-    symbols: [
-      { symbol: "HSBA.L", label: "HSBC" },
-      { symbol: "BP.L", label: "BP" },
-      { symbol: "ULVR.L", label: "Unilever" },
-    ],
-  },
+export const EXCHANGE_REGIONS: ExchangeRegion[] = [
+  { key: "NYSE", label: "NYSE", region: "US" },
+  { key: "NASDAQ", label: "NASDAQ", region: "US" },
+  { key: "NSE", label: "NSE", region: "IN" },
+  { key: "BSE", label: "BSE", region: "IN" },
+  { key: "LSE", label: "LSE", region: "GB" },
 ];

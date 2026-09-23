@@ -5,32 +5,20 @@ import { Bell, Flame, Globe2, Landmark, LineChart, Newspaper, Repeat, Scale, Sea
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
-import { BONDS, COMMODITIES, EXCHANGE_PRESETS, FOREX } from "../../lib/marketsCatalog";
+import { BONDS, COMMODITIES, EXCHANGE_REGIONS, FOREX } from "../../lib/marketsCatalog";
 import MarketQuoteCard from "./MarketQuoteCard";
 import MarketLogo, { categoryFromQuoteType, type MarketCategory } from "./MarketLogo";
 import "./Markets.scss";
 
-const STOCKS = [
-  { symbol: "AAPL", label: "Apple" },
-  { symbol: "MSFT", label: "Microsoft" },
-  { symbol: "GOOGL", label: "Alphabet" },
-  { symbol: "AMZN", label: "Amazon" },
-  { symbol: "NVDA", label: "Nvidia" },
-  { symbol: "TSLA", label: "Tesla" },
-];
-
+// Major benchmark indices are canonical, fixed-identity instruments (like
+// the backend's own per-country REGION_INDICES list) — there's no dynamic
+// "enumerate every index" API, so these ticker->name mappings are real
+// reference data, not a curated guess standing in for one.
 const INDICES = [
   { symbol: "^GSPC", label: "S&P 500" },
   { symbol: "^DJI", label: "Dow Jones" },
   { symbol: "^IXIC", label: "Nasdaq" },
   { symbol: "^FTSE", label: "FTSE 100" },
-];
-
-const FUNDS = [
-  { symbol: "SPY", label: "S&P 500 ETF" },
-  { symbol: "QQQ", label: "Nasdaq 100 ETF" },
-  { symbol: "VOO", label: "Vanguard S&P 500" },
-  { symbol: "JPM", label: "JPMorgan Chase" },
 ];
 
 const QUOTE_TYPE_FILTERS: { value: string | null; label: string }[] = [
@@ -49,7 +37,14 @@ const MarketsHome = () => {
   const [searchType, setSearchType] = useState<AssetType>("stock");
   const [quoteTypeFilter, setQuoteTypeFilter] = useState<string | null>(null);
   const [exchangeFilter, setExchangeFilter] = useState<string | null>(null);
-  const [exchangeTab, setExchangeTab] = useState(EXCHANGE_PRESETS[0].key);
+  const [exchangeTab, setExchangeTab] = useState(EXCHANGE_REGIONS[0].key);
+  const activeExchange = EXCHANGE_REGIONS.find((ex) => ex.key === exchangeTab) ?? EXCHANGE_REGIONS[0];
+  const exchangeTrendingQuery = useQuery({
+    queryKey: ["markets", "trending", activeExchange.region],
+    queryFn: () => fetchTrendingSymbols(activeExchange.region),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   const searchQuery = useQuery({
     queryKey: ["markets", "search", submitted, searchType],
@@ -66,7 +61,7 @@ const MarketsHome = () => {
 
   const trendingQuery = useQuery({
     queryKey: ["markets", "trending"],
-    queryFn: fetchTrendingSymbols,
+    queryFn: () => fetchTrendingSymbols(),
     staleTime: 5 * 60_000,
     retry: false,
   });
@@ -255,24 +250,26 @@ const MarketsHome = () => {
         {trendingQuery.isError && <p className="markets-unavailable">Trending list unavailable right now.</p>}
       </div>
 
-      <h2 className="markets-section-title">Stocks</h2>
-      <div className="markets-quote-grid">
-        {STOCKS.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="stock" />
-        ))}
-      </div>
-
       <h2 className="markets-section-title">Browse by exchange</h2>
+      <p className="markets-unavailable" style={{ marginBottom: "0.5rem" }}>
+        Real, live trending tickers per market — Yahoo's trending data is keyed by country, so NYSE/NASDAQ (both US)
+        and NSE/BSE (both India) share a feed; that's a real limitation of the free source, not a shortcut we took.
+      </p>
       <div className="markets-type-toggle mb-3">
-        {EXCHANGE_PRESETS.map((ex) => (
+        {EXCHANGE_REGIONS.map((ex) => (
           <button key={ex.key} type="button" className={exchangeTab === ex.key ? "active" : ""} onClick={() => setExchangeTab(ex.key)}>
             {ex.label}
           </button>
         ))}
       </div>
+      {exchangeTrendingQuery.isLoading && <p className="markets-unavailable">Loading {activeExchange.label} trending…</p>}
+      {exchangeTrendingQuery.isError && <p className="markets-unavailable">Trending data unavailable for {activeExchange.label} right now.</p>}
+      {exchangeTrendingQuery.data && exchangeTrendingQuery.data.data.symbols.length === 0 && (
+        <p className="markets-unavailable">Yahoo has no trending data for {activeExchange.label} right now — try searching directly above.</p>
+      )}
       <div className="markets-quote-grid">
-        {EXCHANGE_PRESETS.find((ex) => ex.key === exchangeTab)?.symbols.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="stock" />
+        {exchangeTrendingQuery.data?.data.symbols.map((s) => (
+          <MarketQuoteCard key={s} symbol={s} assetType="stock" category="stock" />
         ))}
       </div>
 
@@ -304,12 +301,6 @@ const MarketsHome = () => {
         ))}
       </div>
 
-      <h2 className="markets-section-title">Funds &amp; banks</h2>
-      <div className="markets-quote-grid">
-        {FUNDS.map((s) => (
-          <MarketQuoteCard key={s.symbol} symbol={s.symbol} assetType="stock" label={s.label} category="fund" />
-        ))}
-      </div>
     </div>
   );
 };

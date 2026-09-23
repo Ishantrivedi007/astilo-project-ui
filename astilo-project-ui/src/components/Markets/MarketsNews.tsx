@@ -1,20 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink, Newspaper, X } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
-import { fetchNewsClusters } from "../../lib/marketsApi";
+import { fetchNewsClusters, fetchTrendingSymbols } from "../../lib/marketsApi";
 import "./Markets.scss";
 
-const QUICK_PICKS = ["^GSPC", "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "BTC-USD"];
-const DEFAULT_SYMBOLS = ["^GSPC", "AAPL", "MSFT", "BTC-USD"];
 const MAX_SYMBOLS = 8;
 
 const MarketsNews = () => {
   const navigate = useNavigate();
-  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
+  const [symbols, setSymbols] = useState<string[]>([]);
+  const [seeded, setSeeded] = useState(false);
   const [input, setInput] = useState("");
+
+  // Real, live trending tickers (same source as the home page's Trending
+  // section) drive both the quick-pick chips and the initial selection —
+  // no fixed example-symbol list standing in for "what's popular right now."
+  const trendingQuery = useQuery({
+    queryKey: ["markets", "trending", "US"],
+    queryFn: () => fetchTrendingSymbols("US"),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  const quickPicks = trendingQuery.data?.data.symbols ?? [];
+
+  useEffect(() => {
+    if (!seeded && quickPicks.length > 0) {
+      setSeeded(true);
+      setSymbols(quickPicks.slice(0, 4));
+    }
+  }, [seeded, quickPicks]);
 
   const clustersQuery = useQuery({
     queryKey: ["markets", "news-clusters", symbols],
@@ -57,8 +74,9 @@ const MarketsNews = () => {
         flat list of duplicate headlines.
       </p>
 
+      {trendingQuery.isLoading && <p className="markets-unavailable">Loading trending symbols…</p>}
       <div className="markets-filter-row">
-        {QUICK_PICKS.map((s) => (
+        {quickPicks.map((s) => (
           <button
             key={s}
             type="button"
