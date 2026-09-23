@@ -163,6 +163,20 @@ class MarketsMacroIndicatorController:
         return result
 
 
+class MarketsCountriesController:
+    """The real list of countries the World Bank's macro data covers, for
+    driving the macro-dashboard country picker — not a hardcoded shortlist."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        result = _guard(worldbank.countries)
+        if result is None:
+            raise cherrypy.HTTPError(502, "Country list unavailable right now")
+        return result
+
+
 class MarketsNewsClustersController:
     """Real headlines across multiple symbols, grouped into story clusters
     by a transparent same-day + title-overlap heuristic (not ML)."""
@@ -187,7 +201,7 @@ class MarketsTopController:
     exposed = True
 
     @cherrypy.tools.json_out()
-    def GET(self, asset_type="crypto", limit=20):
+    def GET(self, asset_type="crypto", limit=20, region="US"):
         if asset_type == "crypto":
             return _guard(coingecko.top_coins, int(limit))
-        return _guard(yahoo.trending)
+        return _guard(yahoo.trending, region)

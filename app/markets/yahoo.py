@@ -16,7 +16,7 @@ from app.markets.http import envelope, markets_get
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
-TRENDING_URL = "https://query1.finance.yahoo.com/v1/finance/trending/US"
+TRENDING_URL = "https://query1.finance.yahoo.com/v1/finance/trending/{region}"
 NEWS_RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline"
 QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
 
@@ -175,17 +175,24 @@ def news(symbol: str, limit: int = 10):
     return envelope("Yahoo Finance", "news_rss", symbol, {"count": len(articles), "results": articles})
 
 
-def trending():
+def trending(region: str = "US"):
+    """Real, live trending tickers for a given market region — Yahoo's
+    trending endpoint is itself keyed by region (same one their own
+    website uses per-country), so this isn't a single US-only list dressed
+    up as global: querying region="IN" or region="GB" returns that
+    market's own actual trending symbols, not a curated guess."""
+    region = (region or "US").upper()
+
     def fetch():
-        resp = markets_get(TRENDING_URL)
+        resp = markets_get(TRENDING_URL.format(region=region))
         resp.raise_for_status()
         return resp.json()
 
-    raw = cached_fetch("yahoo_trending", {}, fetch, ttl_seconds=1800)
+    raw = cached_fetch("yahoo_trending", {"region": region}, fetch, ttl_seconds=1800)
 
     result = (raw.get("finance", {}).get("result") or [{}])[0]
     symbols = [q["symbol"] for q in (result.get("quotes") or []) if q.get("symbol")]
-    return envelope("Yahoo Finance", "trending", None, {"symbols": symbols})
+    return envelope("Yahoo Finance", "trending", None, {"region": region, "symbols": symbols})
 
 
 # Each country's real, major benchmark index — the same free Yahoo chart

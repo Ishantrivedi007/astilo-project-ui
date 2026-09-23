@@ -20,6 +20,40 @@ INDICATORS = {
 }
 
 
+def countries():
+    """The real list of countries the World Bank publishes indicators for
+    — not a curated shortlist. Excludes the API's own "aggregate" rows
+    (regions/income groups like "Arab World" or "Euro area", which the
+    Bank itself flags via an empty capitalCity/region rather than a
+    country's own ISO code) so the picker only offers actual countries."""
+
+    def fetch():
+        resp = markets_get(f"{BASE}/country", params={"format": "json", "per_page": 400})
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("worldbank_countries", {}, fetch, ttl_seconds=24 * 3600)
+
+    if not isinstance(raw, list) or len(raw) < 2 or not isinstance(raw[1], list):
+        return None
+
+    results = []
+    for row in raw[1]:
+        region = row.get("region") or {}
+        # The Bank's own convention for a non-country aggregate row: no
+        # region assigned (region.id == "NA") and no capital city.
+        if region.get("id") == "NA" or not row.get("capitalCity"):
+            continue
+        code = row.get("iso2Code")
+        name = row.get("name")
+        if not code or not name:
+            continue
+        results.append({"code": code, "name": name, "region": region.get("value")})
+
+    results.sort(key=lambda c: c["name"])
+    return envelope("World Bank", "countries", None, {"count": len(results), "results": results})
+
+
 def indicator_series(country_code: str, indicator_key: str):
     """One country, one indicator, full available history."""
     if indicator_key not in INDICATORS:
