@@ -48,15 +48,24 @@ ROUTES: list[tuple[str, str, list[str], str]] = [
     ("/cosmos/library", "Cosmos", ["GET", "POST", "DELETE"], "Saved Cosmos items (favorites/collections)"),
     ("/cosmos/research-summary", "Cosmos", ["GET"], "Wikipedia-sourced object summary"),
     ("/images/search", "Media", ["GET"], "Openverse openly-licensed image search"),
-    ("/markets/asset", "Markets", ["GET"], "Quote + chart for one symbol"),
+    ("/markets/asset", "Markets", ["GET"], "Quote + chart for one symbol (Yahoo, with a Frankfurter/ECB fallback for forex pairs)"),
     ("/markets/search", "Markets", ["GET"], "Live-as-you-type symbol search"),
-    ("/markets/top", "Markets", ["GET"], "Top movers / most active"),
-    ("/markets/news", "Markets", ["GET"], "Market news headlines"),
+    ("/markets/top", "Markets", ["GET"], "Top movers / most active (stocks: real region-specific trending via ?region=)"),
+    ("/markets/news", "Markets", ["GET"], "Market news headlines (flat, per symbol)"),
+    ("/markets/news-clusters", "Markets", ["GET"], "Real headlines across multiple symbols, grouped into story clusters/timelines"),
     ("/markets/regions", "Markets", ["GET"], "Regional market indices"),
+    ("/markets/fundamentals", "Markets", ["GET"], "Company fundamentals (P/E, dividends, similar companies) — currently unavailable: Yahoo's endpoint requires an auth crumb this app doesn't chase"),
+    ("/markets/macro", "Markets", ["GET"], "World Bank macro dashboard (GDP/inflation/unemployment/rates) for one country"),
+    ("/markets/macro/indicator", "Markets", ["GET"], "Single World Bank indicator for one country"),
+    ("/markets/countries", "Markets", ["GET"], "Real country list the World Bank publishes macro data for"),
+    ("/markets/watchlist", "Markets", ["GET", "POST", "DELETE"], "Saved symbols with live quotes"),
+    ("/markets/price-alerts", "Markets", ["GET", "POST", "DELETE"], "Above/below price alerts, checked lazily on poll"),
     ("/trading/account", "Trading", ["GET"], "Simulated cash + holdings summary"),
     ("/trading/deposit", "Trading", ["POST"], "Add simulated cash (fake card, ~10% random decline)"),
-    ("/trading/orders", "Trading", ["GET", "POST"], "Order history / place a buy or sell"),
-    ("/trading/insights", "Trading", ["GET"], "Per-holding live P&L insights"),
+    ("/trading/orders", "Trading", ["GET", "POST"], "Order history / place a market, limit, or stop buy or sell"),
+    ("/trading/pending-orders", "Trading", ["GET", "DELETE"], "Unfilled limit/stop orders, checked and filled lazily on poll"),
+    ("/trading/insights", "Trading", ["GET"], "Per-symbol trend, volatility, Sharpe ratio, beta, and max drawdown"),
+    ("/trading/what-if", "Trading", ["GET"], "\"Invest $X N years ago\" real-history backtest"),
     ("/nimrose/projects", "Nimrose", ["GET", "POST", "PUT", "DELETE"], "Projects (own key_prefix/ticket numbering)"),
     ("/nimrose/tasks", "Nimrose", ["GET", "POST", "PUT", "DELETE"], "Personal to-dos"),
     ("/nimrose/calendar-events", "Nimrose", ["GET", "POST", "PUT", "DELETE"], "Calendar events"),
@@ -205,7 +214,7 @@ OVERRIDES: dict[tuple[str, str], dict] = {
         },
     },
     ("/trading/orders", "POST"): {
-        "summary": "Place a buy or sell order — executes at a fresh, live-fetched price (Yahoo Finance / CoinGecko), never a client-supplied price",
+        "summary": "Place a buy or sell order. Market orders execute immediately at a fresh, live-fetched price (Yahoo Finance / CoinGecko), never a client-supplied price. Limit/stop orders are stored pending and filled lazily the next time /trading/account, /trading/orders, or /trading/pending-orders is polled (no background scheduler exists in this app) — the response then has a `pendingOrder` key instead of `transaction`.",
         "requestBody": {
             "required": True,
             "content": {
@@ -218,6 +227,9 @@ OVERRIDES: dict[tuple[str, str], dict] = {
                             "assetType": {"type": "string", "enum": ["stock", "crypto"]},
                             "side": {"type": "string", "enum": ["buy", "sell"]},
                             "quantity": {"type": "number", "minimum": 0.0001},
+                            "orderType": {"type": "string", "enum": ["market", "limit", "stop"], "default": "market"},
+                            "limitPrice": {"type": "number", "description": "Required when orderType is 'limit'"},
+                            "stopPrice": {"type": "number", "description": "Required when orderType is 'stop'"},
                             "name": {"type": "string"},
                         },
                     }
@@ -225,9 +237,80 @@ OVERRIDES: dict[tuple[str, str], dict] = {
             },
         },
         "responses": {
-            "200": {"description": "Executed transaction", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TradingTransaction"}}}},
-            "402": {"description": "Insufficient simulated cash or holding quantity"},
+            "200": {"description": "Either an executed market-order transaction, or a pending limit/stop order (mutually exclusive `transaction`/`pendingOrder` keys), plus the refreshed account/holdings"},
+            "402": {"description": "Insufficient simulated cash or holding quantity (including cash/quantity already reserved by other pending orders)"},
         },
+    },
+    ("/trading/pending-orders", "DELETE"): {
+        "summary": "Cancel a still-pending limit/stop order",
+        "responses": {
+            "200": {"description": "{\"cancelled\": true}"},
+            "404": {"description": "Not found, not owned by the caller, or already filled/cancelled"},
+        },
+    },
+    ("/trading/what-if", "GET"): {
+        "summary": "\"If I'd invested $amount in symbol, years ago, what would it be worth today?\" — computed entirely from real historical prices for that exact period",
+        "responses": {
+            "200": {"description": "Invested-at price/date, current price/date, shares bought, current value, total return, CAGR"},
+            "404": {"description": "No historical data for this symbol"},
+        },
+    },
+    ("/markets/watchlist", "POST"): {
+        "summary": "Add a symbol to the watchlist (idempotent — re-adding an already-watched symbol just returns the existing row)",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["symbol", "assetType"],
+                        "properties": {
+                            "symbol": {"type": "string", "example": "TSLA"},
+                            "assetType": {"type": "string", "enum": ["stock", "crypto"]},
+                            "notes": {"type": "string"},
+                        },
+                    }
+                }
+            },
+        },
+        "responses": {"200": {"description": "The watchlist item, enriched with a live quote"}},
+    },
+    ("/markets/watchlist", "DELETE"): {
+        "summary": "Remove a symbol from the watchlist",
+        "responses": {"200": {"description": "{\"deleted\": true}"}, "404": {"description": "Not found / not owned"}},
+    },
+    ("/markets/price-alerts", "POST"): {
+        "summary": "Set an above/below price alert. Checked lazily every time GET /markets/price-alerts is polled — there is no background scheduler in this app.",
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["symbol", "assetType", "condition", "targetPrice"],
+                        "properties": {
+                            "symbol": {"type": "string", "example": "AAPL"},
+                            "assetType": {"type": "string", "enum": ["stock", "crypto"]},
+                            "condition": {"type": "string", "enum": ["above", "below"]},
+                            "targetPrice": {"type": "number", "minimum": 0},
+                        },
+                    }
+                }
+            },
+        },
+        "responses": {"200": {"description": "The created alert, status \"active\""}},
+    },
+    ("/markets/price-alerts", "DELETE"): {
+        "summary": "Cancel an active price alert (a triggered or already-cancelled alert can't be re-cancelled)",
+        "responses": {"200": {"description": "{\"cancelled\": true}"}, "404": {"description": "Not found, not owned, or not active"}},
+    },
+    ("/markets/macro", "GET"): {
+        "summary": "Real historical GDP/GDP-growth/inflation/unemployment/real-interest-rate series for one country, from the World Bank — annual data with real reporting lag, not a forward-looking release calendar",
+        "responses": {"200": {"description": "All 5 indicators' full history + latest known value"}, "404": {"description": "Unrecognized country code"}},
+    },
+    ("/markets/fundamentals", "GET"): {
+        "summary": "Company fundamentals + similar-industry companies. Currently returns {available: false, reason} for every symbol — Yahoo's underlying quoteSummary endpoint now requires an auth crumb, which this app deliberately doesn't implement rather than build a fragile cookie/crumb handshake. Activates automatically if Yahoo ever serves it keylessly again.",
+        "responses": {"200": {"description": "Fundamentals (if available) or an honest unavailable/reason payload"}},
     },
     ("/trading/deposit", "POST"): {
         "summary": "Add simulated cash via a fake card — no real payment gateway; declines ~10% of attempts to mimic a real processor",
