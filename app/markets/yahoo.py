@@ -5,8 +5,11 @@ same ones Yahoo Finance's own website calls and are widely used for
 personal/non-commercial tooling.
 """
 
+import email.utils
 import re
+import string
 import xml.etree.ElementTree as ET
+from urllib.parse import urlparse
 
 from app.cosmos.cache import cached_fetch
 from app.markets.http import envelope, markets_get
@@ -15,6 +18,7 @@ CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
 TRENDING_URL = "https://query1.finance.yahoo.com/v1/finance/trending/US"
 NEWS_RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline"
+QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
 
 # financialmodelingprep.com serves company logos free and keyless, keyed
 # directly by ticker (no domain-guessing) — but only for actual equities/
@@ -248,3 +252,205 @@ def region_indices():
                 results.append(row)
 
     return envelope("Yahoo Finance", "region_indices", None, {"count": len(results), "results": results})
+
+
+def _raw(value):
+    """Yahoo's quoteSummary fields are usually {"raw": ..., "fmt": "..."} —
+    unwrap that, or pass through a plain scalar/None as-is."""
+    if isinstance(value, dict):
+        return value.get("raw")
+    return value
+
+
+def fundamentals(symbol: str):
+    """Company fundamentals (P/E, dividend yield, key stats) via Yahoo's
+    quoteSummary endpoint. Unlike the chart/search endpoints this module
+    otherwise uses, quoteSummary has in the past required a session
+    cookie + "crumb" token for keyless callers; empirically it currently
+    returns 401 "Invalid Crumb" for anonymous requests, and this app does
+    not implement Yahoo's fragile crumb/cookie auth handshake (out of
+    scope). So this degrades honestly: no data is fabricated, we simply
+    report the provider is unavailable right now."""
+    modules = "summaryDetail,defaultKeyStatistics,assetProfile,price"
+
+    def fetch():
+        resp = markets_get(QUOTE_SUMMARY_URL.format(symbol=symbol), params={"modules": modules})
+        return {"status_code": resp.status_code, "body": resp.json() if resp.content else {}}
+
+    raw = cached_fetch("yahoo_fundamentals", {"symbol": symbol}, fetch, ttl_seconds=3600)
+
+    body = raw.get("body") or {}
+    result = ((body.get("quoteSummary") or {}).get("result") or [None])[0]
+    error = (body.get("quoteSummary") or {}).get("error")
+
+    if raw.get("status_code") != 200 or not result or error:
+        reason = (error or {}).get("description") if isinstance(error, dict) else None
+        return envelope(
+            "Yahoo Finance",
+            "fundamentals",
+            symbol,
+            {
+                "available": False,
+                "reason": reason
+                or "Fundamentals data isn't available from Yahoo Finance's keyless API right now "
+                "(this endpoint currently requires an authenticated session).",
+            },
+        )
+
+    summary_detail = result.get("summaryDetail") or {}
+    key_stats = result.get("defaultKeyStatistics") or {}
+    asset_profile = result.get("assetProfile") or {}
+    price_mod = result.get("price") or {}
+
+    ex_div = summary_detail.get("exDividendDate")
+    ex_div_fmt = ex_div.get("fmt") if isinstance(ex_div, dict) else None
+
+    data = {
+        "available": True,
+        "peRatioTrailing": _raw(summary_detail.get("trailingPE")),
+        "peRatioForward": _raw(summary_detail.get("forwardPE")),
+        "dividendYield": _raw(summary_detail.get("dividendYield")),
+        "dividendRate": _raw(summary_detail.get("dividendRate")),
+        "exDividendDate": ex_div_fmt,
+        "payoutRatio": _raw(summary_detail.get("payoutRatio")),
+        "beta": _raw(summary_detail.get("beta")),
+        "marketCap": _raw(summary_detail.get("marketCap")) or _raw(price_mod.get("marketCap")),
+        "eps": _raw(key_stats.get("trailingEps")),
+        "bookValue": _raw(key_stats.get("bookValue")),
+        "priceToBook": _raw(key_stats.get("priceToBook")),
+        "fiftyTwoWeekChangePercent": _raw(key_stats.get("52WeekChange")),
+        "sector": asset_profile.get("sector"),
+        "industry": asset_profile.get("industry"),
+        "fullTimeEmployees": asset_profile.get("fullTimeEmployees"),
+        "website": asset_profile.get("website"),
+        "longBusinessSummary": asset_profile.get("longBusinessSummary"),
+    }
+    return envelope("Yahoo Finance", "fundamentals", symbol, data)
+
+
+def similar_companies(symbol: str, sector: str | None, industry: str | None, limit: int = 6):
+    """Companies sharing the same sector/industry, found via Yahoo's search
+    endpoint. Explicitly NOT labeled "competitors" — this app has no way to
+    verify an actual competitive relationship, only a shared classification,
+    and it never asserts a relationship it can't verify."""
+    query = industry or sector
+    if not query:
+        return []
+
+    env = search(query, limit=limit + 5)
+    results = (env.get("data") or {}).get("results") or []
+
+    filtered = []
+    for r in results:
+        if r.get("symbol") == symbol:
+            continue
+        if r.get("quoteType") not in ("EQUITY", "ETF"):
+            continue
+        filtered.append(r)
+        if len(filtered) >= limit:
+            break
+    return filtered
+
+
+_STOPWORDS = {"the", "a", "an", "of", "to", "in", "for", "and", "on", "is", "its", "as", "at", "by", "with"}
+_PUNCT_TABLE = str.maketrans("", "", string.punctuation)
+
+
+def _title_tokens(title: str) -> set:
+    normalized = (title or "").lower().translate(_PUNCT_TABLE)
+    return {w for w in normalized.split() if w and w not in _STOPWORDS}
+
+
+def _parse_published(published_at: str):
+    try:
+        return email.utils.parsedate_to_datetime(published_at)
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def news_clusters(symbols: list[str], limit_per_symbol: int = 10):
+    """Fetch each symbol's real RSS headlines, then group into clusters by
+    same-day + title-token-overlap — a transparent, inspectable heuristic
+    (not ML), so a cluster is always traceable back to why its articles
+    were grouped."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    pooled = []
+
+    def fetch_one(sym):
+        env = news(sym, limit_per_symbol)
+        articles = ((env.get("data") or {}).get("results")) or []
+        out = []
+        for a in articles:
+            link = a.get("link") or ""
+            try:
+                source = urlparse(link).netloc
+            except ValueError:
+                source = None
+            out.append({**a, "symbol": sym, "source": source})
+        return out
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(fetch_one, sym): sym for sym in symbols}
+        for future in as_completed(futures):
+            try:
+                pooled.extend(future.result())
+            except Exception:
+                pass
+
+    clusters = []
+    for article in pooled:
+        dt = _parse_published(article.get("publishedAt"))
+        tokens = _title_tokens(article.get("title"))
+        matched = None
+        for cluster in clusters:
+            rep = cluster["_rep"]
+            rep_dt = cluster["_rep_dt"]
+            if dt is None or rep_dt is None or dt.date() != rep_dt.date():
+                continue
+            rep_tokens = cluster["_rep_tokens"]
+            if not tokens or not rep_tokens:
+                continue
+            overlap = len(tokens & rep_tokens) / len(tokens | rep_tokens)
+            if overlap >= 0.4:
+                matched = cluster
+                break
+        if matched is None:
+            matched = {
+                "_rep": article,
+                "_rep_dt": dt,
+                "_rep_tokens": tokens,
+                "articles": [],
+            }
+            clusters.append(matched)
+        matched["articles"].append({**article, "_dt": dt})
+
+    built = []
+    for cluster in clusters:
+        articles = sorted(
+            cluster["articles"],
+            key=lambda a: a["_dt"] or email.utils.parsedate_to_datetime("Thu, 01 Jan 1970 00:00:00 +0000"),
+            reverse=True,
+        )
+        timeline = [{k: v for k, v in a.items() if k != "_dt"} for a in articles]
+        sources = list(dict.fromkeys(a.get("source") for a in timeline if a.get("source")))
+        syms = list(dict.fromkeys(a.get("symbol") for a in timeline if a.get("symbol")))
+        built.append(
+            {
+                "headline": timeline[0]["title"] if timeline else None,
+                "timeline": timeline,
+                "sources": sources,
+                "symbols": syms,
+            }
+        )
+
+    # Sort clusters by most recent article's actual parsed date, newest first.
+    def _cluster_sort_key(c):
+        if not c["timeline"]:
+            return email.utils.parsedate_to_datetime("Thu, 01 Jan 1970 00:00:00 +0000")
+        dt = _parse_published(c["timeline"][0].get("publishedAt"))
+        return dt or email.utils.parsedate_to_datetime("Thu, 01 Jan 1970 00:00:00 +0000")
+
+    built.sort(key=_cluster_sort_key, reverse=True)
+
+    return envelope("Yahoo Finance", "news_clusters", None, {"count": len(built), "clusters": built})

@@ -7,7 +7,7 @@ API key; results are cached the same way as Cosmos's external data.
 import cherrypy
 import requests
 
-from app.markets import coingecko, stooq, yahoo
+from app.markets import coingecko, stooq, worldbank, yahoo
 
 ASSET_TYPES = ("stock", "crypto")
 
@@ -105,6 +105,80 @@ class MarketsRegionsController:
     @cherrypy.tools.json_out()
     def GET(self):
         return _guard(yahoo.region_indices)
+
+
+class MarketsFundamentalsController:
+    """Company fundamentals (P/E, dividend yield, key stats) plus a list of
+    "similar companies" (same sector/industry — never asserted as actual
+    competitors, since that relationship can't be verified from this data)."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, symbol=None):
+        if not symbol:
+            raise cherrypy.HTTPError(400, "symbol is required")
+        result = _guard(yahoo.fundamentals, symbol)
+        data = result.get("data") or {}
+        similar = []
+        if data.get("available"):
+            similar = _guard(
+                yahoo.similar_companies, symbol, data.get("sector"), data.get("industry")
+            )
+        data["similarCompanies"] = similar
+        return result
+
+
+class MarketsMacroController:
+    """Real historical macroeconomic indicator trends for a country, from
+    the World Bank's Indicators API — not a fabricated release calendar."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, country="US"):
+        country = (country or "US").upper()
+        result = _guard(worldbank.macro_dashboard, country)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No macro data found for country '{country}'")
+        return result
+
+
+class MarketsMacroIndicatorController:
+    """Single-indicator lookup, for comparing one indicator across
+    multiple countries without re-fetching the full dashboard each time."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, country="US", indicator="gdp"):
+        country = (country or "US").upper()
+        if indicator not in worldbank.INDICATORS:
+            raise cherrypy.HTTPError(
+                400, f"indicator must be one of {list(worldbank.INDICATORS)}"
+            )
+        result = _guard(worldbank.indicator_series, country, indicator)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No data found for country '{country}'")
+        return result
+
+
+class MarketsNewsClustersController:
+    """Real headlines across multiple symbols, grouped into story clusters
+    by a transparent same-day + title-overlap heuristic (not ML)."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, symbols=None, limit_per_symbol=10):
+        if not symbols:
+            raise cherrypy.HTTPError(400, "symbols is required (comma-separated)")
+        symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+        if not symbol_list:
+            raise cherrypy.HTTPError(400, "symbols is required (comma-separated)")
+        if len(symbol_list) > 8:
+            raise cherrypy.HTTPError(400, "at most 8 symbols allowed")
+        return _guard(yahoo.news_clusters, symbol_list, int(limit_per_symbol))
 
 
 class MarketsTopController:
