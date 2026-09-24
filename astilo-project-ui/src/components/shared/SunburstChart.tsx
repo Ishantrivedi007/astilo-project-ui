@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import ReactECharts from "echarts-for-react";
 
 import { useTheme } from "../../theme/ThemeProvider";
-import { toEchartsSunburst, type SunburstNode } from "../../lib/sunburst";
+import { nodeValue, toEchartsSunburst, type SunburstNode } from "../../lib/sunburst";
 
 interface Props {
   data: SunburstNode;
@@ -23,13 +23,21 @@ const SunburstChart = ({ data, size = 320, formatValue }: Props) => {
   const isDark = theme.mode === "dark";
 
   const echartsData = useMemo(() => toEchartsSunburst(data).children ?? [], [data]);
+  // ECharts' sunburst tooltip params don't reliably include `percent`
+  // (that's a pie-chart convention, confirmed live: it showed up as
+  // "undefined%" on real data) — computed by hand instead, against the
+  // real total across the whole tree, not assumed from the library.
+  const total = useMemo(() => nodeValue(data), [data]);
 
   const option = useMemo(
     () => ({
       tooltip: {
         trigger: "item",
-        formatter: (params: { name: string; value: number; percent: number }) =>
-          `<strong>${params.name}</strong><br/>${formatValue ? formatValue(params.value) : params.value.toLocaleString()} (${params.percent}%)`,
+        formatter: (params: { name: string; value: number }) => {
+          const pct = total > 0 ? ((params.value / total) * 100).toFixed(1) : null;
+          const valueLabel = formatValue ? formatValue(params.value) : params.value.toLocaleString();
+          return `<strong>${params.name}</strong><br/>${valueLabel}${pct != null ? ` (${pct}%)` : ""}`;
+        },
         backgroundColor: isDark ? "rgba(20,22,32,0.95)" : "rgba(255,255,255,0.97)",
         borderColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)",
         textStyle: { color: isDark ? "#e5e7eb" : "#1f2330", fontSize: 12 },
@@ -63,7 +71,7 @@ const SunburstChart = ({ data, size = 320, formatValue }: Props) => {
         },
       ],
     }),
-    [echartsData, size, formatValue, isDark]
+    [echartsData, size, formatValue, isDark, total]
   );
 
   if (echartsData.length === 0) {
