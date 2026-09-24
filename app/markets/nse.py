@@ -22,14 +22,19 @@ actual data points — handled here by requesting more calendar days than
 strictly needed and simply using whatever files exist, not by fabricating
 missing days.
 
-Deliberately scoped to short ranges only (1d/5d/1mo): each trading day is
-a SEPARATE file fetch, and while each file covers every NSE symbol at
-once (so it's cached and reused across every symbol/index lookup that
-falls back on the same day), 6mo+ would mean 130+ individual HTTP
-requests for a single fallback lookup — a real risk of NSE rate-limiting
-or the request simply timing out. That's an honest scope boundary, not a
-missing feature: a symbol needing 6-month+ fallback history from NSE
-specifically has none here, same as it would have none at all otherwise.
+Range support: up to 1y. Each trading day is a SEPARATE file fetch, but
+every file covers every NSE symbol/index at once and is cached
+indefinitely once fetched (a real historical report never changes), so
+the cost is front-loaded onto the first cold request for a given period
+— fetched with high concurrency (20 parallel requests) — and every
+lookup after that (any symbol, any date already seen) is instant from
+cache. That one-time cost is judged acceptable since this only runs
+during an actual Yahoo outage, not on every request. 5y/max are NOT
+supported (would mean 1,500+ individual requests even on a cold cache —
+real risk of NSE rate-limiting or simply timing out): confirmed live
+that NSE's own archive actually has data that far back (tested 1/3/5
+years back successfully, 8 years back 404s), so the data exists, it's
+just not exposed through this fallback at that depth.
 """
 
 import csv
@@ -43,10 +48,10 @@ from app.markets.http import envelope, markets_get
 EQUITY_URL = "https://nsearchives.nseindia.com/products/content/sec_bhavdata_full_{date}.csv"
 INDEX_URL = "https://nsearchives.nseindia.com/content/indices/ind_close_all_{date}.csv"
 
-VALID_RANGES = ("1d", "5d", "1mo")
+VALID_RANGES = ("1d", "5d", "1mo", "6mo", "1y")
 # Calendar days to scan back per range — comfortably more than the
 # trading-day count, since weekends/holidays produce no file.
-RANGE_CALENDAR_DAYS = {"1d": 4, "5d": 10, "1mo": 33}
+RANGE_CALENDAR_DAYS = {"1d": 4, "5d": 10, "1mo": 33, "6mo": 190, "1y": 375}
 
 # Yahoo index ticker -> the exact index name NSE's own file uses.
 INDEX_NAMES = {"^NSEI": "Nifty 50"}
@@ -61,7 +66,12 @@ def _fetch_csv(url_template: str, cache_prefix: str, date: datetime.date) -> str
     date_str = date.strftime("%d%m%Y")
 
     def fetch():
-        resp = markets_get(url_template.format(date=date_str))
+        # Shorter per-file timeout than the shared default (15s): with
+        # hundreds of files in flight for a 6mo/1y range, one slow/hung
+        # file shouldn't hold up the whole batch for that long — a
+        # missed file just means one fewer data point, handled the same
+        # as a real 404 (weekend/holiday), not an error.
+        resp = markets_get(url_template.format(date=date_str), timeout=8)
         if resp.status_code == 404:
             return None  # weekend/holiday — no file published, not an error
         resp.raise_for_status()
@@ -79,7 +89,7 @@ def _fetch_many(url_template: str, cache_prefix: str, dates: list[datetime.date]
     this app, e.g. yahoo.region_indices) — each date is an independent
     file, so there's no reason to fetch them one at a time."""
     results: dict[datetime.date, str] = {}
-    with ThreadPoolExecutor(max_workers=8) as pool:
+    with ThreadPoolExecutor(max_workers=20) as pool:
         futures = {pool.submit(_fetch_csv, url_template, cache_prefix, d): d for d in dates}
         for future in as_completed(futures):
             d = futures[future]

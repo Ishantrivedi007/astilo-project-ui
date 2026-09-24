@@ -11,7 +11,7 @@ is configured; see app/markets/alphavantage.py for exactly what is/isn't
 covered, notably NOT gold/silver, NSE-suffixed tickers, or broad index
 tickers like ^GSPC) -> NSE India (NSE-suffixed equities and ^NSEI ONLY,
 real official end-of-day data, keyless — see app/markets/nse.py; NOT
-live/intraday, and only short ranges are supported, see that module's
+live/intraday, and only up to 1y is supported, see that module's
 docstring) -> Twelve Data (gold ONLY, real historical OHLC — only if a
 free API key is configured; see app/markets/twelvedata.py — their free
 tier gates silver/indices/NSE stocks behind a paid plan, confirmed live,
