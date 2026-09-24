@@ -49,8 +49,8 @@ const MarketsForex = () => {
   const { chartSeries, isLoading } = useComparisonChart({ symbols: comparisonSymbols, range });
 
   const chartOptions = {
-    xaxis: { type: "datetime" as const },
-    yaxis: { labels: { formatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` } },
+    xaxis: { type: "datetime" as const, title: { text: "Date" } },
+    yaxis: { title: { text: "Change from start of range (%)" }, labels: { formatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` } },
     tooltip: { x: { format: "dd MMM yyyy" }, y: { formatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%` } },
     stroke: { curve: "smooth" as const, width: 2.5 },
     legend: { show: true },

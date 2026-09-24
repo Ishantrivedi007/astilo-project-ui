@@ -489,8 +489,8 @@ const MarketsAssetView = () => {
       options: {
         ...interactiveChart,
         colors: ["#a78bfa"],
-        xaxis: { type: "datetime" as const },
-        yaxis: { min: 0, max: 100, labels: { formatter: (v: number) => v?.toFixed(0) } },
+        xaxis: { type: "datetime" as const, title: { text: "Date", style: { fontSize: "10px" } } },
+        yaxis: { min: 0, max: 100, title: { text: "RSI", style: { fontSize: "10px" } }, labels: { formatter: (v: number) => v?.toFixed(0) } },
         annotations: { yaxis: [{ y: 70, borderColor: "#f87171", label: { text: "70" } }, { y: 30, borderColor: "#4ade80", label: { text: "30" } }] },
         dataLabels: { enabled: false },
         legend: { show: false },
@@ -511,7 +511,8 @@ const MarketsAssetView = () => {
       options: {
         ...interactiveChart,
         colors: ["#60a5fa", "#facc15"],
-        xaxis: { type: "datetime" as const },
+        xaxis: { type: "datetime" as const, title: { text: "Date", style: { fontSize: "10px" } } },
+        yaxis: { title: { text: "MACD value", style: { fontSize: "10px" } } },
         dataLabels: { enabled: false },
         legend: { show: true },
       },
@@ -594,8 +595,8 @@ const MarketsAssetView = () => {
       ...interactiveChart,
       colors: seriesColors,
       stroke: { curve: "smooth" as const, width: seriesWidths, dashArray: seriesDash },
-      xaxis: { type: "datetime" as const },
-      yaxis: { labels: { formatter: (v: number) => v?.toFixed(2) } },
+      xaxis: { type: "datetime" as const, title: { text: "Date" } },
+      yaxis: { title: { text: `Price (${d.currency || "USD"})` }, labels: { formatter: (v: number) => v?.toFixed(2) } },
       tooltip: { ...interactiveChart.tooltip, x: { format: "dd MMM yyyy HH:mm" } },
       dataLabels: { enabled: false },
       legend: { show: true },
@@ -700,7 +701,15 @@ const MarketsAssetView = () => {
             </p>
           ) : chartMode === "candlestick" ? (
             candlestickSeries ? (
-              <Chart type="candlestick" height={340} series={candlestickSeries} options={{ xaxis: { type: "datetime" as const } }} />
+              <Chart
+                type="candlestick"
+                height={340}
+                series={candlestickSeries}
+                options={{
+                  xaxis: { type: "datetime" as const, title: { text: "Date" } },
+                  yaxis: { title: { text: `Price (${d.currency || "USD"})` } },
+                }}
+              />
             ) : (
               <p className="markets-unavailable">Candlestick (OHLC) data isn't available for {d.symbol} in this range.</p>
             )

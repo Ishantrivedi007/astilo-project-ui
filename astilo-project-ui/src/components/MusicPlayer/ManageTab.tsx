@@ -599,7 +599,10 @@ const DashboardSection = () => {
               type="area"
               height={260}
               series={[{ name: "Songs", data: downloadsOverTime.values }]}
-              options={{ xaxis: { categories: downloadsOverTime.labels } }}
+              options={{
+                xaxis: { categories: downloadsOverTime.labels, title: { text: "Date" } },
+                yaxis: { title: { text: "Cumulative songs downloaded" } },
+              }}
             />
           ) : (
             <p className="py-16 text-center text-sm text-ink/50">Not enough data yet.</p>

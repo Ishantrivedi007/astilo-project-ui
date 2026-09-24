@@ -71,8 +71,8 @@ export default function DashBoard() {
             series={revenueSeries}
             options={{
               chart: { stacked: true },
-              xaxis: { categories: revenueCats },
-              yaxis: { labels: { formatter: (v: number) => compact(v) } },
+              xaxis: { categories: revenueCats, title: { text: "Date" } },
+              yaxis: { title: { text: "Revenue ($)" }, labels: { formatter: (v: number) => compact(v) } },
               tooltip: { y: { formatter: (v: number) => usd(v) } },
             }}
           />
@@ -112,8 +112,8 @@ export default function DashBoard() {
               plotOptions: { bar: { columnWidth: "48%", borderRadius: 6 } },
               fill: { type: "solid", opacity: 0.9 },
               stroke: { width: 0 },
-              xaxis: { categories: signupCats },
-              yaxis: { labels: { formatter: (v: number) => compact(v) } },
+              xaxis: { categories: signupCats, title: { text: "Month" } },
+              yaxis: { title: { text: "Sign-ups" }, labels: { formatter: (v: number) => compact(v) } },
             }}
           />
         </GlassPanel>
@@ -133,8 +133,8 @@ export default function DashBoard() {
           height={300}
           series={investSeries}
           options={{
-            xaxis: { categories: investCats, tickAmount: 8 },
-            yaxis: { labels: { formatter: (v: number) => compact(v) } },
+            xaxis: { categories: investCats, tickAmount: 8, title: { text: "Date" } },
+            yaxis: { title: { text: "Value ($)" }, labels: { formatter: (v: number) => compact(v) } },
             tooltip: { y: { formatter: (v: number) => usd(v) } },
             fill: { type: "solid", opacity: 1 },
           }}

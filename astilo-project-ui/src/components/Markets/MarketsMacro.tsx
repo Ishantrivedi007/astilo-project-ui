@@ -16,9 +16,21 @@ import "./Markets.scss";
 
 const INDICATOR_KEYS: MacroIndicatorKey[] = ["gdp", "gdpGrowth", "inflation", "unemployment", "interestRate"];
 
-const chartOptionsFor = () => ({
+// World Bank's own real unit for each series (GDP is a current-US$ level;
+// the other four are already percentages) — used only for the axis label,
+// not a fabricated conversion.
+const INDICATOR_UNIT: Record<MacroIndicatorKey, string> = {
+  gdp: "current US$",
+  gdpGrowth: "%",
+  inflation: "%",
+  unemployment: "%",
+  interestRate: "%",
+};
+
+const chartOptionsFor = (yAxisTitle: string) => ({
   xaxis: {
     type: "category" as const,
+    title: { text: "Year" },
     // These indicators often span 60+ years of yearly points — showing
     // every single year's label was the real source of the crowding,
     // independent of chart width. Capping how many ticks render (ApexCharts
@@ -27,6 +39,7 @@ const chartOptionsFor = () => ({
     tickAmount: 12,
     labels: { rotate: -45, rotateAlways: false },
   },
+  yaxis: { title: { text: yAxisTitle } },
   stroke: { curve: "smooth" as const, width: 2.5 },
   dataLabels: { enabled: false },
   markers: { size: 3 },
@@ -166,7 +179,7 @@ const MarketsMacro = () => {
                     {ind.latestKnown ? `Latest: ${ind.latestKnown.value.toFixed(2)} (${ind.latestKnown.year})` : "No recent known value."}
                   </p>
                   {series[0].data.length > 0 ? (
-                    <Chart type="line" height={220} series={series} options={chartOptionsFor()} />
+                    <Chart type="line" height={220} series={series} options={chartOptionsFor(`${INDICATOR_LABEL[key]} (${INDICATOR_UNIT[key]})`)} />
                   ) : (
                     <p className="markets-unavailable">No historical points available.</p>
                   )}
@@ -221,7 +234,7 @@ const MarketsMacro = () => {
             // viewport actually has, rather than staying boxed in with
             // every other section on this page.
             <div style={{ marginLeft: "calc(50% - 50vw)", marginRight: "calc(50% - 50vw)", padding: "0 1.5rem" }}>
-              <Chart type="line" height={380} series={compareSeries} options={chartOptionsFor()} />
+              <Chart type="line" height={380} series={compareSeries} options={chartOptionsFor(`${INDICATOR_LABEL[indicator]} (${INDICATOR_UNIT[indicator]})`)} />
             </div>
           ) : (
             <p className="markets-unavailable">Select at least one country to compare.</p>

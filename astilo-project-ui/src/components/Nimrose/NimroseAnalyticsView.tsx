@@ -142,7 +142,7 @@ const NimroseAnalyticsView = () => {
               options={{
                 ...interactive,
                 colors: BURNDOWN_PALETTE,
-                xaxis: { categories: burndownQuery.data.dates },
+                xaxis: { categories: burndownQuery.data.dates, title: { text: "Date" } },
                 stroke: { curve: "straight", width: [2, 3], dashArray: [4, 0] },
                 yaxis: { title: { text: "Story points remaining" } },
                 markers: { ...interactive.markers, strokeColors: BURNDOWN_PALETTE },
@@ -164,7 +164,8 @@ const NimroseAnalyticsView = () => {
                 ...solidBar,
                 colors: WARM_PALETTE,
                 dataLabels: { enabled: true, style: { colors: ["#fff"] } },
-                xaxis: { categories: velocity.map((v) => v.sprintName) },
+                xaxis: { categories: velocity.map((v) => v.sprintName), title: { text: "Sprint" } },
+                yaxis: { title: { text: "Story points completed" } },
                 plotOptions: { bar: { borderRadius: 6, columnWidth: "55%" } },
               }}
             />
@@ -202,7 +203,8 @@ const NimroseAnalyticsView = () => {
                 ...solidBar,
                 ...withShare(breakdown.total),
                 colors: WARM_PALETTE,
-                xaxis: { categories: Object.keys(breakdown.byPriority) },
+                xaxis: { categories: Object.keys(breakdown.byPriority), title: { text: "Tickets" } },
+                yaxis: { title: { text: "Priority" } },
                 plotOptions: { bar: { horizontal: true, borderRadius: 5, distributed: true } },
                 legend: { show: false },
               }}
@@ -223,7 +225,8 @@ const NimroseAnalyticsView = () => {
                 ...solidBar,
                 ...withShare(breakdown.total),
                 colors: WARM_PALETTE,
-                xaxis: { categories: Object.keys(breakdown.byColumn) },
+                xaxis: { categories: Object.keys(breakdown.byColumn), title: { text: "Column" } },
+                yaxis: { title: { text: "Tickets" } },
                 plotOptions: { bar: { borderRadius: 6, distributed: true, columnWidth: "55%" } },
                 legend: { show: false },
               }}
@@ -244,7 +247,8 @@ const NimroseAnalyticsView = () => {
                 ...solidBar,
                 ...withShare(breakdown.total),
                 colors: WARM_PALETTE,
-                xaxis: { categories: Object.keys(breakdown.byAssignee) },
+                xaxis: { categories: Object.keys(breakdown.byAssignee), title: { text: "Tickets" } },
+                yaxis: { title: { text: "Assignee" } },
                 plotOptions: { bar: { horizontal: true, borderRadius: 5, distributed: true } },
                 legend: { show: false },
               }}

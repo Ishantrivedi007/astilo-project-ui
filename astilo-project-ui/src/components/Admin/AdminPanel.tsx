@@ -538,7 +538,10 @@ const OverviewTab = ({
               type="area"
               height={260}
               series={[{ name: "Users", data: signupGrowth.values }]}
-              options={{ xaxis: { categories: signupGrowth.labels } }}
+              options={{
+                xaxis: { categories: signupGrowth.labels, title: { text: "Date" } },
+                yaxis: { title: { text: "Cumulative signups" } },
+              }}
             />
           ) : (
             <p className="py-16 text-center text-sm text-ink/50">Not enough data yet.</p>
@@ -575,7 +578,8 @@ const OverviewTab = ({
               height={260}
               series={[{ name: "Revenue", data: revenueByDay.values }]}
               options={{
-                xaxis: { categories: revenueByDay.labels },
+                xaxis: { categories: revenueByDay.labels, title: { text: "Date" } },
+                yaxis: { title: { text: "Revenue ($)" } },
                 plotOptions: { bar: { columnWidth: "45%", borderRadius: 6 } },
                 fill: { type: "solid", opacity: 0.9 },
                 stroke: { width: 0 },
@@ -673,7 +677,10 @@ const DownloadsTab = () => {
               type="area"
               height={240}
               series={[{ name: "Downloads", data: byDay.values }]}
-              options={{ xaxis: { categories: byDay.labels } }}
+              options={{
+                xaxis: { categories: byDay.labels, title: { text: "Date" } },
+                yaxis: { title: { text: "Cumulative downloads" } },
+              }}
             />
           ) : (
             <p className="py-16 text-center text-sm text-ink/50">Not enough data yet.</p>
