@@ -42,6 +42,7 @@ export const AppRoute = {
   marketsCompare: "/markets/compare",
   marketsMacro: "/markets/macro",
   marketsNews: "/markets/news",
+  marketsCalendar: "/markets/calendar",
   marketsWatchlist: "/markets/watchlist",
   marketsAlerts: "/markets/alerts",
   trading: "/markets/trading",

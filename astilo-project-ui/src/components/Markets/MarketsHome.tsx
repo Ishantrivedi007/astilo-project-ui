@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Flame, Globe2, Landmark, LineChart, Newspaper, Repeat, Scale, Search, Star } from "lucide-react";
+import { Bell, CalendarClock, Flame, Globe2, Landmark, LineChart, Newspaper, Repeat, Scale, Search, Star } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
@@ -126,6 +126,9 @@ const MarketsHome = () => {
         </button>
         <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsAlerts)}>
           <Bell size={12} /> Price Alerts — get notified at your target price
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsCalendar)}>
+          <CalendarClock size={12} /> Earnings &amp; IPO Calendar — real upcoming dates
         </button>
       </div>
 

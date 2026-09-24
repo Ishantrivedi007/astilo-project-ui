@@ -148,17 +148,68 @@ export type FundamentalsData =
       bookValue: number | null;
       priceToBook: number | null;
       fiftyTwoWeekChangePercent: number | null;
+      fiftyTwoWeekHigh?: number | null;
+      fiftyTwoWeekLow?: number | null;
       sector: string | null;
       industry: string | null;
       fullTimeEmployees: number | null;
       website: string | null;
       longBusinessSummary: string | null;
       similarCompanies: SimilarCompany[];
+      /** Which provider actually answered — "Yahoo Finance" when it
+       * resolves normally, or "Alpha Vantage" when Yahoo's crumb-gated
+       * endpoint had nothing and the fallback covered it instead. */
+      source?: string;
     };
 
 export async function fetchMarketFundamentals(symbol: string) {
   const { data } = await markets.get(`/fundamentals`, { params: { symbol } });
   return data as MarketEnvelope<FundamentalsData>;
+}
+
+export interface DividendRecord {
+  ex_dividend_date: string;
+  declaration_date: string;
+  record_date: string;
+  payment_date: string;
+  amount: string;
+}
+
+export async function fetchDividends(symbol: string) {
+  const { data } = await markets.get(`/dividends`, { params: { symbol } });
+  return data as MarketEnvelope<{ count: number; results: DividendRecord[] }>;
+}
+
+export interface EarningsCalendarRow {
+  symbol: string;
+  name: string;
+  reportDate: string;
+  fiscalDateEnding: string;
+  estimate: string;
+  currency: string;
+  timeOfTheDay: string;
+}
+
+export type EarningsHorizon = "3month" | "6month" | "12month";
+
+export async function fetchEarningsCalendar(horizon: EarningsHorizon = "3month") {
+  const { data } = await markets.get(`/earnings-calendar`, { params: { horizon } });
+  return data as MarketEnvelope<{ horizon: EarningsHorizon; count: number; results: EarningsCalendarRow[] }>;
+}
+
+export interface IpoCalendarRow {
+  symbol: string;
+  name: string;
+  ipoDate: string;
+  priceRangeLow: string;
+  priceRangeHigh: string;
+  currency: string;
+  exchange: string;
+}
+
+export async function fetchIpoCalendar() {
+  const { data } = await markets.get(`/ipo-calendar`);
+  return data as MarketEnvelope<{ count: number; results: IpoCalendarRow[] }>;
 }
 
 export interface MacroIndicatorPoint {

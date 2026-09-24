@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AppRoute } from "../../app/AppRoute";
 import { Chart } from "../shared";
 import {
+  fetchDividends,
   fetchMarketAsset,
   fetchMarketFundamentals,
   fetchMarketNews,
@@ -432,6 +433,14 @@ const MarketsAssetView = () => {
   });
   const fundamentals = fundamentalsQuery.data?.data;
 
+  const dividendsQuery = useQuery({
+    queryKey: ["markets", "dividends", symbol],
+    queryFn: () => fetchDividends(symbol),
+    enabled: !!symbol && assetType === "stock",
+    retry: false,
+  });
+  const dividends = dividendsQuery.data?.data.results ?? [];
+
   const insights = useTrendInsights(d?.points ?? []);
   const forecast = useLinearForecast(d?.points ?? [], insights?.volatilityPct);
 
@@ -812,6 +821,9 @@ const MarketsAssetView = () => {
               )}
               {fundamentals && fundamentals.available && (
                 <>
+                  {fundamentals.source && (
+                    <p className="markets-unavailable" style={{ marginBottom: "0.4rem" }}>Source: {fundamentals.source}</p>
+                  )}
                   <dl className="markets-stats-grid">
                     <div className="markets-stat">
                       <dt>P/E (trailing)</dt>
@@ -871,6 +883,35 @@ const MarketsAssetView = () => {
                   )}
                 </>
               )}
+            </div>
+          )}
+
+          {assetType === "stock" && dividends.length > 0 && (
+            <div style={{ marginTop: "1.5rem" }}>
+              <h2 className="markets-section-title">Dividend history</h2>
+              <p className="markets-unavailable" style={{ marginBottom: "0.4rem" }}>Source: Alpha Vantage — real historical distributions.</p>
+              <div style={{ maxHeight: 280, overflowY: "auto", overflowX: "auto" }}>
+                <table className="markets-compare-table">
+                  <thead>
+                    <tr>
+                      <th>Ex-dividend date</th>
+                      <th>Amount</th>
+                      <th>Declaration</th>
+                      <th>Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dividends.slice(0, 40).map((div, i) => (
+                      <tr key={i}>
+                        <td>{div.ex_dividend_date}</td>
+                        <td>${div.amount}</td>
+                        <td>{div.declaration_date === "None" ? "—" : div.declaration_date}</td>
+                        <td>{div.payment_date === "None" ? "—" : div.payment_date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
