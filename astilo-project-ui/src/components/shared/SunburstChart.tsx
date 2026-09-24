@@ -18,7 +18,7 @@ interface Props {
  * ring to zoom in, click the inner rings to zoom back out — built into
  * ECharts itself, no hand-rolled state machine needed) plus smooth
  * built-in animation and tooltips. */
-const SunburstChart = ({ data, size = 420, formatValue }: Props) => {
+const SunburstChart = ({ data, size = 480, formatValue }: Props) => {
   const { theme } = useTheme();
   const isDark = theme.mode === "dark";
 
@@ -58,7 +58,12 @@ const SunburstChart = ({ data, size = 420, formatValue }: Props) => {
             borderWidth: 1.5,
           },
           label: {
-            color: isDark ? "#e5e7eb" : "#1f2330",
+            // Always light text: segment fills are now a deliberately
+            // dark palette regardless of the app's own light/dark theme,
+            // so label contrast needs to follow the segment color, not
+            // the surrounding page theme.
+            color: "#f1f5f9",
+            textShadow: "0 1px 2px rgba(0,0,0,0.45)",
             // Below this angular width, a segment just doesn't have room
             // for readable text — skip the label entirely rather than
             // cramming/overlapping it into its neighbors.

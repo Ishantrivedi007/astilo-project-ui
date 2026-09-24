@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, CalendarClock, Flame, Globe2, Landmark, LineChart, Newspaper, Repeat, Scale, Search, Star } from "lucide-react";
+import { Bell, CalendarClock, Flame, Globe2, Landmark, LineChart, Newspaper, PieChart, Repeat, Scale, Search, Star } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
@@ -105,6 +105,9 @@ const MarketsHome = () => {
         </button>
         <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.trading)}>
           <Landmark size={12} /> Simulated trading — practice buy/sell with fake money
+        </button>
+        <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.tradingPortfolio)}>
+          <PieChart size={12} /> Portfolio — holdings, allocation &amp; P&amp;L
         </button>
         <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsCommodities)}>
           <Flame size={12} /> Commodity Explorer — compare gold, oil, crops &amp; more

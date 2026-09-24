@@ -33,16 +33,16 @@ export const nodeValue = (node: SunburstNode): number => {
 // those hues would visually compete with genuine semantic color
 // elsewhere, so this stays in the blue/violet/amber/pink family instead.
 export const SUNBURST_PALETTE = [
-  "#4f83f1", // blue
-  "#9b6bf2", // violet
-  "#f2b23b", // amber
-  "#22c1d6", // teal-cyan
-  "#f2669b", // rose-pink
-  "#7c8cf8", // periwinkle
-  "#5ec9c2", // seafoam
-  "#c084fc", // light purple
-  "#3b9ae1", // sky blue
-  "#94a3b8", // slate
+  "#2f5bd7", // deep blue
+  "#6d3fc9", // deep violet
+  "#c98a1e", // deep amber
+  "#1591a3", // deep teal
+  "#c23a72", // deep rose
+  "#4a54c9", // deep periwinkle
+  "#2f9c8f", // deep seafoam
+  "#8b3fc9", // deep purple
+  "#1f6fae", // deep sky blue
+  "#516275", // deep slate
 ];
 
 /** Lightens (positive percent) or darkens (negative) a "#rrggbb" color. */
@@ -76,7 +76,7 @@ export function toEchartsSunburst(node: SunburstNode, depth = 0, branchColor?: s
     if (depth === 0) {
       color = undefined; // root itself is never rendered as a ring
     } else if (branchColor) {
-      color = depth === 1 ? branchColor : shade(branchColor, 0.16 * Math.min(depth - 1, 3));
+      color = depth === 1 ? branchColor : shade(branchColor, 0.1 * Math.min(depth - 1, 3));
     }
   }
   const ownBranchColor = depth === 0 ? undefined : node.color ?? branchColor;

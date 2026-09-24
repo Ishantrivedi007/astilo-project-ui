@@ -236,7 +236,7 @@ const TradingPortfolio = () => {
                 />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
-                  <SunburstChart data={allocationTree} size={380} formatValue={(v) => money(v, 0)} />
+                  <SunburstChart data={allocationTree} size={440} formatValue={(v) => money(v, 0)} />
                   <p className="markets-unavailable">Click a ring to zoom in, click the center to zoom back out.</p>
                 </div>
               )
