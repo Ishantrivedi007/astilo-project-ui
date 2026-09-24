@@ -11,7 +11,8 @@ classes.
 import cherrypy
 import requests
 
-from app.markets import coingecko, worldbank, yahoo
+from app.markets import alphavantage, coingecko, worldbank, yahoo
+from app.markets.http import envelope
 from app.markets.quotes import crypto_chart_with_fallback, stock_chart_with_fallback
 
 ASSET_TYPES = ("stock", "crypto")
@@ -90,7 +91,13 @@ class MarketsRegionsController:
 class MarketsFundamentalsController:
     """Company fundamentals (P/E, dividend yield, key stats) plus a list of
     "similar companies" (same sector/industry — never asserted as actual
-    competitors, since that relationship can't be verified from this data)."""
+    competitors, since that relationship can't be verified from this data).
+
+    Yahoo's underlying endpoint requires an auth crumb this app doesn't
+    chase (see yahoo.fundamentals' own docstring), so it always returns
+    {available: false} today — Alpha Vantage's OVERVIEW is used as a real
+    fallback here (live-verified: works keylessly-of-crumb on their free
+    tier, unlike Yahoo's), only if a free API key is configured."""
 
     exposed = True
 
@@ -100,6 +107,13 @@ class MarketsFundamentalsController:
             raise cherrypy.HTTPError(400, "symbol is required")
         result = _guard(yahoo.fundamentals, symbol)
         data = result.get("data") or {}
+
+        if not data.get("available"):
+            av_data = _try_alphavantage_fundamentals(symbol)
+            if av_data is not None:
+                result = envelope("Alpha Vantage", "overview", symbol, av_data)
+                data = av_data
+
         similar = []
         if data.get("available"):
             similar = _guard(
@@ -107,6 +121,13 @@ class MarketsFundamentalsController:
             )
         data["similarCompanies"] = similar
         return result
+
+
+def _try_alphavantage_fundamentals(symbol: str):
+    try:
+        return alphavantage.fundamentals(symbol)
+    except requests.exceptions.RequestException:
+        return None
 
 
 class MarketsMacroController:
@@ -173,6 +194,53 @@ class MarketsNewsClustersController:
         if len(symbol_list) > 8:
             raise cherrypy.HTTPError(400, "at most 8 symbols allowed")
         return _guard(yahoo.news_clusters, symbol_list, int(limit_per_symbol))
+
+
+class MarketsEarningsCalendarController:
+    """Real upcoming company earnings dates (Alpha Vantage EARNINGS_CALENDAR
+    — live-verified, returns thousands of real rows on the free tier).
+    Only if a free API key is configured; 404 otherwise so the frontend
+    can show an honest "not configured" state rather than an empty list."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, horizon="3month"):
+        if horizon not in ("3month", "6month", "12month"):
+            raise cherrypy.HTTPError(400, "horizon must be one of 3month, 6month, 12month")
+        rows = _guard(alphavantage.earnings_calendar, horizon)
+        if rows is None:
+            raise cherrypy.HTTPError(404, "Earnings calendar unavailable (no Alpha Vantage key configured, or upstream error)")
+        return envelope("Alpha Vantage", "earnings_calendar", None, {"horizon": horizon, "count": len(rows), "results": rows})
+
+
+class MarketsIpoCalendarController:
+    """Real upcoming IPOs (Alpha Vantage IPO_CALENDAR — live-verified)."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        rows = _guard(alphavantage.ipo_calendar)
+        if rows is None:
+            raise cherrypy.HTTPError(404, "IPO calendar unavailable (no Alpha Vantage key configured, or upstream error)")
+        return envelope("Alpha Vantage", "ipo_calendar", None, {"count": len(rows), "results": rows})
+
+
+class MarketsDividendsController:
+    """Real dividend history for a symbol (Alpha Vantage DIVIDENDS —
+    live-verified against AAPL, 58 real historical dividend rows)."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, symbol=None):
+        if not symbol:
+            raise cherrypy.HTTPError(400, "symbol is required")
+        rows = _guard(alphavantage.dividends, symbol)
+        if rows is None:
+            raise cherrypy.HTTPError(404, "Dividend history unavailable for this symbol (no Alpha Vantage key configured, symbol not covered, or upstream error)")
+        return envelope("Alpha Vantage", "dividends", symbol, {"count": len(rows), "results": rows})
 
 
 class MarketsTopController:

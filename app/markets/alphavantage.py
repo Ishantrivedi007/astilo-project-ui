@@ -57,7 +57,9 @@ Also live-verified and added later:
   approximation. No fallback beats a misleading one.
 """
 
+import csv
 import datetime
+import io
 
 from app.config import config
 from app.cosmos.cache import cached_fetch
@@ -124,6 +126,14 @@ def _api_key() -> str | None:
     return key or None
 
 
+class _RateLimited(Exception):
+    """Raised inside fetch() (never let cached_fetch persist it) so a
+    transient rate-limit/error response from Alpha Vantage doesn't get
+    cached for a full hour as if it were real data — confirmed live this
+    was happening and made the fallback look "broken" for up to an hour
+    after simple rapid testing, not an actual data problem."""
+
+
 def _get(params: dict):
     key = _api_key()
     if not key:
@@ -133,10 +143,16 @@ def _get(params: dict):
     def fetch():
         resp = markets_get(BASE, params=full_params)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        if isinstance(data, dict) and (data.get("Information") or data.get("Error Message") or data.get("Note")):
+            raise _RateLimited()
+        return data
 
-    raw = cached_fetch("alphavantage", full_params, fetch, ttl_seconds=3600)
-    if not isinstance(raw, dict) or raw.get("Information") or raw.get("Error Message") or raw.get("Note"):
+    try:
+        raw = cached_fetch("alphavantage", full_params, fetch, ttl_seconds=3600)
+    except _RateLimited:
+        return None
+    if not isinstance(raw, dict):
         return None
     return raw
 
@@ -305,3 +321,127 @@ def chart(yahoo_symbol: str, range_: str = "1mo"):
     if any(upper.endswith(suffix) for suffix in YAHOO_TO_AV_SUFFIX):
         return intl_equity_chart(yahoo_symbol, range_)
     return equity_chart(yahoo_symbol, range_)
+
+
+def _num(raw: dict, key: str):
+    """Alpha Vantage's OVERVIEW returns every field as a string, and uses
+    the literal string "None" (not JSON null) for genuinely missing
+    numeric fields — both cases must become a real None, never 0.0."""
+    v = raw.get(key)
+    if v is None or v == "None" or v == "":
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def fundamentals(symbol: str):
+    """Real company fundamentals — P/E, dividend yield, beta, sector,
+    business description, etc. — via Alpha Vantage's OVERVIEW endpoint.
+    Live-verified (real key, AAPL): works on the free tier with no crumb/
+    session requirement, unlike Yahoo's equivalent endpoint. Only
+    international-suffix and index-style symbols are excluded (same
+    equity-only scope as equity_chart/intl_equity_chart above); OVERVIEW
+    itself doesn't error cleanly for those, it just returns an empty
+    object, so the emptiness is what's actually detected below."""
+    if not _api_key() or not symbol:
+        return None
+    raw = _get({"function": "OVERVIEW", "symbol": symbol})
+    if not raw or not raw.get("Symbol"):
+        return None
+
+    dividend_yield = _num(raw, "DividendYield")
+    market_cap = _num(raw, "MarketCapitalization")
+    pe_high = _num(raw, "52WeekHigh")
+    pe_low = _num(raw, "52WeekLow")
+
+    return {
+        "available": True,
+        "peRatioTrailing": _num(raw, "TrailingPE") or _num(raw, "PERatio"),
+        "peRatioForward": _num(raw, "ForwardPE"),
+        "dividendYield": dividend_yield,
+        "dividendRate": _num(raw, "DividendPerShare"),
+        "exDividendDate": raw.get("ExDividendDate") if raw.get("ExDividendDate") not in (None, "None", "-", "") else None,
+        "payoutRatio": None,  # not provided by this endpoint — genuinely unavailable, not guessed
+        "beta": _num(raw, "Beta"),
+        "marketCap": market_cap,
+        "eps": _num(raw, "EPS"),
+        "bookValue": _num(raw, "BookValue"),
+        "priceToBook": _num(raw, "PriceToBookRatio"),
+        "fiftyTwoWeekChangePercent": None,  # OVERVIEW gives 52-week high/low, not a computed % change — see below
+        "fiftyTwoWeekHigh": pe_high,
+        "fiftyTwoWeekLow": pe_low,
+        "sector": raw.get("Sector") if raw.get("Sector") not in (None, "None", "-", "") else None,
+        "industry": raw.get("Industry") if raw.get("Industry") not in (None, "None", "-", "") else None,
+        "fullTimeEmployees": None,  # not provided by this endpoint
+        "website": raw.get("OfficialSite") if raw.get("OfficialSite") not in (None, "None", "-", "") else None,
+        "longBusinessSummary": raw.get("Description") if raw.get("Description") not in (None, "None", "-", "") else None,
+        "source": "Alpha Vantage",
+    }
+
+
+def dividends(symbol: str):
+    """Real dividend history (ex-date, declaration, record, payment dates
+    + amount) — live-verified against AAPL, real dates/amounts."""
+    if not _api_key() or not symbol:
+        return None
+    raw = _get({"function": "DIVIDENDS", "symbol": symbol})
+    if not raw or not isinstance(raw.get("data"), list):
+        return None
+    return raw["data"]
+
+
+def earnings_calendar(horizon: str = "3month"):
+    """Real upcoming company earnings dates — live-verified, returns real
+    CSV data on the free tier (confirmed rows for real companies with
+    real upcoming report dates). horizon: "3month" | "6month" | "12month"."""
+    if not _api_key():
+        return None
+    if horizon not in ("3month", "6month", "12month"):
+        horizon = "3month"
+
+    def fetch():
+        resp = markets_get(BASE, params={"function": "EARNINGS_CALENDAR", "horizon": horizon, "apikey": _api_key()})
+        resp.raise_for_status()
+        return resp.text
+
+    text = cached_fetch("alphavantage_earnings_calendar", {"horizon": horizon}, fetch, ttl_seconds=6 * 3600)
+    if not text:
+        return None
+    return _parse_calendar_csv(text)
+
+
+def ipo_calendar():
+    """Real upcoming IPOs — live-verified, returns real CSV data on the
+    free tier (confirmed real company names/dates/price ranges)."""
+    if not _api_key():
+        return None
+
+    def fetch():
+        resp = markets_get(BASE, params={"function": "IPO_CALENDAR", "apikey": _api_key()})
+        resp.raise_for_status()
+        return resp.text
+
+    text = cached_fetch("alphavantage_ipo_calendar", {}, fetch, ttl_seconds=6 * 3600)
+    if not text:
+        return None
+    return _parse_calendar_csv(text)
+
+
+def _parse_calendar_csv(text: str):
+    """Both EARNINGS_CALENDAR and IPO_CALENDAR return plain CSV (not
+    JSON) with a header row — a real quirk of these two endpoints
+    specifically, every other function here returns JSON. On a rate-limit
+    or error, they return a JSON object instead (`{"Information": ...}`,
+    same wording as every other endpoint's `_get()` already filters) —
+    caught here specifically because these two bypass `_get()` (which
+    expects JSON) and fetch raw text instead, so that filter doesn't
+    apply automatically; feeding that JSON straight into csv.DictReader
+    silently "succeeds" with garbage single-character columns rather than
+    erroring, which is exactly the bug this check exists to prevent."""
+    stripped = text.strip()
+    if not stripped or stripped.startswith("{"):
+        return None
+    reader = csv.DictReader(io.StringIO(text))
+    return list(reader)
