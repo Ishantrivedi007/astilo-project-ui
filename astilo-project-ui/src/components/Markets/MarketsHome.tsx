@@ -144,10 +144,26 @@ const MarketsHome = () => {
             placeholder="Search a symbol or company — AAPL, Tesla, Bitcoin, gold…"
           />
           <div className="markets-type-toggle">
-            <button type="button" className={searchType === "stock" ? "active" : ""} onClick={() => setSearchType("stock")}>
+            <button
+              type="button"
+              className={searchType === "stock" ? "active" : ""}
+              onClick={() => {
+                setSearchType("stock");
+                setQuoteTypeFilter(null);
+                setExchangeFilter(null);
+              }}
+            >
               Stocks, funds &amp; commodities
             </button>
-            <button type="button" className={searchType === "crypto" ? "active" : ""} onClick={() => setSearchType("crypto")}>
+            <button
+              type="button"
+              className={searchType === "crypto" ? "active" : ""}
+              onClick={() => {
+                setSearchType("crypto");
+                setQuoteTypeFilter(null);
+                setExchangeFilter(null);
+              }}
+            >
               Crypto
             </button>
           </div>

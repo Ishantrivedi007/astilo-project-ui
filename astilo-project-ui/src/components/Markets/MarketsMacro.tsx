@@ -17,7 +17,16 @@ import "./Markets.scss";
 const INDICATOR_KEYS: MacroIndicatorKey[] = ["gdp", "gdpGrowth", "inflation", "unemployment", "interestRate"];
 
 const chartOptionsFor = () => ({
-  xaxis: { type: "category" as const },
+  xaxis: {
+    type: "category" as const,
+    // These indicators often span 60+ years of yearly points — showing
+    // every single year's label was the real source of the crowding,
+    // independent of chart width. Capping how many ticks render (ApexCharts
+    // picks an even spread) plus a slight rotation keeps it readable
+    // regardless of how many years of real data came back.
+    tickAmount: 12,
+    labels: { rotate: -45, rotateAlways: false },
+  },
   stroke: { curve: "smooth" as const, width: 2.5 },
   dataLabels: { enabled: false },
   markers: { size: 3 },
@@ -206,7 +215,14 @@ const MarketsMacro = () => {
           </div>
 
           {compareSeries.length > 0 ? (
-            <Chart type="line" height={340} series={compareSeries} options={chartOptionsFor()} />
+            // Breaks out of the page's usual 1100px content width — with
+            // 60+ years of real yearly data per country, this chart
+            // specifically benefits from as much horizontal room as the
+            // viewport actually has, rather than staying boxed in with
+            // every other section on this page.
+            <div style={{ marginLeft: "calc(50% - 50vw)", marginRight: "calc(50% - 50vw)", padding: "0 1.5rem" }}>
+              <Chart type="line" height={380} series={compareSeries} options={chartOptionsFor()} />
+            </div>
           ) : (
             <p className="markets-unavailable">Select at least one country to compare.</p>
           )}
