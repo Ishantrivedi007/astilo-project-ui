@@ -18,11 +18,11 @@ const NO_DATA_FILL = "#454b63";
 
 const colorFor = (changePercent: number | null): string => {
   if (changePercent == null) return NO_DATA_FILL;
-  if (changePercent >= 1.5) return "#16a34a";
-  if (changePercent >= 0.3) return "#4ade80";
-  if (changePercent > -0.3) return "#8b93ab";
-  if (changePercent > -1.5) return "#f87171";
-  return "#dc2626";
+  if (changePercent >= 1.5) return "#15803d";
+  if (changePercent >= 0.3) return "#1f9d55";
+  if (changePercent > -0.3) return "#6b7387";
+  if (changePercent > -1.5) return "#c23a3a";
+  return "#a71d1d";
 };
 
 const MarketsWorldMap = () => {
