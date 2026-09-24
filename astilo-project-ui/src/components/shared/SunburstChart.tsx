@@ -18,7 +18,7 @@ interface Props {
  * ring to zoom in, click the inner rings to zoom back out — built into
  * ECharts itself, no hand-rolled state machine needed) plus smooth
  * built-in animation and tooltips. */
-const SunburstChart = ({ data, size = 320, formatValue }: Props) => {
+const SunburstChart = ({ data, size = 420, formatValue }: Props) => {
   const { theme } = useTheme();
   const isDark = theme.mode === "dark";
 
@@ -46,7 +46,7 @@ const SunburstChart = ({ data, size = 320, formatValue }: Props) => {
         {
           type: "sunburst",
           data: echartsData,
-          radius: [size * 0.12, size * 0.46],
+          radius: [size * 0.1, size * 0.49],
           center: ["50%", "50%"],
           nodeClick: "rootToNode",
           sort: undefined,
@@ -59,14 +59,23 @@ const SunburstChart = ({ data, size = 320, formatValue }: Props) => {
           },
           label: {
             color: isDark ? "#e5e7eb" : "#1f2330",
-            fontSize: 10,
-            minAngle: 8,
+            // Below this angular width, a segment just doesn't have room
+            // for readable text — skip the label entirely rather than
+            // cramming/overlapping it into its neighbors.
+            minAngle: 11,
+            overflow: "truncate",
           },
+          // Fewer, larger segments (inner rings) get roomier, larger
+          // labels; the densest outer ring (many small segments, e.g.
+          // ~24 countries on the World Map) gets a smaller font and a
+          // higher minAngle cutoff so it thins itself out instead of
+          // overlapping — computed relative to the actual rendered size,
+          // not a fixed pixel value that only worked at one chart size.
           levels: [
             {},
-            { r0: size * 0.12, r: size * 0.28 },
-            { r0: size * 0.28, r: size * 0.37 },
-            { r0: size * 0.37, r: size * 0.46 },
+            { r0: size * 0.1, r: size * 0.27, label: { fontSize: Math.round(size * 0.032), rotate: "radial" } },
+            { r0: size * 0.27, r: size * 0.38, label: { fontSize: Math.round(size * 0.026), rotate: "radial", minAngle: 13 } },
+            { r0: size * 0.38, r: size * 0.49, label: { fontSize: Math.round(size * 0.022), rotate: "radial", minAngle: 15 } },
           ],
         },
       ],

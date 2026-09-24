@@ -27,17 +27,22 @@ export const nodeValue = (node: SunburstNode): number => {
  * every deeper descendant inherits its branch's hue via `shade` below
  * rather than each getting an unrelated color, so a whole branch reads
  * as one visual family. */
+// Deliberately avoids saturated red/green (the family colorFor() uses on
+// the World Map for real gain/loss coloring, and the same red/green
+// convention used for P&L throughout this app) — a categorical ring using
+// those hues would visually compete with genuine semantic color
+// elsewhere, so this stays in the blue/violet/amber/pink family instead.
 export const SUNBURST_PALETTE = [
-  "#6366f1", // indigo
-  "#22d3ee", // cyan
-  "#f59e0b", // amber
-  "#ec4899", // pink
-  "#10b981", // emerald
-  "#a78bfa", // violet
-  "#f43f5e", // rose
-  "#38bdf8", // sky
-  "#fb923c", // orange
-  "#34d399", // teal-green
+  "#4f83f1", // blue
+  "#9b6bf2", // violet
+  "#f2b23b", // amber
+  "#22c1d6", // teal-cyan
+  "#f2669b", // rose-pink
+  "#7c8cf8", // periwinkle
+  "#5ec9c2", // seafoam
+  "#c084fc", // light purple
+  "#3b9ae1", // sky blue
+  "#94a3b8", // slate
 ];
 
 /** Lightens (positive percent) or darkens (negative) a "#rrggbb" color. */

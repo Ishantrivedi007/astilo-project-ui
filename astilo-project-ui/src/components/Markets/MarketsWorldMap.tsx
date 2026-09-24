@@ -259,8 +259,8 @@ const MarketsWorldMap = () => {
             above). Segment size reflects country count per region, not market size — no per-country market-cap
             data exists here to size by honestly. Click a region to zoom in, click the center to zoom back out.
           </p>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <SunburstChart data={regionTree} size={340} formatValue={(v) => `${v} ${v === 1 ? "country" : "countries"}`} />
+          <div style={{ display: "flex", justifyContent: "center", overflowX: "auto" }}>
+            <SunburstChart data={regionTree} size={560} formatValue={(v) => `${v} ${v === 1 ? "country" : "countries"}`} />
           </div>
         </div>
       )}
