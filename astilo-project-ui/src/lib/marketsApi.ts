@@ -212,6 +212,25 @@ export async function fetchIpoCalendar() {
   return data as MarketEnvelope<{ count: number; results: IpoCalendarRow[] }>;
 }
 
+export interface EconomicCalendarRow {
+  releaseId: number;
+  name: string;
+  date: string;
+  isMajor: boolean;
+}
+
+export async function fetchEconomicCalendar(daysAhead = 60, majorOnly = true) {
+  const { data } = await markets.get(`/economic-calendar`, { params: { days_ahead: daysAhead, major_only: majorOnly } });
+  return data as MarketEnvelope<{
+    country: string;
+    daysAhead: number;
+    majorOnly: boolean;
+    count: number;
+    results: EconomicCalendarRow[];
+    disclaimer: string;
+  }>;
+}
+
 export interface MacroIndicatorPoint {
   year: number;
   value: number | null;

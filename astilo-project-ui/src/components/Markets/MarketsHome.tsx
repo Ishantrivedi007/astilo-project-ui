@@ -128,7 +128,7 @@ const MarketsHome = () => {
           <Bell size={12} /> Price Alerts — get notified at your target price
         </button>
         <button type="button" className="markets-chip inline-flex items-center gap-1" onClick={() => navigate(AppRoute.marketsCalendar)}>
-          <CalendarClock size={12} /> Earnings &amp; IPO Calendar — real upcoming dates
+          <CalendarClock size={12} /> Calendar — earnings, IPOs &amp; economic releases
         </button>
       </div>
 
