@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Bell, CalendarClock, Flame, Globe2, Landmark, LineChart, Newspaper, PieChart, Repeat, Scale, Search, Star } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
-import { fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
+import { fetchMarketAsset, fetchTopCrypto, fetchTrendingSymbols, searchMarkets, type AssetType } from "../../lib/marketsApi";
 import { BONDS, COMMODITIES, EXCHANGE_REGIONS, FOREX } from "../../lib/marketsCatalog";
 import MarketQuoteCard from "./MarketQuoteCard";
 import MarketLogo, { categoryFromQuoteType, type MarketCategory } from "./MarketLogo";
@@ -46,6 +46,39 @@ const MarketsHome = () => {
     retry: false,
   });
 
+  // Yahoo's trending feed is only keyed by country, not by exchange (see
+  // the disclosure text below) — NYSE and NASDAQ share the exact same
+  // "US" list from that endpoint alone, which looked like a bug (both
+  // tabs showing identical tickers). Real fix: for these two specifically,
+  // look up each trending symbol's own actual exchange (the same
+  // fetchMarketAsset call MarketQuoteCard already makes per-symbol, so
+  // React Query dedupes this rather than doubling network calls) and
+  // split the shared list by that real metadata instead of leaving it
+  // undifferentiated.
+  const EXCHANGE_NAME_MATCH: Record<string, string> = { NYSE: "NYSE", NASDAQ: "Nasdaq" };
+  const rawExchangeSymbols = exchangeTrendingQuery.data?.data.symbols ?? [];
+  const needsExchangeSplit = activeExchange.region === "US" && !!EXCHANGE_NAME_MATCH[exchangeTab];
+  const symbolExchangeQueries = useQueries({
+    queries: needsExchangeSplit
+      ? rawExchangeSymbols.map((s) => ({
+          queryKey: ["markets", "asset", s, "stock", "1d"],
+          queryFn: () => fetchMarketAsset(s, "stock", "1d"),
+          staleTime: 60_000,
+          retry: false,
+        }))
+      : [],
+  });
+  const exchangeSymbolsLoading = needsExchangeSplit && symbolExchangeQueries.some((q) => q.isLoading);
+  // useQueries already returns a fresh array each render, so a useMemo
+  // here buys nothing — this recomputes (cheaply, just a filter over
+  // already-fetched/cached data) whenever the underlying queries settle.
+  const exchangeSymbols = !needsExchangeSplit
+    ? rawExchangeSymbols
+    : rawExchangeSymbols.filter((_, i) => {
+        const ex = symbolExchangeQueries[i]?.data?.data.exchange;
+        return !!ex && ex.toLowerCase().includes(EXCHANGE_NAME_MATCH[exchangeTab].toLowerCase());
+      });
+
   const searchQuery = useQuery({
     queryKey: ["markets", "search", submitted, searchType],
     queryFn: () => searchMarkets(submitted, searchType),
@@ -72,6 +105,25 @@ const MarketsHome = () => {
     setQuoteTypeFilter(null);
     setExchangeFilter(null);
   };
+
+  // Live suggestions as the user types (same debounced pattern already
+  // used on Trading's search — the Search button/Enter still works too,
+  // via submit() above, for anyone who prefers typing the full query
+  // before committing).
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setSubmitted("");
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSubmitted(trimmed);
+      setQuoteTypeFilter(null);
+      setExchangeFilter(null);
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const allResults = searchQuery.data?.data.results ?? [];
   const results = useMemo(() => {
@@ -282,8 +334,10 @@ const MarketsHome = () => {
 
       <h2 className="markets-section-title">Browse by exchange</h2>
       <p className="markets-unavailable" style={{ marginBottom: "0.5rem" }}>
-        Real, live trending tickers per market — Yahoo's trending data is keyed by country, so NYSE/NASDAQ (both US)
-        and NSE/BSE (both India) share a feed; that's a real limitation of the free source, not a shortcut we took.
+        Real, live trending tickers per market. Yahoo's trending feed itself is only keyed by country — NYSE/NASDAQ
+        (both US) and NSE/BSE (both India) start from the same underlying list — so NYSE/NASDAQ here are further
+        split by each ticker's own real listed exchange; NSE/BSE genuinely have no trending data from this free
+        source right now (not filtered out, there's just nothing there).
       </p>
       <div className="markets-type-toggle mb-3">
         {EXCHANGE_REGIONS.map((ex) => (
@@ -292,15 +346,20 @@ const MarketsHome = () => {
           </button>
         ))}
       </div>
-      {exchangeTrendingQuery.isLoading && <p className="markets-unavailable">Loading {activeExchange.label} trending…</p>}
+      {(exchangeTrendingQuery.isLoading || exchangeSymbolsLoading) && (
+        <p className="markets-unavailable">Loading {activeExchange.label} trending…</p>
+      )}
       {exchangeTrendingQuery.isError && <p className="markets-unavailable">Trending data unavailable for {activeExchange.label} right now.</p>}
-      {exchangeTrendingQuery.data && exchangeTrendingQuery.data.data.symbols.length === 0 && (
-        <p className="markets-unavailable">Yahoo has no trending data for {activeExchange.label} right now — try searching directly above.</p>
+      {!exchangeTrendingQuery.isLoading && !exchangeSymbolsLoading && exchangeSymbols.length === 0 && (
+        <p className="markets-unavailable">
+          {needsExchangeSplit
+            ? `None of today's real US trending tickers are listed on ${activeExchange.label} right now — try the other US tab or search directly above.`
+            : `Yahoo has no trending data for ${activeExchange.label} right now — try searching directly above.`}
+        </p>
       )}
       <div className="markets-quote-grid">
-        {exchangeTrendingQuery.data?.data.symbols.map((s) => (
-          <MarketQuoteCard key={s} symbol={s} assetType="stock" category="stock" showWatchlistToggle />
-        ))}
+        {!exchangeSymbolsLoading &&
+          exchangeSymbols.map((s) => <MarketQuoteCard key={s} symbol={s} assetType="stock" category="stock" showWatchlistToggle />)}
       </div>
 
       <h2 className="markets-section-title">Indices</h2>
