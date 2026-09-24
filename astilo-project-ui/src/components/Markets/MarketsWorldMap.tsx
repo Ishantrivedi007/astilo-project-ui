@@ -6,6 +6,8 @@ import { ArrowLeft, Globe2, TrendingDown, TrendingUp, ZoomIn, ZoomOut } from "lu
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchMarketRegions, type RegionIndex } from "../../lib/marketsApi";
+import { SunburstChart } from "../shared";
+import type { SunburstNode } from "../../lib/sunburst";
 import "./Markets.scss";
 
 // A free, public, keyless world topology — the same dataset react-simple-maps'
@@ -62,6 +64,29 @@ const MarketsWorldMap = () => {
     }
     return groups;
   }, [results]);
+
+  // Total -> region -> country. Every country is weighted equally (there's
+  // no real "size" metric per country here — market cap isn't part of this
+  // dataset — so segment size intentionally encodes "how many countries",
+  // not magnitude; real performance is shown via color, same colorFor()
+  // used on the map itself, not fabricated into a size that doesn't exist.
+  const regionTree: SunburstNode = useMemo(
+    () => ({
+      id: "root",
+      name: "World",
+      children: [...byRegion.entries()].map(([region, list]) => ({
+        id: `region:${region}`,
+        name: region,
+        children: list.map((r) => ({
+          id: `country:${r.country}`,
+          name: r.name,
+          value: 1,
+          color: colorFor(r.changePercent),
+        })),
+      })),
+    }),
+    [byRegion]
+  );
 
   return (
     <div className="markets-page">
@@ -225,6 +250,20 @@ const MarketsWorldMap = () => {
           </div>
         </div>
       </div>
+
+      {regionTree.children && regionTree.children.length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <h2 className="markets-section-title">Region breakdown</h2>
+          <p className="markets-unavailable" style={{ marginBottom: "0.6rem" }}>
+            Inner ring = region, outer ring = country colored by today's real change (same coloring as the map
+            above). Segment size reflects country count per region, not market size — no per-country market-cap
+            data exists here to size by honestly. Click a region to zoom in, click the center to zoom back out.
+          </p>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <SunburstChart data={regionTree} size={340} formatValue={(v) => `${v} ${v === 1 ? "country" : "countries"}`} />
+          </div>
+        </div>
+      )}
 
       {[...byRegion.entries()].map(([region, list]) => (
         <div key={region}>

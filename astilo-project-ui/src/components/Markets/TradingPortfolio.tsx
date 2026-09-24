@@ -1,10 +1,12 @@
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Landmark, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppRoute } from "../../app/AppRoute";
-import { Chart, useConfirm } from "../shared";
+import { Chart, SunburstChart, useConfirm } from "../shared";
+import type { SunburstNode } from "../../lib/sunburst";
 import {
   cancelPendingOrder,
   fetchPendingOrders,
@@ -27,6 +29,7 @@ const TradingPortfolio = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const [allocationView, setAllocationView] = useState<"donut" | "sunburst">("donut");
 
   const accountQuery = useQuery({ queryKey: ["trading", "account"], queryFn: fetchTradingAccount, refetchInterval: 30_000 });
   const ordersQuery = useQuery({ queryKey: ["trading", "orders"], queryFn: fetchTradingOrders });
@@ -64,6 +67,29 @@ const TradingPortfolio = () => {
 
   const allocationLabels = [...holdings.map((h) => h.symbol), ...(portfolio && portfolio.account.cashBalance > 0 ? ["Cash"] : [])];
   const allocationValues = [...holdings.map((h) => h.marketValue ?? 0), ...(portfolio && portfolio.account.cashBalance > 0 ? [portfolio.account.cashBalance] : [])];
+
+  // Total -> asset type (stock/crypto/cash) -> individual symbol, sized by
+  // real live market value — every level computed fresh from the actual
+  // holdings each render, not a fixed 2-level shape.
+  const allocationTree: SunburstNode = useMemo(() => {
+    const byType = new Map<string, SunburstNode[]>();
+    for (const h of holdings) {
+      const value = h.marketValue ?? 0;
+      if (value <= 0) continue;
+      const arr = byType.get(h.assetType) ?? [];
+      arr.push({ id: `${h.assetType}:${h.symbol}`, name: h.symbol, value });
+      byType.set(h.assetType, arr);
+    }
+    const children: SunburstNode[] = Array.from(byType.entries()).map(([type, syms]) => ({
+      id: `type:${type}`,
+      name: type === "crypto" ? "Crypto" : "Stocks",
+      children: syms,
+    }));
+    if (portfolio && portfolio.account.cashBalance > 0) {
+      children.push({ id: "type:cash", name: "Cash", value: portfolio.account.cashBalance });
+    }
+    return { id: "root", name: "Portfolio", children };
+  }, [holdings, portfolio]);
 
   const totalUnrealized = holdings.reduce((sum, h) => sum + (h.unrealizedPnl ?? 0), 0);
   const totalCost = holdings.reduce((sum, h) => sum + h.avgCost * h.quantity, 0);
@@ -184,19 +210,36 @@ const TradingPortfolio = () => {
           </div>
 
           <div>
-            <h2 className="markets-section-title">Allocation</h2>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+              <h2 className="markets-section-title" style={{ margin: 0 }}>Allocation</h2>
+              <div className="markets-type-toggle">
+                <button type="button" className={allocationView === "donut" ? "active" : ""} onClick={() => setAllocationView("donut")}>
+                  Donut
+                </button>
+                <button type="button" className={allocationView === "sunburst" ? "active" : ""} onClick={() => setAllocationView("sunburst")}>
+                  Sunburst
+                </button>
+              </div>
+            </div>
             {allocationValues.some((v) => v > 0) ? (
-              <Chart
-                type="donut"
-                height={280}
-                series={allocationValues}
-                options={{
-                  labels: allocationLabels,
-                  colors: ALLOCATION_COLORS,
-                  legend: { position: "bottom" },
-                  dataLabels: { enabled: true, formatter: (val: number) => `${val.toFixed(0)}%` },
-                }}
-              />
+              allocationView === "donut" ? (
+                <Chart
+                  type="donut"
+                  height={280}
+                  series={allocationValues}
+                  options={{
+                    labels: allocationLabels,
+                    colors: ALLOCATION_COLORS,
+                    legend: { position: "bottom" },
+                    dataLabels: { enabled: true, formatter: (val: number) => `${val.toFixed(0)}%` },
+                  }}
+                />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+                  <SunburstChart data={allocationTree} size={280} formatValue={(v) => money(v, 0)} />
+                  <p className="markets-unavailable">Click a ring to zoom in, click the center to zoom back out.</p>
+                </div>
+              )
             ) : (
               <p className="markets-unavailable">Nothing to show yet.</p>
             )}
