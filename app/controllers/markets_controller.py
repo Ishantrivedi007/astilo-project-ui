@@ -11,7 +11,7 @@ classes.
 import cherrypy
 import requests
 
-from app.markets import alphavantage, coingecko, worldbank, yahoo
+from app.markets import alphavantage, coingecko, fred, worldbank, yahoo
 from app.markets.http import envelope
 from app.markets.quotes import crypto_chart_with_fallback, stock_chart_with_fallback
 
@@ -161,6 +161,26 @@ class MarketsMacroIndicatorController:
         result = _guard(worldbank.indicator_series, country, indicator)
         if result is None:
             raise cherrypy.HTTPError(404, f"No data found for country '{country}'")
+        return result
+
+
+class MarketsEconomicCalendarController:
+    """Real, forward-looking US economic release calendar (CPI/GDP/jobs/
+    FOMC scheduled dates) via FRED — the thing the World Bank API above
+    explicitly cannot provide. Only if a free API key is configured."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, days_ahead=60, major_only="true"):
+        try:
+            days_ahead = int(days_ahead)
+        except (TypeError, ValueError):
+            raise cherrypy.HTTPError(400, "days_ahead must be an integer")
+        major_only_bool = str(major_only).lower() not in ("false", "0", "no")
+        result = _guard(fred.upcoming_releases, days_ahead, major_only_bool)
+        if result is None:
+            raise cherrypy.HTTPError(404, "Economic calendar unavailable (no FRED key configured, or upstream error)")
         return result
 
 

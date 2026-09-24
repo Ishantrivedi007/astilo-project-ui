@@ -40,6 +40,13 @@ class Config:
     # is intentionally narrow. Empty by default; a no-op when unset.
     TWELVE_DATA_API_KEY = os.getenv("TWELVE_DATA_API_KEY", "")
 
+    # Optional — a free, instant-signup key from
+    # https://fred.stlouisfed.org/docs/api/api_key.html. Used for a real
+    # forward-looking US economic release calendar (CPI/GDP/jobs/FOMC
+    # scheduled dates) — something the World Bank API cannot provide.
+    # Empty by default; a no-op when unset.
+    FRED_API_KEY = os.getenv("FRED_API_KEY", "")
+
     # Absolute override for where downloaded songs are written (and checked
     # against). Defaults to the sibling astilo-project-ui/public/downloads
     # next to this backend — set this when the frontend being served lives

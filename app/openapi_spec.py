@@ -61,6 +61,7 @@ ROUTES: list[tuple[str, str, list[str], str]] = [
     ("/markets/dividends", "Markets", ["GET"], "Real dividend history for a symbol (Alpha Vantage, requires a free key)"),
     ("/markets/earnings-calendar", "Markets", ["GET"], "Real upcoming company earnings dates (Alpha Vantage, requires a free key)"),
     ("/markets/ipo-calendar", "Markets", ["GET"], "Real upcoming IPOs (Alpha Vantage, requires a free key)"),
+    ("/markets/economic-calendar", "Markets", ["GET"], "Real forward US CPI/GDP/jobs/FOMC release-date schedule (FRED, requires a free key)"),
     ("/markets/watchlist", "Markets", ["GET", "POST", "DELETE"], "Saved symbols with live quotes"),
     ("/markets/price-alerts", "Markets", ["GET", "POST", "DELETE"], "Above/below price alerts, checked lazily on poll"),
     ("/trading/account", "Trading", ["GET"], "Simulated cash + holdings summary"),

@@ -90,6 +90,7 @@ from app.controllers.messenger_controller import (
 from app.controllers.markets_controller import (
     MarketsAssetController,
     MarketsCountriesController,
+    MarketsEconomicCalendarController,
     MarketsDividendsController,
     MarketsEarningsCalendarController,
     MarketsFundamentalsController,
@@ -213,6 +214,7 @@ def build_app():
     cherrypy.tree.mount(MarketsRegionsController(), "/api/markets/regions", conf)
     cherrypy.tree.mount(MarketsFundamentalsController(), "/api/markets/fundamentals", conf)
     cherrypy.tree.mount(MarketsMacroController(), "/api/markets/macro", conf)
+    cherrypy.tree.mount(MarketsEconomicCalendarController(), "/api/markets/economic-calendar", conf)
     cherrypy.tree.mount(MarketsMacroIndicatorController(), "/api/markets/macro/indicator", conf)
     cherrypy.tree.mount(MarketsCountriesController(), "/api/markets/countries", conf)
     cherrypy.tree.mount(MarketsNewsClustersController(), "/api/markets/news-clusters", conf)
