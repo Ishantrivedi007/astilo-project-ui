@@ -45,7 +45,6 @@ const MarketsCompare = lazy(() => import("../components/Markets/MarketsCompare")
 const MarketsMacro = lazy(() => import("../components/Markets/MarketsMacro"));
 const MarketsNews = lazy(() => import("../components/Markets/MarketsNews"));
 const MarketsCalendar = lazy(() => import("../components/Markets/MarketsCalendar"));
-const MarketsSunburstDemo = lazy(() => import("../components/Markets/MarketsSunburstDemo"));
 const MarketsWatchlist = lazy(() => import("../components/Markets/MarketsWatchlist"));
 const MarketsAlerts = lazy(() => import("../components/Markets/MarketsAlerts"));
 const TradingHome = lazy(() => import("../components/Markets/TradingHome"));
@@ -189,7 +188,6 @@ const AppRoutes = () => (
       <Route path={AppRoute.marketsMacro} element={getAuthRoute(<MarketsMacro />)} />
       <Route path={AppRoute.marketsNews} element={getAuthRoute(<MarketsNews />)} />
       <Route path={AppRoute.marketsCalendar} element={getAuthRoute(<MarketsCalendar />)} />
-      <Route path={AppRoute.marketsSunburstDemo} element={getAuthRoute(<MarketsSunburstDemo />)} />
       <Route path={AppRoute.marketsWatchlist} element={getAuthRoute(<MarketsWatchlist />)} />
       <Route path={AppRoute.marketsAlerts} element={getAuthRoute(<MarketsAlerts />)} />
       <Route path={AppRoute.trading} element={getAuthRoute(<TradingHome />)} />
