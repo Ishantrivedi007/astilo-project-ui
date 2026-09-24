@@ -8,14 +8,20 @@ import {
   fetchMarketAsset,
   fetchMarketFundamentals,
   searchMarkets,
+  RANGES,
+  RANGE_LABEL,
   type FundamentalsData,
   type MarketAssetData,
+  type MarketRange,
 } from "../../lib/marketsApi";
+import { useComparisonChart } from "../../lib/useComparisonChart";
+import { Chart } from "../shared";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import "./Markets.scss";
 
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT"];
 const MAX_SYMBOLS = 4;
+const CHART_COLORS = ["#2f5bd7", "#6d3fc9", "#c98a1e", "#1591a3"];
 
 const fmtNum = (n: number | null | undefined, decimals = 2) =>
   n == null ? "—" : n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -37,11 +43,24 @@ const ROWS: Row[] = [
     label: "Change %",
     values: (a) => (a?.changePercent != null ? `${a.changePercent >= 0 ? "+" : ""}${a.changePercent.toFixed(2)}%` : "—"),
   },
-  { label: "P/E (trailing)", values: (_a, f) => (f?.available ? fmtNum(f.peRatioTrailing) : "Not available") },
-  { label: "Dividend yield", values: (_a, f) => (f?.available ? fmtPct(f.dividendYield) : "Not available") },
+  { label: "Day range", values: (a) => (a?.dayLow != null && a?.dayHigh != null ? `${fmtNum(a.dayLow)} – ${fmtNum(a.dayHigh)}` : "—") },
+  {
+    label: "52-week range",
+    values: (a) => (a?.fiftyTwoWeekLow != null && a?.fiftyTwoWeekHigh != null ? `${fmtNum(a.fiftyTwoWeekLow)} – ${fmtNum(a.fiftyTwoWeekHigh)}` : "—"),
+  },
+  { label: "Volume", values: (a) => fmtCompact(a?.volume) },
   { label: "Market cap", values: (a, f) => (f?.available ? fmtCompact(f.marketCap) : fmtCompact(a?.marketCap)) },
+  { label: "P/E (trailing)", values: (_a, f) => (f?.available ? fmtNum(f.peRatioTrailing) : "Not available") },
+  { label: "P/E (forward)", values: (_a, f) => (f?.available ? fmtNum(f.peRatioForward) : "Not available") },
+  { label: "Price / book", values: (_a, f) => (f?.available ? fmtNum(f.priceToBook) : "Not available") },
+  { label: "EPS", values: (_a, f) => (f?.available ? fmtNum(f.eps) : "Not available") },
+  { label: "Book value / share", values: (_a, f) => (f?.available ? fmtNum(f.bookValue) : "Not available") },
+  { label: "Dividend yield", values: (_a, f) => (f?.available ? fmtPct(f.dividendYield) : "Not available") },
+  { label: "Payout ratio", values: (_a, f) => (f?.available ? fmtPct(f.payoutRatio) : "Not available") },
   { label: "Beta", values: (_a, f) => (f?.available ? fmtNum(f.beta) : "Not available") },
   { label: "52-week change", values: (_a, f) => (f?.available ? fmtPct(f.fiftyTwoWeekChangePercent) : "Not available") },
+  { label: "Sector", values: (_a, f) => (f?.available ? f.sector ?? "—" : "Not available") },
+  { label: "Industry", values: (_a, f) => (f?.available ? f.industry ?? "—" : "Not available") },
 ];
 
 const MarketsCompare = () => {
@@ -49,6 +68,7 @@ const MarketsCompare = () => {
   const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
+  const [range, setRange] = useState<MarketRange>("6mo");
 
   const searchQuery = useQuery({
     queryKey: ["markets", "search", submitted, "stock"],
@@ -92,6 +112,11 @@ const MarketsCompare = () => {
   const assets = useMemo(() => assetQueries.map((q) => q.data?.data), [assetQueries]);
   const fundamentalsList = useMemo(() => fundamentalsQueries.map((q) => q.data?.data), [fundamentalsQueries]);
 
+  const { chartSeries, isLoading: chartLoading } = useComparisonChart({
+    symbols: symbols.map((s) => ({ symbol: s, label: s, assetType: "stock" as const })),
+    range,
+  });
+
   return (
     <div className="markets-page">
       <button type="button" className="markets-chip mb-4 inline-flex items-center gap-1" onClick={() => navigate(AppRoute.markets)}>
@@ -104,8 +129,9 @@ const MarketsCompare = () => {
         Compare Companies
       </h1>
       <p className="markets-tagline">
-        Side-by-side price and fundamentals comparison for 2-4 stocks. Fundamentals may show "Not available" —
-        that's an honest gap in the underlying data source, not a failure.
+        Normalized performance chart plus a full price, valuation, profitability, and business comparison for 2-4
+        stocks. Fundamentals may show "Not available" — that's an honest gap in the underlying data source, not a
+        failure.
       </p>
 
       <form onSubmit={submit}>
@@ -156,6 +182,36 @@ const MarketsCompare = () => {
       </div>
 
       {symbols.length === 0 && <p className="markets-unavailable mt-3">Add at least one symbol to compare.</p>}
+
+      {symbols.length > 0 && (
+        <div style={{ marginTop: "1.2rem" }}>
+          <h2 className="markets-section-title">Performance comparison</h2>
+          <div className="markets-range-row" style={{ marginBottom: "0.6rem" }}>
+            {RANGES.map((r) => (
+              <button key={r} type="button" className={`markets-range-chip ${range === r ? "active" : ""}`} onClick={() => setRange(r)}>
+                {RANGE_LABEL[r]}
+              </button>
+            ))}
+          </div>
+          {chartLoading && <p className="markets-unavailable">Loading chart…</p>}
+          {!chartLoading && chartSeries.length === 0 && <p className="markets-unavailable">No historical data available for this range.</p>}
+          {chartSeries.length > 0 && (
+            <Chart
+              type="line"
+              height={320}
+              series={chartSeries}
+              options={{
+                colors: CHART_COLORS,
+                xaxis: { type: "datetime", title: { text: "Date" } },
+                yaxis: { title: { text: "Change from start of range (%)" }, labels: { formatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%` } },
+                tooltip: { x: { format: "dd MMM yyyy" }, y: { formatter: (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}%` } },
+                stroke: { curve: "smooth", width: 2.5 },
+                legend: { show: true },
+              }}
+            />
+          )}
+        </div>
+      )}
 
       {symbols.length > 0 && (
         <div style={{ overflowX: "auto", marginTop: "1.2rem" }}>

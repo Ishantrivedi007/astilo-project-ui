@@ -229,15 +229,15 @@ const MarketsMacro = () => {
 
           {compareSeries.length > 0 ? (
             // Wider than the page's usual 1100px content width, but
-            // inset well short of the true viewport edge (the earlier
-            // version went edge-to-edge, which ran the last year's label
-            // right off the screen with no margin left). Same
-            // viewport-relative centering technique as before — correct
-            // at any screen width, since it's computed against 50vw, not
-            // a hardcoded pixel offset that would misalign on narrower
-            // screens.
-            <div style={{ marginLeft: "calc(50% - 50vw + 5rem)", marginRight: "calc(50% - 50vw + 5rem)", padding: "0 1rem" }}>
-              <Chart type="line" height={380} series={compareSeries} options={chartOptionsFor(`${INDICATOR_LABEL[indicator]} (${INDICATOR_UNIT[indicator]})`)} />
+            // deliberately bounded two ways: the outer div's inset grows
+            // with the viewport (7rem in from each true edge, so it never
+            // goes edge-to-edge on any screen size), and the inner div
+            // additionally caps the result at 1400px so it doesn't keep
+            // ballooning on very wide monitors either.
+            <div style={{ marginLeft: "calc(50% - 50vw + 7rem)", marginRight: "calc(50% - 50vw + 7rem)", padding: "0 1rem" }}>
+              <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+                <Chart type="line" height={380} series={compareSeries} options={chartOptionsFor(`${INDICATOR_LABEL[indicator]} (${INDICATOR_UNIT[indicator]})`)} />
+              </div>
             </div>
           ) : (
             <p className="markets-unavailable">Select at least one country to compare.</p>
