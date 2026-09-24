@@ -114,11 +114,14 @@ class MarketsFundamentalsController:
                 result = envelope("Alpha Vantage", "overview", symbol, av_data)
                 data = av_data
 
-        similar = []
-        if data.get("available"):
-            similar = _guard(
-                yahoo.similar_companies, symbol, data.get("sector"), data.get("industry")
-            )
+        # Yahoo's real computed "related companies" endpoint (live-verified
+        # keyless, no crumb requirement) works independently of whether
+        # fundamentals themselves resolved, so it's attempted unconditionally
+        # rather than only when data.get("available") — that used to mean
+        # this list simply never showed while Yahoo's fundamentals were down.
+        similar = _guard(yahoo.recommended_symbols, symbol)
+        if not similar and data.get("available"):
+            similar = _guard(yahoo.similar_companies, symbol, data.get("sector"), data.get("industry"))
         data["similarCompanies"] = similar
         return result
 

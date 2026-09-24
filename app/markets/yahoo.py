@@ -18,6 +18,7 @@ CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
 TRENDING_URL = "https://query1.finance.yahoo.com/v1/finance/trending/{region}"
 NEWS_RSS_URL = "https://feeds.finance.yahoo.com/rss/2.0/headline"
+RECOMMENDATIONS_URL = "https://query1.finance.yahoo.com/v6/finance/recommendationsbysymbol/{symbol}"
 QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
 
 # financialmodelingprep.com serves company logos free and keyless, keyed
@@ -335,11 +336,72 @@ def fundamentals(symbol: str):
     return envelope("Yahoo Finance", "fundamentals", symbol, data)
 
 
+def recommended_symbols(symbol: str, limit: int = 6):
+    """Yahoo Finance's own computed "related companies" for a symbol —
+    the same relationships shown on their own site's "Similar" panel.
+    Live-verified: works keylessly (unlike quoteSummary/fundamentals,
+    this is a different endpoint with no crumb requirement), reliable
+    across US large caps and international listings (tested RELIANCE.NS).
+    Still explicitly NOT labeled "competitors": Yahoo's own field name is
+    "recommendedSymbols" (a similarity/co-interest score, not a claimed
+    business relationship), and this app never asserts a relationship it
+    can't verify — but it's Yahoo's own real computed relevance, a
+    stronger real source than sector-text-search string matching."""
+
+    def fetch():
+        resp = markets_get(RECOMMENDATIONS_URL.format(symbol=symbol))
+        resp.raise_for_status()
+        return resp.json()
+
+    raw = cached_fetch("yahoo_recommendations", {"symbol": symbol}, fetch, ttl_seconds=6 * 3600)
+    result = (raw.get("finance", {}).get("result") or [{}])[0]
+    recs = result.get("recommendedSymbols") or []
+    codes = [r["symbol"] for r in recs[:limit] if r.get("symbol")]
+    if not codes:
+        return []
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    resolved: dict[str, dict] = {}
+
+    def resolve_one(code: str):
+        env = chart(code, "1d")
+        if not env or (isinstance(env, dict) and env.get("error")):
+            return None
+        data = env.get("data") or {}
+        return {
+            "symbol": data.get("symbol", code),
+            "name": data.get("name") or code,
+            "exchange": data.get("exchange"),
+            "quoteType": data.get("instrumentType"),
+            "sector": None,
+            "logoUrl": data.get("logoUrl"),
+        }
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(resolve_one, c): c for c in codes}
+        for future in as_completed(futures):
+            code = futures[future]
+            try:
+                row = future.result()
+            except Exception:
+                row = None
+            if row:
+                resolved[code] = row
+
+    # Preserve Yahoo's own relevance ordering rather than the arbitrary
+    # order the parallel fetches happened to complete in.
+    return [resolved[c] for c in codes if c in resolved]
+
+
 def similar_companies(symbol: str, sector: str | None, industry: str | None, limit: int = 6):
     """Companies sharing the same sector/industry, found via Yahoo's search
     endpoint. Explicitly NOT labeled "competitors" — this app has no way to
     verify an actual competitive relationship, only a shared classification,
-    and it never asserts a relationship it can't verify."""
+    and it never asserts a relationship it can't verify. Kept as a fallback
+    for recommended_symbols() above (a real per-symbol Yahoo endpoint that
+    can occasionally have no data for an obscure ticker) when sector/
+    industry data happens to be available."""
     query = industry or sector
     if not query:
         return []
