@@ -78,9 +78,9 @@ const SunburstChart = ({ data, size = 480, formatValue }: Props) => {
           // not a fixed pixel value that only worked at one chart size.
           levels: [
             {},
-            { r0: size * 0.1, r: size * 0.27, label: { fontSize: Math.round(size * 0.032), rotate: "radial" } },
-            { r0: size * 0.27, r: size * 0.38, label: { fontSize: Math.round(size * 0.026), rotate: "radial", minAngle: 13 } },
-            { r0: size * 0.38, r: size * 0.49, label: { fontSize: Math.round(size * 0.022), rotate: "radial", minAngle: 15 } },
+            { r0: size * 0.1, r: size * 0.27, label: { fontSize: Math.min(13, Math.round(size * 0.02)), rotate: "radial" } },
+            { r0: size * 0.27, r: size * 0.38, label: { fontSize: Math.min(11, Math.round(size * 0.016)), rotate: "radial", minAngle: 13 } },
+            { r0: size * 0.38, r: size * 0.49, label: { fontSize: Math.min(10, Math.round(size * 0.013)), rotate: "radial", minAngle: 15 } },
           ],
         },
       ],
