@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Scale, X } from "lucide-react";
@@ -7,6 +7,7 @@ import { AppRoute } from "../../app/AppRoute";
 import {
   fetchMarketAsset,
   fetchMarketFundamentals,
+  fetchTrendingSymbols,
   searchMarkets,
   RANGES,
   RANGE_LABEL,
@@ -19,7 +20,6 @@ import { Chart } from "../shared";
 import MarketLogo, { categoryFromQuoteType } from "./MarketLogo";
 import "./Markets.scss";
 
-const DEFAULT_SYMBOLS = ["AAPL", "MSFT"];
 const MAX_SYMBOLS = 4;
 const CHART_COLORS = ["#2f5bd7", "#6d3fc9", "#c98a1e", "#1591a3"];
 
@@ -65,10 +65,29 @@ const ROWS: Row[] = [
 
 const MarketsCompare = () => {
   const navigate = useNavigate();
-  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
+  const [symbols, setSymbols] = useState<string[]>([]);
+  const [seeded, setSeeded] = useState(false);
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [range, setRange] = useState<MarketRange>("6mo");
+
+  // Real, live trending tickers seed the initial comparison (same source
+  // as the home page's Trending section and News Clusters' default
+  // picks) — no fixed example-symbol pair standing in for "something
+  // worth comparing right now."
+  const trendingQuery = useQuery({
+    queryKey: ["markets", "trending", "US"],
+    queryFn: () => fetchTrendingSymbols("US"),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  useEffect(() => {
+    const picks = trendingQuery.data?.data.symbols ?? [];
+    if (!seeded && picks.length >= 2) {
+      setSeeded(true);
+      setSymbols(picks.slice(0, 2));
+    }
+  }, [seeded, trendingQuery.data]);
 
   const searchQuery = useQuery({
     queryKey: ["markets", "search", submitted, "stock"],
@@ -181,7 +200,8 @@ const MarketsCompare = () => {
         ))}
       </div>
 
-      {symbols.length === 0 && <p className="markets-unavailable mt-3">Add at least one symbol to compare.</p>}
+      {symbols.length === 0 && !seeded && <p className="markets-unavailable mt-3">Loading today's trending symbols…</p>}
+      {symbols.length === 0 && seeded && <p className="markets-unavailable mt-3">Add at least one symbol to compare.</p>}
 
       {symbols.length > 0 && (
         <div style={{ marginTop: "1.2rem" }}>
