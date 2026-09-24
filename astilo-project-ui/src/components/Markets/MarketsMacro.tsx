@@ -228,12 +228,15 @@ const MarketsMacro = () => {
           </div>
 
           {compareSeries.length > 0 ? (
-            // Breaks out of the page's usual 1100px content width — with
-            // 60+ years of real yearly data per country, this chart
-            // specifically benefits from as much horizontal room as the
-            // viewport actually has, rather than staying boxed in with
-            // every other section on this page.
-            <div style={{ marginLeft: "calc(50% - 50vw)", marginRight: "calc(50% - 50vw)", padding: "0 1.5rem" }}>
+            // Wider than the page's usual 1100px content width, but
+            // inset well short of the true viewport edge (the earlier
+            // version went edge-to-edge, which ran the last year's label
+            // right off the screen with no margin left). Same
+            // viewport-relative centering technique as before — correct
+            // at any screen width, since it's computed against 50vw, not
+            // a hardcoded pixel offset that would misalign on narrower
+            // screens.
+            <div style={{ marginLeft: "calc(50% - 50vw + 5rem)", marginRight: "calc(50% - 50vw + 5rem)", padding: "0 1rem" }}>
               <Chart type="line" height={380} series={compareSeries} options={chartOptionsFor(`${INDICATOR_LABEL[indicator]} (${INDICATOR_UNIT[indicator]})`)} />
             </div>
           ) : (

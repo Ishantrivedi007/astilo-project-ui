@@ -74,13 +74,21 @@ const MarketsHome = () => {
   };
 
   const allResults = searchQuery.data?.data.results ?? [];
-  const results = useMemo(
-    () =>
-      allResults.filter(
-        (r) => (!quoteTypeFilter || r.quoteType === quoteTypeFilter) && (!exchangeFilter || r.exchange === exchangeFilter)
-      ),
-    [allResults, quoteTypeFilter, exchangeFilter]
-  );
+  const results = useMemo(() => {
+    // quoteType/exchange filters are stock-only concepts (their own chip
+    // rows are only ever rendered when searchType === "stock") — applying
+    // them regardless of the current search type was the real bug: a
+    // leftover "Stocks" (EQUITY) filter picked before switching to Crypto
+    // silently matched zero crypto results forever after, since crypto
+    // results are always quoteType "CRYPTOCURRENCY". Ignoring both
+    // filters outright whenever searchType is "crypto" fixes this
+    // regardless of the exact click order that got you there, not just
+    // the one sequence the state-reset-on-toggle fix covered.
+    if (searchType !== "stock") return allResults;
+    return allResults.filter(
+      (r) => (!quoteTypeFilter || r.quoteType === quoteTypeFilter) && (!exchangeFilter || r.exchange === exchangeFilter)
+    );
+  }, [allResults, quoteTypeFilter, exchangeFilter, searchType]);
   const availableTypes = useMemo(() => new Set(allResults.map((r) => r.quoteType)), [allResults]);
   const availableExchanges = useMemo(
     () => Array.from(new Set(allResults.map((r) => r.exchange).filter((e): e is string => !!e))),
