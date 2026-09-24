@@ -828,6 +828,32 @@ const MarketsAssetView = () => {
               {fundamentals && !fundamentals.available && (
                 <p className="markets-unavailable">Fundamentals data isn't available for this symbol right now — {fundamentals.reason}</p>
               )}
+              {fundamentals && fundamentals.similarCompanies.length > 0 && (
+                // Yahoo's related-companies endpoint is independent of
+                // whether the rest of fundamentals resolved, so this
+                // renders regardless of `available` — moved outside that
+                // branch specifically so it still shows when fundamentals
+                // themselves are unavailable (confirmed live: this is a
+                // real, common case, not an edge case).
+                <div style={{ margin: !fundamentals.available ? "0.6rem 0 0" : "0 0 1rem" }}>
+                  <h3 className="markets-result-meta" style={{ marginBottom: "0.4rem" }}>
+                    Similar companies (Yahoo's own computed relevance — not a confirmed competitive relationship)
+                  </h3>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {fundamentals.similarCompanies.map((c) => (
+                      <button
+                        key={c.symbol}
+                        type="button"
+                        className="markets-chip inline-flex items-center gap-1"
+                        onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(c.symbol)}&type=stock`)}
+                      >
+                        <MarketLogo logoUrl={c.logoUrl} category={categoryFromQuoteType(c.quoteType)} name={c.name} size={16} />
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {fundamentals && fundamentals.available && (
                 <>
                   {fundamentals.source && (
@@ -871,25 +897,6 @@ const MarketsAssetView = () => {
                       <dd>{fmtPct(fundamentals.fiftyTwoWeekChangePercent)}</dd>
                     </div>
                   </dl>
-
-                  {fundamentals.similarCompanies.length > 0 && (
-                    <div style={{ marginTop: "1rem" }}>
-                      <h3 className="markets-result-meta" style={{ marginBottom: "0.4rem" }}>Similar companies (same industry)</h3>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {fundamentals.similarCompanies.map((c) => (
-                          <button
-                            key={c.symbol}
-                            type="button"
-                            className="markets-chip inline-flex items-center gap-1"
-                            onClick={() => navigate(`${AppRoute.marketsAsset}?symbol=${encodeURIComponent(c.symbol)}&type=stock`)}
-                          >
-                            <MarketLogo logoUrl={c.logoUrl} category={categoryFromQuoteType(c.quoteType)} name={c.name} size={16} />
-                            {c.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
             </div>

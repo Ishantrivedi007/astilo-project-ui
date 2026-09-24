@@ -133,7 +133,11 @@ export interface SimilarCompany {
 }
 
 export type FundamentalsData =
-  | { available: false; reason: string }
+  // similarCompanies is sent regardless of whether the rest of
+  // fundamentals resolved (it's a real, independent Yahoo endpoint —
+  // see app/markets/yahoo.py's recommended_symbols) — live-verified: a
+  // symbol with available:false can still have 5 real similar companies.
+  | { available: false; reason: string; similarCompanies: SimilarCompany[] }
   | {
       available: true;
       peRatioTrailing: number | null;
