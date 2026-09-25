@@ -16,7 +16,7 @@ from urllib.parse import quote_plus, urlencode
 
 import cherrypy
 
-from app.cosmos import nasa, wikipedia
+from app.cosmos import arxiv, crossref, nasa, openalex, openlibrary, pubmed, wikidata, wikipedia
 from app.db import get_session
 from app.notify import notify
 from app.models import (
@@ -305,7 +305,27 @@ def _markdown_body_to_html(text: str) -> str:
     return "".join(html_parts)
 
 
-def _build_report_html(item: CosmosSavedItem, brief: dict, docs: list, images: list) -> str:
+def _bar_breakdown_html(title: str, counts: dict) -> str:
+    """A small inline-CSS bar chart — no charting library needed for a
+    server-rendered report, and no JS is available once this HTML is
+    exported/printed anyway."""
+    total = sum(counts.values()) or 1
+    colors = ["#f59e0b", "#22d3ee", "#f43f5e", "#a78bfa", "#34d399"]
+    rows = []
+    for i, (label, n) in enumerate(counts.items()):
+        pct = round(n / total * 100)
+        color = colors[i % len(colors)]
+        rows.append(
+            f'<div style="display:flex;align-items:center;gap:8px;margin:4px 0">'
+            f'<span style="width:110px;font-size:13px">{_esc(label)}</span>'
+            f'<div style="flex:1;background:#eee;border-radius:4px;overflow:hidden;height:14px">'
+            f'<div style="width:{pct}%;background:{color};height:100%"></div></div>'
+            f'<span style="width:34px;font-size:12px;text-align:right">{n}</span></div>'
+        )
+    return f"<h2>{_esc(title)}</h2>" + "".join(rows)
+
+
+def _build_report_html(item: CosmosSavedItem, brief: dict, docs: list, images: list, task_counts: dict | None = None) -> str:
     """Assembles everything gathered on a research item — the automated
     brief, the sky-position image, the checklist's completion state, every
     document written for it (rendered, not markdown source), and its image
@@ -361,6 +381,10 @@ def _build_report_html(item: CosmosSavedItem, brief: dict, docs: list, images: l
             + "".join(f"<li>{'✅' if s.get('done') else '⬜'} {_esc(s.get('text', ''))}</li>" for s in next_steps)
             + "</ul>"
         )
+        parts.append(_bar_breakdown_html("Checklist progress", {"Done": done_count, "Pending": len(next_steps) - done_count}))
+
+    if task_counts:
+        parts.append(_bar_breakdown_html("Linked tasks by status", task_counts))
 
     if docs:
         parts.append("<h2>Documents</h2>")
@@ -492,7 +516,7 @@ class ResearchController:
                 cosmos_item.research_brief_json = _build_brief(cosmos_item)
 
             if created_project:
-                space = NimroseBrowserSpace(user_id=user_id, name=project_name[:60], position=0)
+                space = NimroseBrowserSpace(user_id=user_id, name=project_name[:60], position=0, project_id=project.id)
                 session.add(space)
                 session.flush()
                 search_url = f"https://scholar.google.com/scholar?q={title.replace(' ', '+')}"
@@ -619,6 +643,7 @@ class ResearchController:
                     content=note_body,
                     content_format="html",
                     folder=project.name,
+                    project_id=project.id,
                     tags=["auto-research", "resolved" if note_resolved else "needs-manual-research"],
                 )
                 session.add(note)
@@ -640,13 +665,19 @@ class ResearchController:
                 source_docs = [d for d in all_docs if "final-report" not in (d.tags or []) and d.kind == "note"]
                 images = list(item.research_images_json or [])
 
-                report_body = _build_report_html(item, brief, source_docs, images)
+                project_tasks = session.query(NimroseTask).filter_by(project_id=project.id).all()
+                task_counts: dict = {}
+                for t in project_tasks:
+                    task_counts[t.status] = task_counts.get(t.status, 0) + 1
+
+                report_body = _build_report_html(item, brief, source_docs, images, task_counts)
 
                 existing_report = next((d for d in all_docs if "final-report" in (d.tags or [])), None)
                 if existing_report:
                     existing_report.title = f"{item.title} — Research Report"
                     existing_report.content = report_body
                     existing_report.content_format = "html"
+                    existing_report.project_id = existing_report.project_id or project.id
                     report_note = existing_report
                 else:
                     report_note = NimroseNote(
@@ -655,6 +686,7 @@ class ResearchController:
                         content=report_body,
                         content_format="html",
                         folder=project.name,
+                        project_id=project.id,
                         tags=["final-report"],
                     )
                     session.add(report_note)
@@ -686,6 +718,26 @@ class ResearchController:
                     raise cherrypy.HTTPError(400, "index is required and must reference an existing image")
                 images.pop(int(index))
                 item.research_images_json = images
+            elif action == "add_source":
+                if not (body.get("title") and body.get("source")):
+                    raise cherrypy.HTTPError(400, "title and source are required")
+                sources = list(item.research_sources_json or [])
+                sources.append({
+                    "title": body.get("title"),
+                    "url": body.get("url"),
+                    "snippet": body.get("snippet"),
+                    "source": body.get("source"),
+                    "externalId": body.get("externalId"),
+                    "addedAt": datetime.datetime.utcnow().isoformat() + "Z",
+                })
+                item.research_sources_json = sources
+            elif action == "remove_source":
+                index = body.get("index")
+                sources = list(item.research_sources_json or [])
+                if index is None or not (0 <= int(index) < len(sources)):
+                    raise cherrypy.HTTPError(400, "index is required and must reference an existing source")
+                sources.pop(int(index))
+                item.research_sources_json = sources
             else:
                 raise cherrypy.HTTPError(400, "unknown action")
 
@@ -720,3 +772,66 @@ class ResearchController:
 
             session.delete(item)
             return {"deleted": True}
+
+
+_EXTERNAL_SOURCES = {
+    "wikidata": wikidata.search,
+    "arxiv": arxiv.search,
+    "pubmed": pubmed.search,
+    "openalex": openalex.search,
+    "crossref": crossref.search,
+    "openlibrary": openlibrary.search,
+}
+
+
+class ResearchExternalSearchController:
+    """GET /api/research/external-search?source=...&q=... — search-then-add
+    UX for Wikidata/arXiv/PubMed/OpenAlex/Crossref/Open Library, mirroring
+    the existing NASA image search flow. Results aren't saved here; the
+    frontend POSTs the chosen ones as {action: "add_source"} on
+    ResearchController.PUT."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, source, q, limit=10):
+        search_fn = _EXTERNAL_SOURCES.get(source)
+        if not search_fn:
+            raise cherrypy.HTTPError(400, f"source must be one of {', '.join(_EXTERNAL_SOURCES)}")
+        query = (q or "").strip()
+        if not query:
+            raise cherrypy.HTTPError(400, "q is required")
+        try:
+            return search_fn(query, int(limit))
+        except Exception:
+            raise cherrypy.HTTPError(502, f"{source} search failed — try again shortly")
+
+
+class ResearchLinkedProjectsController:
+    """GET /api/nimrose/research-projects — every NimroseProject that is the
+    target of at least one research-collection CosmosSavedItem, for the
+    Nimrose Workspace section's topic picker. Keyed off the project (not the
+    Cosmos item) since the Workspace view bundles project-scoped data
+    (tasks/notes/browser spaces); the join is deduped in case more than one
+    research item ever points at the same project."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self):
+        user_id = _user_id()
+        with get_session() as session:
+            rows = (
+                session.query(NimroseProject, CosmosSavedItem)
+                .join(CosmosSavedItem, CosmosSavedItem.research_project_id == NimroseProject.id)
+                .filter(NimroseProject.user_id == user_id, CosmosSavedItem.collection == "research")
+                .order_by(CosmosSavedItem.created_at.desc())
+                .all()
+            )
+            seen = {}
+            for project, item in rows:
+                if project.id not in seen:
+                    seen[project.id] = {**project.to_dict(), "researchItemId": item.id, "researchTitle": item.title}
+            return list(seen.values())

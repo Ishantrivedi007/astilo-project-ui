@@ -10,7 +10,7 @@ def _split_origins(raw: str) -> list[str]:
 
 
 class Config:
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./astilo.db")
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/astilo")
     JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
     JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
     CORS_ORIGINS = _split_origins(os.getenv("CORS_ORIGINS", "http://localhost:5173"))

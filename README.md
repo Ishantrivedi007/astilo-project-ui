@@ -10,8 +10,9 @@ copy .env.example .env
 python main.py
 ```
 
-Server runs at `http://localhost:8080`. Tables are created automatically on
-first run (SQLite file `astilo.db`).
+Server runs at `http://localhost:8080`. Requires a running Postgres instance
+(`DATABASE_URL` in `.env`) — tables and migrations are created automatically
+on first run.
 
 ## Endpoints
 

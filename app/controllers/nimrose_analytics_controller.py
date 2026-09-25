@@ -10,6 +10,7 @@ import re
 import cherrypy
 
 from app.db import get_session
+from app.nimrose_access import require_project_access
 from app.models import (
     NimroseBoardColumn,
     NimroseProject,
@@ -41,14 +42,10 @@ class NimroseBurndownController:
     @cherrypy.tools.json_out()
     def GET(self, sprint_id):
         with get_session() as session:
-            sprint = (
-                session.query(NimroseSprint)
-                .join(NimroseProject)
-                .filter(NimroseSprint.id == int(sprint_id), NimroseProject.user_id == _user_id())
-                .first()
-            )
+            sprint = session.query(NimroseSprint).filter_by(id=int(sprint_id)).first()
             if not sprint:
                 raise cherrypy.HTTPError(404, "Sprint not found")
+            require_project_access(session, sprint.project_id, _user_id(), min_role="viewer")
             if not sprint.start_date or not sprint.end_date:
                 raise cherrypy.HTTPError(
                     400, "Set this sprint's start and end dates first (Sprints view) to see a burndown."
@@ -130,9 +127,8 @@ class NimroseVelocityController:
     @cherrypy.tools.json_out()
     def GET(self, project_id):
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="viewer")
+            project = session.get(NimroseProject, int(project_id))
 
             done_slugs = {c.slug for c in session.query(NimroseBoardColumn).filter_by(project_id=project.id, is_done=1).all()}
             sprints = (
@@ -170,9 +166,8 @@ class NimroseBreakdownController:
     @cherrypy.tools.json_out()
     def GET(self, project_id):
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="viewer")
+            project = session.get(NimroseProject, int(project_id))
 
             tickets = session.query(NimroseTicket).filter_by(project_id=project.id).all()
             columns = session.query(NimroseBoardColumn).filter_by(project_id=project.id).order_by(NimroseBoardColumn.position).all()

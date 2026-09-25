@@ -9,6 +9,7 @@ import requests
 
 from app.auth import decode_token
 from app.db import get_session
+from app.nimrose_access import require_project_access
 from app.models import (
     DEFAULT_BROWSER_SPACES,
     NimroseBookmark,
@@ -24,13 +25,33 @@ def _user_id():
     return int(cherrypy.request.user["sub"])
 
 
+def _space_access(session, space, user_id, min_role="viewer"):
+    """A Space belongs to a project (shared per membership) or is personal
+    (project_id None, owner-only) — same personal/shared split as tasks,
+    notes and calendar events."""
+    if space.project_id:
+        require_project_access(session, space.project_id, user_id, min_role=min_role)
+    elif space.user_id != user_id:
+        raise cherrypy.HTTPError(404, "Space not found")
+
+
 class NimroseBrowserSpacesController:
     exposed = True
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self):
+    def GET(self, project_id=None):
         with get_session() as session:
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="viewer")
+                spaces = (
+                    session.query(NimroseBrowserSpace)
+                    .filter_by(project_id=int(project_id))
+                    .order_by(NimroseBrowserSpace.position.asc())
+                    .all()
+                )
+                return [s.to_dict() for s in spaces]
+
             spaces = (
                 session.query(NimroseBrowserSpace)
                 .filter_by(user_id=_user_id())
@@ -76,9 +97,10 @@ class NimroseBrowserSpacesController:
     def PUT(self, space_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id), user_id=_user_id()).first()
+            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id)).first()
             if not space:
                 raise cherrypy.HTTPError(404, "Space not found")
+            _space_access(session, space, _user_id(), min_role="editor")
             if "name" in body:
                 space.name = (body["name"] or "").strip() or space.name
             if "position" in body:
@@ -90,9 +112,10 @@ class NimroseBrowserSpacesController:
     @cherrypy.tools.json_out()
     def DELETE(self, space_id):
         with get_session() as session:
-            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id), user_id=_user_id()).first()
+            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id)).first()
             if not space:
                 raise cherrypy.HTTPError(404, "Space not found")
+            _space_access(session, space, _user_id(), min_role="editor")
             session.delete(space)
             return {"deleted": True}
 
@@ -104,9 +127,10 @@ class NimroseBrowserTabsController:
     @cherrypy.tools.json_out()
     def GET(self, space_id):
         with get_session() as session:
-            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id), user_id=_user_id()).first()
+            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id)).first()
             if not space:
                 raise cherrypy.HTTPError(404, "Space not found")
+            _space_access(session, space, _user_id(), min_role="viewer")
             return [t.to_dict() for t in space.tabs]
 
     @cherrypy.tools.auth()
@@ -119,9 +143,10 @@ class NimroseBrowserTabsController:
             raise cherrypy.HTTPError(400, "url is required")
 
         with get_session() as session:
-            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id), user_id=_user_id()).first()
+            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id)).first()
             if not space:
                 raise cherrypy.HTTPError(404, "Space not found")
+            _space_access(session, space, _user_id(), min_role="editor")
 
             position = session.query(NimroseBrowserTab).filter_by(space_id=space.id).count()
             tab = NimroseBrowserTab(space_id=space.id, url=url, title=body.get("title"), position=position)
@@ -135,16 +160,11 @@ class NimroseBrowserTabsController:
     def PUT(self, space_id, tab_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            tab = (
-                session.query(NimroseBrowserTab)
-                .join(NimroseBrowserSpace)
-                .filter(
-                    NimroseBrowserTab.id == int(tab_id),
-                    NimroseBrowserTab.space_id == int(space_id),
-                    NimroseBrowserSpace.user_id == _user_id(),
-                )
-                .first()
-            )
+            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id)).first()
+            if not space:
+                raise cherrypy.HTTPError(404, "Space not found")
+            _space_access(session, space, _user_id(), min_role="editor")
+            tab = session.query(NimroseBrowserTab).filter_by(id=int(tab_id), space_id=int(space_id)).first()
             if not tab:
                 raise cherrypy.HTTPError(404, "Tab not found")
             if "url" in body:
@@ -160,16 +180,11 @@ class NimroseBrowserTabsController:
     @cherrypy.tools.json_out()
     def DELETE(self, space_id, tab_id):
         with get_session() as session:
-            tab = (
-                session.query(NimroseBrowserTab)
-                .join(NimroseBrowserSpace)
-                .filter(
-                    NimroseBrowserTab.id == int(tab_id),
-                    NimroseBrowserTab.space_id == int(space_id),
-                    NimroseBrowserSpace.user_id == _user_id(),
-                )
-                .first()
-            )
+            space = session.query(NimroseBrowserSpace).filter_by(id=int(space_id)).first()
+            if not space:
+                raise cherrypy.HTTPError(404, "Space not found")
+            _space_access(session, space, _user_id(), min_role="editor")
+            tab = session.query(NimroseBrowserTab).filter_by(id=int(tab_id), space_id=int(space_id)).first()
             if not tab:
                 raise cherrypy.HTTPError(404, "Tab not found")
             session.delete(tab)

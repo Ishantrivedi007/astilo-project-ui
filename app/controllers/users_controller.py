@@ -106,6 +106,8 @@ class UsersController:
                 if avatar and len(avatar) > MAX_AVATAR_CHARS:
                     raise cherrypy.HTTPError(400, "Photo is too large")
                 user.avatar = avatar
+            if "gitLinksEnabled" in body:
+                user.git_links_enabled = bool(body["gitLinksEnabled"])
 
             if body.get("newPassword"):
                 current = body.get("currentPassword") or ""

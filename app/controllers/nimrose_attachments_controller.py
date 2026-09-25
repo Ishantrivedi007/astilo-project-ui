@@ -7,6 +7,7 @@ import jwt
 from app.auth import decode_token
 from app.config import config
 from app.db import get_session
+from app.nimrose_access import require_project_access
 from app.models import NimroseTicket, NimroseTicketAttachment
 
 IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
@@ -30,6 +31,42 @@ def _attachments_dir():
     return config.ATTACHMENTS_DIR
 
 
+def _save_upload_file(file, uploaded_by_user_id, *, ticket_id=None, project_id=None) -> NimroseTicketAttachment:
+    """Shared disk-write + DB-record logic for both the ticket-scoped and
+    project-scoped (Files tab) attachment controllers — exactly one of
+    ticket_id/project_id is set by the caller."""
+    content_type = (file.content_type.value if file.content_type else None) or "application/octet-stream"
+    _, ext = os.path.splitext(file.filename)
+    stored_name = f"{uuid.uuid4().hex}{ext[:10]}"
+    dest_path = os.path.join(_attachments_dir(), stored_name)
+
+    size = 0
+    with open(dest_path, "wb") as out:
+        while True:
+            chunk = file.file.read(65536)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > config.ATTACHMENT_MAX_BYTES:
+                out.close()
+                os.remove(dest_path)
+                raise cherrypy.HTTPError(
+                    413, f"Attachment too large (max {config.ATTACHMENT_MAX_BYTES // (1024 * 1024)}MB)"
+                )
+            out.write(chunk)
+
+    return NimroseTicketAttachment(
+        ticket_id=ticket_id,
+        project_id=project_id,
+        uploaded_by_user_id=uploaded_by_user_id,
+        file_name=file.filename,
+        stored_name=stored_name,
+        content_type=content_type,
+        size_bytes=size,
+        is_image=1 if content_type in IMAGE_CONTENT_TYPES else 0,
+    )
+
+
 class NimroseTicketAttachmentsController:
     """Upload/list/delete a ticket's attachments. Files are stored on disk
     under config.ATTACHMENTS_DIR with a random name (the original filename
@@ -42,9 +79,10 @@ class NimroseTicketAttachmentsController:
     @cherrypy.tools.json_out()
     def GET(self, ticket_id):
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="viewer")
             return [a.to_dict() for a in ticket.attachments]
 
     @cherrypy.tools.auth()
@@ -54,39 +92,12 @@ class NimroseTicketAttachmentsController:
             raise cherrypy.HTTPError(400, "file is required (multipart/form-data)")
 
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
 
-            content_type = (file.content_type.value if file.content_type else None) or "application/octet-stream"
-            _, ext = os.path.splitext(file.filename)
-            stored_name = f"{uuid.uuid4().hex}{ext[:10]}"
-            dest_path = os.path.join(_attachments_dir(), stored_name)
-
-            size = 0
-            with open(dest_path, "wb") as out:
-                while True:
-                    chunk = file.file.read(65536)
-                    if not chunk:
-                        break
-                    size += len(chunk)
-                    if size > config.ATTACHMENT_MAX_BYTES:
-                        out.close()
-                        os.remove(dest_path)
-                        raise cherrypy.HTTPError(
-                            413, f"Attachment too large (max {config.ATTACHMENT_MAX_BYTES // (1024 * 1024)}MB)"
-                        )
-                    out.write(chunk)
-
-            attachment = NimroseTicketAttachment(
-                ticket_id=ticket.id,
-                uploaded_by_user_id=_user_id(),
-                file_name=file.filename,
-                stored_name=stored_name,
-                content_type=content_type,
-                size_bytes=size,
-                is_image=1 if content_type in IMAGE_CONTENT_TYPES else 0,
-            )
+            attachment = _save_upload_file(file, _user_id(), ticket_id=ticket.id)
             session.add(attachment)
             session.flush()
             return attachment.to_dict()
@@ -95,14 +106,63 @@ class NimroseTicketAttachmentsController:
     @cherrypy.tools.json_out()
     def DELETE(self, ticket_id, attachment_id):
         with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Attachment not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
             attachment = (
                 session.query(NimroseTicketAttachment)
-                .join(NimroseTicket)
-                .filter(
-                    NimroseTicketAttachment.id == int(attachment_id),
-                    NimroseTicketAttachment.ticket_id == int(ticket_id),
-                    NimroseTicket.user_id == _user_id(),
-                )
+                .filter_by(id=int(attachment_id), ticket_id=int(ticket_id))
+                .first()
+            )
+            if not attachment:
+                raise cherrypy.HTTPError(404, "Attachment not found")
+
+            path = os.path.join(_attachments_dir(), attachment.stored_name)
+            if os.path.isfile(path):
+                os.remove(path)
+            session.delete(attachment)
+            return {"deleted": True}
+
+
+class NimroseProjectAttachmentsController:
+    """Upload/list/delete a project's Files tab attachments — same storage
+    and DB record as ticket attachments, just addressed by project_id
+    directly instead of via a ticket."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, project_id):
+        with get_session() as session:
+            require_project_access(session, project_id, _user_id(), min_role="viewer")
+            attachments = session.query(NimroseTicketAttachment).filter_by(project_id=int(project_id)).order_by(NimroseTicketAttachment.created_at.desc()).all()
+            return [a.to_dict() for a in attachments]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def POST(self, project_id, file=None, **_ignored):
+        if file is None or not getattr(file, "filename", None):
+            raise cherrypy.HTTPError(400, "file is required (multipart/form-data)")
+
+        with get_session() as session:
+            require_project_access(session, project_id, _user_id(), min_role="editor")
+            attachment = _save_upload_file(file, _user_id(), project_id=int(project_id))
+            session.add(attachment)
+            session.flush()
+            from app.controllers.nimrose_controller import _log_project_activity
+            _log_project_activity(session, int(project_id), "attachment_added", attachment.file_name)
+            return attachment.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, project_id, attachment_id):
+        with get_session() as session:
+            require_project_access(session, project_id, _user_id(), min_role="editor")
+            attachment = (
+                session.query(NimroseTicketAttachment)
+                .filter_by(id=int(attachment_id), project_id=int(project_id))
                 .first()
             )
             if not attachment:
@@ -138,14 +198,14 @@ class NimroseTicketAttachmentFileController:
             raise cherrypy.HTTPError(401, "Missing token")
 
         with get_session() as session:
-            attachment = (
-                session.query(NimroseTicketAttachment)
-                .join(NimroseTicket)
-                .filter(NimroseTicketAttachment.id == int(attachment_id), NimroseTicket.user_id == user_id)
-                .first()
-            )
+            attachment = session.query(NimroseTicketAttachment).filter_by(id=int(attachment_id)).first()
             if not attachment:
                 raise cherrypy.HTTPError(404, "Attachment not found")
+            if attachment.ticket_id:
+                ticket = session.query(NimroseTicket).filter_by(id=attachment.ticket_id).first()
+                require_project_access(session, ticket.project_id if ticket else None, user_id, min_role="viewer")
+            else:
+                require_project_access(session, attachment.project_id, user_id, min_role="viewer")
 
             path = os.path.join(_attachments_dir(), attachment.stored_name)
             if not os.path.isfile(path):

@@ -2,6 +2,7 @@ import datetime
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -40,6 +41,13 @@ class User(Base):
     gender = Column(String(20), nullable=True)
     website = Column(String(255), nullable=True)
 
+    # Global per-user switch for the Git/code links feature on tickets — off
+    # by default; when off, the frontend hides the feature entirely and the
+    # backend rejects new links from this user (existing links other users
+    # added remain visible, since this is a personal on/off preference, not
+    # project-wide moderation).
+    git_links_enabled = Column(Boolean, nullable=False, default=False)
+
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
     cosmos_saved_items = relationship("CosmosSavedItem", back_populates="user", cascade="all, delete-orphan")
     nimrose_projects = relationship("NimroseProject", back_populates="user", cascade="all, delete-orphan")
@@ -68,6 +76,7 @@ class User(Base):
             "dateOfBirth": self.date_of_birth,
             "gender": self.gender,
             "website": self.website,
+            "gitLinksEnabled": bool(self.git_links_enabled),
         }
 
 
@@ -348,6 +357,7 @@ class CosmosSavedItem(Base):
     research_project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
     research_brief_json = Column(JSON, nullable=True)
     research_images_json = Column(JSON, nullable=True)  # list[{url, caption, source}] user-curated gallery
+    research_sources_json = Column(JSON, nullable=True)  # list[{title, url, snippet, source, externalId}] — Wikidata/arXiv/PubMed/OpenAlex/Crossref/Open Library citations
 
     user = relationship("User", back_populates="cosmos_saved_items")
 
@@ -366,6 +376,7 @@ class CosmosSavedItem(Base):
             "researchProjectId": self.research_project_id,
             "researchBrief": self.research_brief_json,
             "images": self.research_images_json or [],
+            "sources": self.research_sources_json or [],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -422,6 +433,11 @@ class NimroseProject(Base):
         "NimroseBoardColumn", back_populates="project", cascade="all, delete-orphan",
         order_by="NimroseBoardColumn.position",
     )
+    members = relationship("NimroseProjectMember", back_populates="project", cascade="all, delete-orphan")
+    activity = relationship(
+        "NimroseProjectActivity", back_populates="project", cascade="all, delete-orphan",
+        order_by="NimroseProjectActivity.created_at.desc()",
+    )
 
     def to_dict(self):
         return {
@@ -429,6 +445,71 @@ class NimroseProject(Base):
             "name": self.name,
             "color": self.color,
             "keyPrefix": self.key_prefix,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+PROJECT_MEMBER_ROLES = ("owner", "editor", "viewer")
+
+
+class NimroseProjectMember(Base):
+    """Grants another user access to a Nimrose project's shared data (tasks,
+    notes, tickets, calendar events, files) without transferring ownership.
+    The project's own `user_id` owner is NOT duplicated here as a row —
+    app/nimrose_access.py treats `NimroseProject.user_id == user_id` as an
+    implicit "owner" role, so this table only holds *additional* members."""
+
+    __tablename__ = "nimrose_project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_nimrose_project_member"),)
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    role = Column(String(20), nullable=False, default="viewer")  # owner | editor | viewer
+    invited_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    project = relationship("NimroseProject", back_populates="members")
+    user = relationship("User", foreign_keys=[user_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "userId": self.user_id,
+            "userName": self.user.name if self.user else None,
+            "userEmail": self.user.email if self.user else None,
+            "role": self.role,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseProjectActivity(Base):
+    """A project-wide activity feed (Tasks/Notes/Tickets/Sprints/Phases/
+    Members/Files), distinct from NimroseTicketActivity which is scoped to
+    one ticket's own history and drives the ticket detail modal. Populated
+    additively alongside that existing logging, not replacing it."""
+
+    __tablename__ = "nimrose_project_activity"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=False)
+    actor_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String(40), nullable=False)
+    detail = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    project = relationship("NimroseProject", back_populates="activity")
+    actor = relationship("User", foreign_keys=[actor_user_id])
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "actorUserId": self.actor_user_id,
+            "actorName": self.actor.name if self.actor else None,
+            "action": self.action,
+            "detail": self.detail,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -656,8 +737,9 @@ class NimroseTicket(Base):
         foreign_keys="NimroseTicketLink.ticket_id",
     )
     attachments = relationship("NimroseTicketAttachment", back_populates="ticket", cascade="all, delete-orphan")
+    git_links = relationship("NimroseTicketGitLink", back_populates="ticket", cascade="all, delete-orphan")
 
-    def to_dict(self, include_links=False, include_attachments=False):
+    def to_dict(self, include_links=False, include_attachments=False, include_git_links=False):
         data = {
             "id": self.id,
             "projectId": self.project_id,
@@ -680,6 +762,7 @@ class NimroseTicket(Base):
             "estimateMinutes": self.estimate_minutes,
             "commentCount": len(self.comments) if self.comments is not None else 0,
             "attachmentCount": len(self.attachments) if self.attachments is not None else 0,
+            "gitLinkCount": len(self.git_links) if self.git_links is not None else 0,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -687,7 +770,47 @@ class NimroseTicket(Base):
             data["links"] = [link.to_dict() for link in self.links]
         if include_attachments:
             data["attachments"] = [a.to_dict() for a in self.attachments]
+        if include_git_links:
+            data["gitLinks"] = [g.to_dict() for g in self.git_links]
         return data
+
+
+GIT_LINK_TYPES = ("commit", "pull_request", "issue", "branch", "other")
+
+
+class NimroseTicketGitLink(Base):
+    """A manually-pasted commit/PR/issue/branch URL attached to a ticket —
+    not a live GitHub/GitLab/Bitbucket integration (no OAuth, no API calls,
+    no webhooks). provider/link_type/label are parsed from the URL once at
+    creation time for display only; the link is just stored data after
+    that. Gated behind User.git_links_enabled — see nimrose_controller.py's
+    NimroseTicketGitLinksController."""
+
+    __tablename__ = "nimrose_ticket_git_links"
+
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    url = Column(String(1000), nullable=False)
+    provider = Column(String(20), nullable=False, default="other")  # github | gitlab | bitbucket | other
+    link_type = Column(String(20), nullable=False, default="other")  # commit | pull_request | issue | branch | other
+    label = Column(String(255), nullable=True)  # parsed display text, e.g. "owner/repo#42"
+    added_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    ticket = relationship("NimroseTicket", back_populates="git_links")
+    added_by = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ticketId": self.ticket_id,
+            "url": self.url,
+            "provider": self.provider,
+            "linkType": self.link_type,
+            "label": self.label,
+            "addedBy": self.added_by.name if self.added_by else None,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class NimroseTicketComment(Base):
@@ -784,10 +907,12 @@ class NimroseNote(Base):
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=True)  # Markdown/HTML source, or a JSON string for sheet/slides kinds
     content_format = Column(String(10), nullable=False, default="markdown")  # markdown | html
-    kind = Column(String(10), nullable=False, default="note")  # note | sheet | slides — the Office suite's document type
+    kind = Column(String(10), nullable=False, default="note")  # note | sheet | slides | code — the Office suite's document type
+    language = Column(String(30), nullable=True)  # only meaningful for kind="code" (e.g. "python", "typescript")
     folder = Column(String(100), nullable=True)
     tags = Column(JSON, nullable=True)  # list[str]
-    pinned = Column(Integer, nullable=False, default=0)  # 0/1 (sqlite has no real bool)
+    pinned = Column(Integer, nullable=False, default=0)  # 0/1
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -798,9 +923,11 @@ class NimroseNote(Base):
             "content": self.content,
             "contentFormat": self.content_format or "markdown",
             "kind": self.kind or "note",
+            "language": self.language,
             "folder": self.folder,
             "tags": self.tags or [],
             "pinned": bool(self.pinned),
+            "projectId": self.project_id,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -821,6 +948,7 @@ class NimroseBrowserSpace(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(60), nullable=False)
     position = Column(Integer, nullable=False, default=0)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)
     created_at = Column(DateTime, default=utcnow)
 
     tabs = relationship("NimroseBrowserTab", back_populates="space", cascade="all, delete-orphan", order_by="NimroseBrowserTab.position")
@@ -831,6 +959,7 @@ class NimroseBrowserSpace(Base):
             "id": self.id,
             "name": self.name,
             "position": self.position,
+            "projectId": self.project_id,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -854,6 +983,7 @@ class NimroseBrowserTab(Base):
             "url": self.url,
             "title": self.title,
             "position": self.position,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
 
 
@@ -913,7 +1043,8 @@ class NimroseTicketAttachment(Base):
     __tablename__ = "nimrose_ticket_attachments"
 
     id = Column(Integer, primary_key=True)
-    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=False)
+    ticket_id = Column(Integer, ForeignKey("nimrose_tickets.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("nimrose_projects.id"), nullable=True)  # set when uploaded directly to a project's Files tab, not via a ticket
     uploaded_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     file_name = Column(String(255), nullable=False)  # original filename, shown to the user
     stored_name = Column(String(100), nullable=False)  # random on-disk filename, unique() implied by generation
@@ -929,6 +1060,7 @@ class NimroseTicketAttachment(Base):
         return {
             "id": self.id,
             "ticketId": self.ticket_id,
+            "projectId": self.project_id,
             "fileName": self.file_name,
             "contentType": self.content_type,
             "sizeBytes": self.size_bytes,
@@ -936,6 +1068,33 @@ class NimroseTicketAttachment(Base):
             "uploadedBy": self.uploaded_by.name if self.uploaded_by else None,
             "url": f"/api/nimrose/ticket-attachment-file/{self.id}",
             "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class NimroseContextBubble(Base):
+    """A named, restorable snapshot of "where I was" in Nimrose — the
+    current section plus its query params (project/ticket/sprint/etc, as
+    the URL already encodes them). Strictly owner-only, never shared —
+    bubbles are a personal browsing-state convenience, not project data."""
+
+    __tablename__ = "nimrose_context_bubbles"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(120), nullable=False)
+    icon = Column(String(20), nullable=True)
+    snapshot_json = Column(JSON, nullable=False)  # {"section": "kanban", "params": {"project": "12", "ticket": "45"}}
+    created_at = Column(DateTime, default=utcnow)
+    last_restored_at = Column(DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "icon": self.icon,
+            "snapshot": self.snapshot_json,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "lastRestoredAt": self.last_restored_at.isoformat() if self.last_restored_at else None,
         }
 
 

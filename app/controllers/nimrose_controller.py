@@ -5,7 +5,9 @@ import cherrypy
 from sqlalchemy import func
 
 from app.db import get_session
+from app.git_link_parser import parse_git_url
 from app.notify import notify
+from app.nimrose_access import accessible_project_ids, require_entity_access, require_project_access
 from app.models import (
     DEFAULT_BOARD_COLUMNS,
     TASK_PRIORITIES,
@@ -19,12 +21,16 @@ from app.models import (
     NimroseNote,
     NimrosePhase,
     NimroseProject,
+    NimroseProjectActivity,
+    NimroseProjectMember,
     NimroseSprint,
     NimroseTask,
     NimroseTicket,
     NimroseTicketActivity,
     NimroseTicketComment,
+    NimroseTicketGitLink,
     NimroseTicketLink,
+    User,
 )
 
 
@@ -55,6 +61,15 @@ def _valid_status_slugs(session, project: NimroseProject) -> set:
     return {c.slug for c in _ensure_board_columns(session, project)}
 
 
+def _log_project_activity(session, project_id, action, detail=None):
+    """Additive project-wide activity feed — called alongside (not instead
+    of) NimroseTicketActivity logging, and only when a project_id is
+    actually involved (personal, non-project rows have no project feed)."""
+    if not project_id:
+        return
+    session.add(NimroseProjectActivity(project_id=project_id, actor_user_id=_user_id(), action=action, detail=detail))
+
+
 class NimroseProjectsController:
     exposed = True
 
@@ -62,7 +77,13 @@ class NimroseProjectsController:
     @cherrypy.tools.json_out()
     def GET(self):
         with get_session() as session:
-            projects = session.query(NimroseProject).filter_by(user_id=_user_id()).order_by(NimroseProject.created_at.desc()).all()
+            ids = accessible_project_ids(session, _user_id())
+            projects = (
+                session.query(NimroseProject)
+                .filter(NimroseProject.id.in_(ids))
+                .order_by(NimroseProject.created_at.desc())
+                .all()
+            )
             return [p.to_dict() for p in projects]
 
     @cherrypy.tools.auth()
@@ -88,9 +109,8 @@ class NimroseProjectsController:
     def PUT(self, project_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="owner")
+            project = session.get(NimroseProject, int(project_id))
 
             if "name" in body:
                 name = (body["name"] or "").strip()
@@ -125,11 +145,13 @@ class NimroseTasksController:
     @cherrypy.tools.json_out()
     def GET(self, status=None, project_id=None):
         with get_session() as session:
-            query = session.query(NimroseTask).filter_by(user_id=_user_id())
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="viewer")
+                query = session.query(NimroseTask).filter_by(project_id=int(project_id))
+            else:
+                query = session.query(NimroseTask).filter_by(user_id=_user_id())
             if status:
                 query = query.filter_by(status=status)
-            if project_id:
-                query = query.filter_by(project_id=int(project_id))
             tasks = query.order_by(NimroseTask.created_at.desc()).all()
             return [t.to_dict() for t in tasks]
 
@@ -149,10 +171,13 @@ class NimroseTasksController:
         if priority not in TASK_PRIORITIES:
             raise cherrypy.HTTPError(400, f"priority must be one of {', '.join(TASK_PRIORITIES)}")
 
+        project_id = body.get("projectId")
         with get_session() as session:
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="editor")
             task = NimroseTask(
                 user_id=_user_id(),
-                project_id=body.get("projectId"),
+                project_id=project_id,
                 title=title,
                 description=body.get("description"),
                 status=status,
@@ -165,6 +190,7 @@ class NimroseTasksController:
             )
             session.add(task)
             session.flush()
+            _log_project_activity(session, project_id, "task_created", title)
             return task.to_dict()
 
     @cherrypy.tools.auth()
@@ -173,9 +199,12 @@ class NimroseTasksController:
     def PUT(self, task_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            task = session.query(NimroseTask).filter_by(id=int(task_id), user_id=_user_id()).first()
+            task = session.query(NimroseTask).filter_by(id=int(task_id)).first()
             if not task:
                 raise cherrypy.HTTPError(404, "Task not found")
+            require_entity_access(session, task.project_id, task.user_id, _user_id(), min_role="editor")
+            if "projectId" in body and body["projectId"] != task.project_id:
+                require_entity_access(session, body["projectId"], task.user_id, _user_id(), min_role="editor")
 
             if "title" in body:
                 title = (body["title"] or "").strip()
@@ -187,6 +216,8 @@ class NimroseTasksController:
             if "status" in body:
                 if body["status"] not in TASK_STATUSES:
                     raise cherrypy.HTTPError(400, f"status must be one of {', '.join(TASK_STATUSES)}")
+                if body["status"] != task.status:
+                    _log_project_activity(session, task.project_id, "task_status_changed", f"{task.title}: {task.status} → {body['status']}")
                 task.status = body["status"]
             if "priority" in body:
                 if body["priority"] not in TASK_PRIORITIES:
@@ -212,9 +243,11 @@ class NimroseTasksController:
     @cherrypy.tools.json_out()
     def DELETE(self, task_id):
         with get_session() as session:
-            task = session.query(NimroseTask).filter_by(id=int(task_id), user_id=_user_id()).first()
+            task = session.query(NimroseTask).filter_by(id=int(task_id)).first()
             if not task:
                 raise cherrypy.HTTPError(404, "Task not found")
+            require_entity_access(session, task.project_id, task.user_id, _user_id(), min_role="editor")
+            _log_project_activity(session, task.project_id, "task_deleted", task.title)
             session.delete(task)
             return {"deleted": True}
 
@@ -231,9 +264,13 @@ class NimroseCalendarController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self, start=None, end=None):
+    def GET(self, start=None, end=None, project_id=None):
         with get_session() as session:
-            query = session.query(NimroseCalendarEvent).filter_by(user_id=_user_id())
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="viewer")
+                query = session.query(NimroseCalendarEvent).filter_by(project_id=int(project_id))
+            else:
+                query = session.query(NimroseCalendarEvent).filter_by(user_id=_user_id())
             if start:
                 query = query.filter(NimroseCalendarEvent.start_at >= _parse_iso(start, "start"))
             if end:
@@ -250,10 +287,13 @@ class NimroseCalendarController:
         if not title or not body.get("startAt"):
             raise cherrypy.HTTPError(400, "title and startAt are required")
 
+        project_id = body.get("projectId")
         with get_session() as session:
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="editor")
             event = NimroseCalendarEvent(
                 user_id=_user_id(),
-                project_id=body.get("projectId"),
+                project_id=project_id,
                 related_task_id=body.get("relatedTaskId"),
                 title=title,
                 description=body.get("description"),
@@ -277,9 +317,12 @@ class NimroseCalendarController:
     def PUT(self, event_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            event = session.query(NimroseCalendarEvent).filter_by(id=int(event_id), user_id=_user_id()).first()
+            event = session.query(NimroseCalendarEvent).filter_by(id=int(event_id)).first()
             if not event:
                 raise cherrypy.HTTPError(404, "Event not found")
+            require_entity_access(session, event.project_id, event.user_id, _user_id(), min_role="editor")
+            if "projectId" in body and body["projectId"] != event.project_id:
+                require_entity_access(session, body["projectId"], event.user_id, _user_id(), min_role="editor")
 
             if "title" in body:
                 title = (body["title"] or "").strip()
@@ -316,9 +359,10 @@ class NimroseCalendarController:
     @cherrypy.tools.json_out()
     def DELETE(self, event_id):
         with get_session() as session:
-            event = session.query(NimroseCalendarEvent).filter_by(id=int(event_id), user_id=_user_id()).first()
+            event = session.query(NimroseCalendarEvent).filter_by(id=int(event_id)).first()
             if not event:
                 raise cherrypy.HTTPError(404, "Event not found")
+            require_entity_access(session, event.project_id, event.user_id, _user_id(), min_role="editor")
             session.delete(event)
             return {"deleted": True}
 
@@ -330,10 +374,8 @@ class NimroseSprintsController:
     @cherrypy.tools.json_out()
     def GET(self, project_id=None):
         with get_session() as session:
-            query = (
-                session.query(NimroseSprint)
-                .join(NimroseProject)
-                .filter(NimroseProject.user_id == _user_id())
+            query = session.query(NimroseSprint).filter(
+                NimroseSprint.project_id.in_(accessible_project_ids(session, _user_id()))
             )
             if project_id:
                 query = query.filter(NimroseSprint.project_id == int(project_id))
@@ -351,9 +393,8 @@ class NimroseSprintsController:
             raise cherrypy.HTTPError(400, "name and projectId are required")
 
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="editor")
+            project = session.get(NimroseProject, int(project_id))
 
             sprint = NimroseSprint(
                 project_id=project.id,
@@ -365,6 +406,7 @@ class NimroseSprintsController:
             )
             session.add(sprint)
             session.flush()
+            _log_project_activity(session, project.id, "sprint_created", sprint.name)
             notify(
                 session, _user_id(), "kanban", f"Sprint created: {sprint.name}",
                 body=f"In {project.name}", link=f"/nimrose?section=sprints&project={project.id}&sprint={sprint.id}",
@@ -377,14 +419,10 @@ class NimroseSprintsController:
     def PUT(self, sprint_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            sprint = (
-                session.query(NimroseSprint)
-                .join(NimroseProject)
-                .filter(NimroseSprint.id == int(sprint_id), NimroseProject.user_id == _user_id())
-                .first()
-            )
+            sprint = session.query(NimroseSprint).filter_by(id=int(sprint_id)).first()
             if not sprint:
                 raise cherrypy.HTTPError(404, "Sprint not found")
+            require_project_access(session, sprint.project_id, _user_id(), min_role="editor")
 
             if "name" in body:
                 sprint.name = (body["name"] or "").strip() or sprint.name
@@ -406,14 +444,10 @@ class NimroseSprintsController:
     @cherrypy.tools.json_out()
     def DELETE(self, sprint_id):
         with get_session() as session:
-            sprint = (
-                session.query(NimroseSprint)
-                .join(NimroseProject)
-                .filter(NimroseSprint.id == int(sprint_id), NimroseProject.user_id == _user_id())
-                .first()
-            )
+            sprint = session.query(NimroseSprint).filter_by(id=int(sprint_id)).first()
             if not sprint:
                 raise cherrypy.HTTPError(404, "Sprint not found")
+            require_project_access(session, sprint.project_id, _user_id(), min_role="editor")
             session.delete(sprint)
             return {"deleted": True}
 
@@ -428,10 +462,8 @@ class NimrosePhasesController:
     @cherrypy.tools.json_out()
     def GET(self, project_id=None):
         with get_session() as session:
-            query = (
-                session.query(NimrosePhase)
-                .join(NimroseProject)
-                .filter(NimroseProject.user_id == _user_id())
+            query = session.query(NimrosePhase).filter(
+                NimrosePhase.project_id.in_(accessible_project_ids(session, _user_id()))
             )
             if project_id:
                 query = query.filter(NimrosePhase.project_id == int(project_id))
@@ -449,9 +481,8 @@ class NimrosePhasesController:
             raise cherrypy.HTTPError(400, "name and projectId are required")
 
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="editor")
+            project = session.get(NimroseProject, int(project_id))
 
             max_position = (
                 session.query(func.max(NimrosePhase.position)).filter_by(project_id=project.id).scalar() or 0
@@ -467,6 +498,7 @@ class NimrosePhasesController:
             )
             session.add(phase)
             session.flush()
+            _log_project_activity(session, project.id, "phase_created", phase.name)
             notify(
                 session, _user_id(), "kanban", f"Phase created: {phase.name}",
                 body=f"In {project.name}", link=f"/nimrose?section=phases&project={project.id}&phase={phase.id}",
@@ -479,14 +511,10 @@ class NimrosePhasesController:
     def PUT(self, phase_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            phase = (
-                session.query(NimrosePhase)
-                .join(NimroseProject)
-                .filter(NimrosePhase.id == int(phase_id), NimroseProject.user_id == _user_id())
-                .first()
-            )
+            phase = session.query(NimrosePhase).filter_by(id=int(phase_id)).first()
             if not phase:
                 raise cherrypy.HTTPError(404, "Phase not found")
+            require_project_access(session, phase.project_id, _user_id(), min_role="editor")
 
             if "name" in body:
                 phase.name = (body["name"] or "").strip() or phase.name
@@ -510,14 +538,10 @@ class NimrosePhasesController:
     @cherrypy.tools.json_out()
     def DELETE(self, phase_id):
         with get_session() as session:
-            phase = (
-                session.query(NimrosePhase)
-                .join(NimroseProject)
-                .filter(NimrosePhase.id == int(phase_id), NimroseProject.user_id == _user_id())
-                .first()
-            )
+            phase = session.query(NimrosePhase).filter_by(id=int(phase_id)).first()
             if not phase:
                 raise cherrypy.HTTPError(404, "Phase not found")
+            require_project_access(session, phase.project_id, _user_id(), min_role="editor")
             session.delete(phase)
             return {"deleted": True}
 
@@ -539,16 +563,15 @@ class NimroseTicketsController:
     def GET(self, ticket_id=None, project_id=None, sprint_id=None, status=None, priority=None, type=None, assignee=None, label=None, q=None):
         with get_session() as session:
             if ticket_id is not None:
-                ticket = (
-                    session.query(NimroseTicket)
-                    .filter(NimroseTicket.id == int(ticket_id), NimroseTicket.user_id == _user_id())
-                    .first()
-                )
+                ticket = session.query(NimroseTicket).filter(NimroseTicket.id == int(ticket_id)).first()
                 if not ticket:
                     raise cherrypy.HTTPError(404, "Ticket not found")
-                return ticket.to_dict(include_links=True, include_attachments=True)
+                require_project_access(session, ticket.project_id, _user_id(), min_role="viewer")
+                return ticket.to_dict(include_links=True, include_attachments=True, include_git_links=True)
 
-            query = session.query(NimroseTicket).filter(NimroseTicket.user_id == _user_id())
+            query = session.query(NimroseTicket).filter(
+                NimroseTicket.project_id.in_(accessible_project_ids(session, _user_id()))
+            )
             if project_id:
                 query = query.filter(NimroseTicket.project_id == int(project_id))
             if sprint_id:
@@ -592,9 +615,8 @@ class NimroseTicketsController:
             raise cherrypy.HTTPError(400, f"priority must be one of {', '.join(TICKET_PRIORITIES)}")
 
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="editor")
+            project = session.get(NimroseProject, int(project_id))
 
             columns = _ensure_board_columns(session, project)
             status = body.get("status") or columns[0].slug
@@ -622,6 +644,7 @@ class NimroseTicketsController:
             session.add(ticket)
             session.flush()
             _log_activity(session, ticket.id, "created", f"Created as {ticket.ticket_key} in {status}")
+            _log_project_activity(session, project.id, "ticket_created", f"{ticket.ticket_key}: {title}")
             notify(
                 session, _user_id(), "kanban", f"Ticket created: {ticket.ticket_key}",
                 body=title, link=f"/nimrose?section=kanban&project={ticket.project_id}&ticket={ticket.id}",
@@ -635,9 +658,10 @@ class NimroseTicketsController:
     def PUT(self, ticket_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
 
             if "title" in body:
                 title = (body["title"] or "").strip()
@@ -656,6 +680,7 @@ class NimroseTicketsController:
                     f"{ticket.ticket_key} moved to {body['status']}",
                     body=ticket.title, link=f"/nimrose?section=kanban&project={ticket.project_id}&ticket={ticket.id}",
                 )
+                _log_project_activity(session, ticket.project_id, "ticket_status_changed", f"{ticket.ticket_key}: {ticket.status} → {body['status']}")
                 ticket.status = body["status"]
             if "priority" in body and body["priority"] != ticket.priority:
                 if body["priority"] not in TICKET_PRIORITIES:
@@ -694,9 +719,10 @@ class NimroseTicketsController:
     @cherrypy.tools.json_out()
     def DELETE(self, ticket_id):
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
             session.delete(ticket)
             return {"deleted": True}
 
@@ -717,9 +743,8 @@ class NimroseBoardColumnsController:
     @cherrypy.tools.json_out()
     def GET(self, project_id):
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="viewer")
+            project = session.get(NimroseProject, int(project_id))
             columns = _ensure_board_columns(session, project)
             return [c.to_dict() for c in columns]
 
@@ -733,9 +758,8 @@ class NimroseBoardColumnsController:
             raise cherrypy.HTTPError(400, "name is required")
 
         with get_session() as session:
-            project = session.query(NimroseProject).filter_by(id=int(project_id), user_id=_user_id()).first()
-            if not project:
-                raise cherrypy.HTTPError(404, "Project not found")
+            require_project_access(session, project_id, _user_id(), min_role="editor")
+            project = session.get(NimroseProject, int(project_id))
 
             columns = _ensure_board_columns(session, project)
             slug = _slugify_column_name(name)
@@ -762,14 +786,10 @@ class NimroseBoardColumnsController:
     def PUT(self, project_id, column_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
+            require_project_access(session, project_id, _user_id(), min_role="editor")
             column = (
                 session.query(NimroseBoardColumn)
-                .join(NimroseProject)
-                .filter(
-                    NimroseBoardColumn.id == int(column_id),
-                    NimroseBoardColumn.project_id == int(project_id),
-                    NimroseProject.user_id == _user_id(),
-                )
+                .filter(NimroseBoardColumn.id == int(column_id), NimroseBoardColumn.project_id == int(project_id))
                 .first()
             )
             if not column:
@@ -791,14 +811,10 @@ class NimroseBoardColumnsController:
     @cherrypy.tools.json_out()
     def DELETE(self, project_id, column_id):
         with get_session() as session:
+            require_project_access(session, project_id, _user_id(), min_role="editor")
             column = (
                 session.query(NimroseBoardColumn)
-                .join(NimroseProject)
-                .filter(
-                    NimroseBoardColumn.id == int(column_id),
-                    NimroseBoardColumn.project_id == int(project_id),
-                    NimroseProject.user_id == _user_id(),
-                )
+                .filter(NimroseBoardColumn.id == int(column_id), NimroseBoardColumn.project_id == int(project_id))
                 .first()
             )
             if not column:
@@ -821,9 +837,10 @@ class NimroseTicketCommentsController:
     @cherrypy.tools.json_out()
     def GET(self, ticket_id):
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="viewer")
             comments = (
                 session.query(NimroseTicketComment)
                 .filter_by(ticket_id=ticket.id)
@@ -842,9 +859,10 @@ class NimroseTicketCommentsController:
             raise cherrypy.HTTPError(400, "body is required")
 
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
 
             comment = NimroseTicketComment(ticket_id=ticket.id, user_id=_user_id(), body=text)
             session.add(comment)
@@ -868,10 +886,12 @@ class NimroseTicketLinksController:
             raise cherrypy.HTTPError(400, f"relation must be one of {', '.join(TICKET_LINK_RELATIONS)}, and linkedTicketId is required")
 
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
-            linked = session.query(NimroseTicket).filter_by(id=int(linked_ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
+            linked = session.query(NimroseTicket).filter_by(id=int(linked_ticket_id)).first()
             if not ticket or not linked:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
+            require_project_access(session, linked.project_id, _user_id(), min_role="viewer")
             if ticket.id == linked.id:
                 raise cherrypy.HTTPError(400, "A ticket cannot link to itself")
 
@@ -903,10 +923,13 @@ class NimroseTicketLinksController:
     @cherrypy.tools.json_out()
     def DELETE(self, ticket_id, link_id):
         with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Link not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
             link = (
                 session.query(NimroseTicketLink)
-                .join(NimroseTicket, NimroseTicketLink.ticket_id == NimroseTicket.id)
-                .filter(NimroseTicketLink.id == int(link_id), NimroseTicket.id == int(ticket_id), NimroseTicket.user_id == _user_id())
+                .filter(NimroseTicketLink.id == int(link_id), NimroseTicketLink.ticket_id == ticket.id)
                 .first()
             )
             if not link:
@@ -926,6 +949,74 @@ class NimroseTicketLinksController:
             return {"deleted": True}
 
 
+class NimroseTicketGitLinksController:
+    """Manual git links on a ticket — a pasted commit/PR/issue/branch URL,
+    parsed once for display, nothing more (no OAuth, no API polling, no
+    webhooks). Gated behind the acting user's own User.git_links_enabled:
+    off by default, and off means this user can't add new links (existing
+    links other users added are still visible to everyone with ticket
+    access, since this is a personal preference, not project moderation)."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, ticket_id):
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="viewer")
+            return [g.to_dict() for g in ticket.git_links]
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self, ticket_id):
+        body = cherrypy.request.json or {}
+        url = (body.get("url") or "").strip()
+        if not url:
+            raise cherrypy.HTTPError(400, "url is required")
+
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
+
+            actor = session.get(User, _user_id())
+            if not actor or not actor.git_links_enabled:
+                raise cherrypy.HTTPError(400, "Enable Git links in Settings first")
+
+            parsed = parse_git_url(url)
+            git_link = NimroseTicketGitLink(
+                ticket_id=ticket.id,
+                url=url,
+                provider=parsed["provider"],
+                link_type=parsed["linkType"],
+                label=parsed["label"],
+                added_by_user_id=_user_id(),
+            )
+            session.add(git_link)
+            session.flush()
+            _log_project_activity(session, ticket.project_id, "git_link_added", f"{ticket.ticket_key}: {git_link.label}")
+            return git_link.to_dict()
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, ticket_id, link_id):
+        with get_session() as session:
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
+            if not ticket:
+                raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="editor")
+            git_link = session.query(NimroseTicketGitLink).filter_by(id=int(link_id), ticket_id=ticket.id).first()
+            if not git_link:
+                raise cherrypy.HTTPError(404, "Git link not found")
+            session.delete(git_link)
+            return {"deleted": True}
+
+
 class NimroseTicketActivityController:
     exposed = True
 
@@ -933,9 +1024,10 @@ class NimroseTicketActivityController:
     @cherrypy.tools.json_out()
     def GET(self, ticket_id):
         with get_session() as session:
-            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id), user_id=_user_id()).first()
+            ticket = session.query(NimroseTicket).filter_by(id=int(ticket_id)).first()
             if not ticket:
                 raise cherrypy.HTTPError(404, "Ticket not found")
+            require_project_access(session, ticket.project_id, _user_id(), min_role="viewer")
             activity = (
                 session.query(NimroseTicketActivity)
                 .filter_by(ticket_id=ticket.id)
@@ -950,15 +1042,20 @@ class NimroseNotesController:
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
-    def GET(self, note_id=None, folder=None, tag=None, q=None, kind=None):
+    def GET(self, note_id=None, folder=None, tag=None, q=None, kind=None, project_id=None):
         with get_session() as session:
             if note_id is not None:
-                note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
+                note = session.query(NimroseNote).filter_by(id=int(note_id)).first()
                 if not note:
                     raise cherrypy.HTTPError(404, "Note not found")
+                require_entity_access(session, note.project_id, note.user_id, _user_id(), min_role="viewer")
                 return note.to_dict()
 
-            query = session.query(NimroseNote).filter_by(user_id=_user_id())
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="viewer")
+                query = session.query(NimroseNote).filter_by(project_id=int(project_id))
+            else:
+                query = session.query(NimroseNote).filter_by(user_id=_user_id())
             if folder:
                 query = query.filter_by(folder=folder)
             if kind:
@@ -977,20 +1074,26 @@ class NimroseNotesController:
     def POST(self):
         body = cherrypy.request.json or {}
         title = (body.get("title") or "").strip() or "Untitled note"
+        project_id = body.get("projectId") or None
 
         with get_session() as session:
+            if project_id:
+                require_project_access(session, project_id, _user_id(), min_role="editor")
             note = NimroseNote(
                 user_id=_user_id(),
                 title=title,
                 content=body.get("content", ""),
                 content_format="html" if body.get("contentFormat") == "html" else "markdown",
-                kind=body.get("kind") if body.get("kind") in ("note", "sheet", "slides") else "note",
+                kind=body.get("kind") if body.get("kind") in ("note", "sheet", "slides", "code") else "note",
+                language=body.get("language") or None,
                 folder=body.get("folder") or None,
                 tags=body.get("tags") or [],
                 pinned=1 if body.get("pinned") else 0,
+                project_id=project_id,
             )
             session.add(note)
             session.flush()
+            _log_project_activity(session, project_id, "note_created", title)
             return note.to_dict()
 
     @cherrypy.tools.auth()
@@ -999,9 +1102,10 @@ class NimroseNotesController:
     def PUT(self, note_id):
         body = cherrypy.request.json or {}
         with get_session() as session:
-            note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
+            note = session.query(NimroseNote).filter_by(id=int(note_id)).first()
             if not note:
                 raise cherrypy.HTTPError(404, "Note not found")
+            require_entity_access(session, note.project_id, note.user_id, _user_id(), min_role="editor")
 
             if "title" in body:
                 note.title = (body["title"] or "").strip() or "Untitled note"
@@ -1009,6 +1113,8 @@ class NimroseNotesController:
                 note.content = body["content"]
             if "contentFormat" in body:
                 note.content_format = "html" if body["contentFormat"] == "html" else "markdown"
+            if "language" in body:
+                note.language = body["language"] or None
             if "folder" in body:
                 note.folder = body["folder"] or None
             if "tags" in body:
@@ -1017,14 +1123,41 @@ class NimroseNotesController:
                 note.pinned = 1 if body["pinned"] else 0
 
             session.flush()
+            _log_project_activity(session, note.project_id, "note_updated", note.title)
             return note.to_dict()
 
     @cherrypy.tools.auth()
     @cherrypy.tools.json_out()
     def DELETE(self, note_id):
         with get_session() as session:
-            note = session.query(NimroseNote).filter_by(id=int(note_id), user_id=_user_id()).first()
+            note = session.query(NimroseNote).filter_by(id=int(note_id)).first()
             if not note:
                 raise cherrypy.HTTPError(404, "Note not found")
+            require_entity_access(session, note.project_id, note.user_id, _user_id(), min_role="editor")
+            _log_project_activity(session, note.project_id, "note_deleted", note.title)
             session.delete(note)
             return {"deleted": True}
+
+
+class NimroseProjectActivityController:
+    """GET /api/nimrose/project-activity?project_id=X — the Project
+    Workspace hub's Activity tab. Reads from NimroseProjectActivity, a
+    project-wide feed populated additively wherever _log_project_activity
+    is called above — separate from NimroseTicketActivityController, which
+    is scoped to one ticket's own history."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self, project_id, limit=50):
+        with get_session() as session:
+            require_project_access(session, project_id, _user_id(), min_role="viewer")
+            rows = (
+                session.query(NimroseProjectActivity)
+                .filter_by(project_id=int(project_id))
+                .order_by(NimroseProjectActivity.created_at.desc())
+                .limit(int(limit))
+                .all()
+            )
+            return [a.to_dict() for a in rows]

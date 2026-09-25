@@ -42,6 +42,7 @@ from app.controllers.nimrose_analytics_controller import (
     NimroseVelocityController,
 )
 from app.controllers.nimrose_attachments_controller import (
+    NimroseProjectAttachmentsController,
     NimroseTicketAttachmentFileController,
     NimroseTicketAttachmentsController,
 )
@@ -56,15 +57,19 @@ from app.controllers.nimrose_controller import (
     NimroseBoardColumnsController,
     NimroseCalendarController,
     NimroseNotesController,
+    NimroseProjectActivityController,
     NimroseProjectsController,
     NimrosePhasesController,
     NimroseSprintsController,
     NimroseTasksController,
     NimroseTicketActivityController,
     NimroseTicketCommentsController,
+    NimroseTicketGitLinksController,
     NimroseTicketLinksController,
     NimroseTicketsController,
 )
+from app.controllers.nimrose_context_bubbles_controller import NimroseContextBubblesController
+from app.controllers.nimrose_members_controller import NimroseProjectMembersController
 from app.controllers.nimrose_pulse_controller import NimrosePulseController
 from app.controllers.notifications_controller import NotificationsController
 from app.controllers.chat_controller import ChatChannelsController, ChatMessagesController
@@ -105,7 +110,7 @@ from app.controllers.markets_controller import (
 )
 from app.controllers.playlists_controller import PlaylistsController
 from app.controllers.price_alerts_controller import PriceAlertsController
-from app.controllers.research_controller import ResearchController
+from app.controllers.research_controller import ResearchController, ResearchExternalSearchController, ResearchLinkedProjectsController
 from app.controllers.sessions_controller import SessionsController
 from app.controllers.songs_controller import (
     DownloadJobsController,
@@ -238,9 +243,14 @@ def build_app():
     cherrypy.tree.mount(NimroseTicketsController(), "/api/nimrose/tickets", conf)
     cherrypy.tree.mount(NimroseTicketCommentsController(), "/api/nimrose/ticket-comments", conf)
     cherrypy.tree.mount(NimroseTicketLinksController(), "/api/nimrose/ticket-links", conf)
+    cherrypy.tree.mount(NimroseTicketGitLinksController(), "/api/nimrose/ticket-git-links", conf)
     cherrypy.tree.mount(NimroseTicketActivityController(), "/api/nimrose/ticket-activity", conf)
     cherrypy.tree.mount(NimroseBoardColumnsController(), "/api/nimrose/board-columns", conf)
+    cherrypy.tree.mount(NimroseProjectMembersController(), "/api/nimrose/project-members", conf)
+    cherrypy.tree.mount(NimroseProjectActivityController(), "/api/nimrose/project-activity", conf)
+    cherrypy.tree.mount(NimroseContextBubblesController(), "/api/nimrose/context-bubbles", conf)
     cherrypy.tree.mount(NimroseTicketAttachmentsController(), "/api/nimrose/ticket-attachments", conf)
+    cherrypy.tree.mount(NimroseProjectAttachmentsController(), "/api/nimrose/project-attachments", conf)
     cherrypy.tree.mount(NimroseTicketAttachmentFileController(), "/api/nimrose/ticket-attachment-file", conf)
     cherrypy.tree.mount(NimroseBurndownController(), "/api/nimrose/analytics/burndown", conf)
     cherrypy.tree.mount(NimroseVelocityController(), "/api/nimrose/analytics/velocity", conf)
@@ -271,6 +281,8 @@ def build_app():
     cherrypy.tree.mount(NimroseHistoryController(), "/api/nimrose/history", conf)
     cherrypy.tree.mount(NimroseBrowserProxyController(), "/api/nimrose/browser-proxy", conf)
     cherrypy.tree.mount(ResearchController(), "/api/research", conf)
+    cherrypy.tree.mount(ResearchLinkedProjectsController(), "/api/nimrose/research-projects", conf)
+    cherrypy.tree.mount(ResearchExternalSearchController(), "/api/research/external-search", conf)
 
     cherrypy.config.update({
         "server.socket_host": config.HOST,
