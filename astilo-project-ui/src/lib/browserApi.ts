@@ -4,6 +4,7 @@ export interface BrowserSpace {
   id: number;
   name: string;
   position: number;
+  projectId: number | null;
   createdAt: string | null;
 }
 
@@ -13,6 +14,7 @@ export interface BrowserTab {
   url: string;
   title: string | null;
   position: number;
+  createdAt: string | null;
 }
 
 export interface Bookmark {
@@ -34,8 +36,10 @@ export interface HistoryEntry {
 
 // -- Spaces --
 
-export const fetchBrowserSpaces = () =>
-  apiClient.get<BrowserSpace[]>("/nimrose/browser-spaces").then((r) => r.data);
+export const fetchBrowserSpaces = (params?: { projectId?: number }) =>
+  apiClient
+    .get<BrowserSpace[]>("/nimrose/browser-spaces", { params: { project_id: params?.projectId } })
+    .then((r) => r.data);
 
 export const createBrowserSpace = (name: string) =>
   apiClient.post<BrowserSpace>("/nimrose/browser-spaces", { name }).then((r) => r.data);

@@ -37,6 +37,20 @@ export interface ResearchImage {
   addedAt: string;
 }
 
+export type ExternalSourceProvider = "wikidata" | "arxiv" | "pubmed" | "openalex" | "crossref" | "openlibrary";
+
+export interface ExternalSourceResult {
+  title: string;
+  url: string | null;
+  snippet: string | null;
+  source: string;
+  externalId: string | null;
+}
+
+export interface ResearchSource extends ExternalSourceResult {
+  addedAt: string;
+}
+
 export interface ResearchItem {
   id: number;
   objectType: CosmosObjectType;
@@ -54,6 +68,7 @@ export interface ResearchItem {
   project: NimroseProject | null;
   documentCount: number;
   images: ResearchImage[];
+  sources: ResearchSource[];
 }
 
 export interface ResearchCreateResult {
@@ -115,3 +130,12 @@ export const addResearchImage = (id: number, image: { url: string; caption?: str
 
 export const removeResearchImage = (id: number, index: number) =>
   apiClient.put<ResearchItem>(`/research/${id}`, { action: "remove_image", index }).then((r) => r.data);
+
+export const searchExternalSource = (source: ExternalSourceProvider, q: string, limit = 10) =>
+  apiClient.get<ExternalSourceResult[]>("/research/external-search", { params: { source, q, limit } }).then((r) => r.data);
+
+export const addResearchSource = (id: number, result: ExternalSourceResult) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "add_source", ...result }).then((r) => r.data);
+
+export const removeResearchSource = (id: number, index: number) =>
+  apiClient.put<ResearchItem>(`/research/${id}`, { action: "remove_source", index }).then((r) => r.data);

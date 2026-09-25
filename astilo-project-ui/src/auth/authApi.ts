@@ -14,6 +14,7 @@ export interface AuthUser {
   dateOfBirth?: string | null;
   gender?: string | null;
   website?: string | null;
+  gitLinksEnabled?: boolean;
 }
 
 export interface AuthResponse {

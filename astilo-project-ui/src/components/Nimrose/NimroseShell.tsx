@@ -13,6 +13,8 @@ import NimrosePhasesView from "./NimrosePhasesView";
 import NimroseBacklogView from "./NimroseBacklogView";
 import NimroseAnalyticsView from "./NimroseAnalyticsView";
 import NimroseNotesView from "./NimroseNotesView";
+import NimroseResearchWorkspaceView from "./NimroseResearchWorkspaceView";
+import NimroseProjectWorkspaceView from "./NimroseProjectWorkspaceView";
 import NimroseChatView from "./NimroseChatView";
 import NimroseFocusView from "./NimroseFocusView";
 import NimroseBrowserView from "./NimroseBrowserView";
@@ -46,8 +48,17 @@ const NimroseShellInner = ({
   toggleCollapsed: () => void;
 }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { immersive } = useNimroseFocus();
   const isImmersiveFocus = active === "focus" && immersive;
+  // Context Bubbles restore by navigating to a stored ?section=&... —
+  // several views only read their project/ticket/etc ids from the URL
+  // once, in a useState initializer, with no re-sync effect. Keying the
+  // multi-view branches on the full query string forces a clean remount
+  // whenever a bubble is restored (or any other query-param navigation
+  // happens) so those initializers re-run against the new params, without
+  // auditing every view's internals individually.
+  const viewKey = searchParams.toString();
 
   const handleSelect = (id: string) => {
     // Themes isn't a Nimrose-internal view — Nimrose follows the app's
@@ -69,12 +80,14 @@ const NimroseShellInner = ({
         {active === "home" && <NimroseHome />}
         {active === "tasks" && <NimroseTasksView />}
         {active === "calendar" && <NimroseCalendarView />}
-        {(active === "kanban" || active === "projects") && <NimroseKanbanView />}
+        {(active === "kanban" || active === "projects") && <NimroseKanbanView key={viewKey} />}
         {active === "sprints" && <NimroseSprintsView />}
         {active === "phases" && <NimrosePhasesView />}
         {active === "backlog" && <NimroseBacklogView />}
         {active === "analytics" && <NimroseAnalyticsView />}
         {active === "notes" && <NimroseNotesView />}
+        {active === "workspace" && <NimroseResearchWorkspaceView key={viewKey} />}
+        {active === "project-workspace" && <NimroseProjectWorkspaceView key={viewKey} />}
         {active === "chat" && <NimroseChatView />}
         {active === "focus" && <NimroseFocusView />}
         {active === "browser" && <NimroseBrowserView />}
@@ -84,7 +97,7 @@ const NimroseShellInner = ({
       </main>
       {!isImmersiveFocus && (
         <>
-          <NimroseContextPanel />
+          <NimroseContextPanel active={active} />
           <div className="nimrose-pulse-anchor">
             <NimrosePulse onNavigate={setActive} />
           </div>
@@ -97,7 +110,7 @@ const NimroseShellInner = ({
 
 const VALID_SECTIONS = [
   "home", "tasks", "calendar", "kanban", "projects", "sprints", "phases", "backlog", "analytics",
-  "notes", "chat", "focus", "browser", "bookmarks", "saved", "settings",
+  "notes", "workspace", "project-workspace", "chat", "focus", "browser", "bookmarks", "saved", "settings",
 ];
 
 const NimroseShell = () => {

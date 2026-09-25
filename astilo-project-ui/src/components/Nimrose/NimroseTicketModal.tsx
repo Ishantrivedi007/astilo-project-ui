@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { File as FileIcon, Link2, Paperclip, Send, Trash2, X } from "lucide-react";
+import { File as FileIcon, GitBranch, Link2, Paperclip, Send, Trash2, X } from "lucide-react";
 
 import { useAuth } from "../../auth/AuthProvider";
 import { useConfirm } from "../shared";
 import {
   addTicketComment,
+  addTicketGitLink,
   addTicketLink,
   attachmentFileUrl,
   deleteTicket,
@@ -18,11 +19,13 @@ import {
   fetchTicketComments,
   fetchTicket,
   fetchTickets,
+  removeTicketGitLink,
   removeTicketLink,
   TICKET_TYPE_ICON,
   TICKET_TYPE_LABEL,
   updateTicket,
   uploadTicketAttachment,
+  type GitLinkType,
   type TicketLinkRelation,
   type TicketPriority,
   type TicketType,
@@ -50,6 +53,14 @@ const RELATION_LABEL: Record<TicketLinkRelation, string> = {
   child: "Subtask of",
 };
 
+const GIT_TYPE_LABEL: Record<GitLinkType, string> = {
+  commit: "Commit",
+  pull_request: "Pull request",
+  issue: "Issue",
+  branch: "Branch",
+  other: "Link",
+};
+
 const timeAgo = (iso: string | null) => {
   if (!iso) return "";
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -68,6 +79,7 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
   const [commentDraft, setCommentDraft] = useState("");
   const [linkKey, setLinkKey] = useState("");
   const [linkRelation, setLinkRelation] = useState<TicketLinkRelation>("blocks");
+  const [gitLinkUrl, setGitLinkUrl] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const descSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,6 +176,19 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
     },
   });
 
+  const addGitLinkMutation = useMutation({
+    mutationFn: (url: string) => addTicketGitLink(ticketId, url),
+    onSuccess: () => {
+      setGitLinkUrl("");
+      invalidateTicket();
+    },
+  });
+
+  const removeGitLinkMutation = useMutation({
+    mutationFn: (linkId: number) => removeTicketGitLink(ticketId, linkId),
+    onSuccess: invalidateTicket,
+  });
+
   const ticket = ticketQuery.data;
 
   useEffect(() => {
@@ -190,6 +215,13 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
     const target = allTicketsQuery.data?.find((t) => t.key.toLowerCase() === linkKey.trim().toLowerCase());
     if (!target) return;
     linkMutation.mutate({ relation: linkRelation, linkedTicketId: target.id });
+  };
+
+  const submitGitLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    const url = gitLinkUrl.trim();
+    if (!url) return;
+    addGitLinkMutation.mutate(url);
   };
 
   return (
@@ -470,6 +502,42 @@ const NimroseTicketModal = ({ ticketId, onClose }: { ticketId: number; onClose: 
                 </span>
               </button>
             </div>
+
+            {user?.gitLinksEnabled && (
+              <div className="nimrose-modal-section">
+                <p className="nimrose-modal-section-title">
+                  <GitBranch size={13} /> Git &amp; Code
+                </p>
+                {ticket.gitLinks && ticket.gitLinks.length > 0 ? (
+                  <ul className="nimrose-link-list">
+                    {ticket.gitLinks.map((link) => (
+                      <li key={link.id}>
+                        <span className="nimrose-chip">{GIT_TYPE_LABEL[link.linkType]}</span>
+                        <a href={link.url} target="_blank" rel="noreferrer">
+                          {link.label ?? link.url}
+                        </a>
+                        <button type="button" onClick={() => removeGitLinkMutation.mutate(link.id)} aria-label="Remove git link">
+                          <X size={12} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="nimrose-widget-empty">No commits, PRs, or branches linked yet.</p>
+                )}
+                <form className="nimrose-link-form" onSubmit={submitGitLink}>
+                  <input
+                    value={gitLinkUrl}
+                    onChange={(e) => setGitLinkUrl(e.target.value)}
+                    placeholder="Paste a GitHub/GitLab/Bitbucket commit, PR, issue, or branch URL…"
+                  />
+                  <button type="submit" disabled={addGitLinkMutation.isPending}>
+                    Link
+                  </button>
+                </form>
+                {addGitLinkMutation.isError && <p className="nimrose-widget-empty">Couldn't add that link.</p>}
+              </div>
+            )}
 
             <div className="nimrose-modal-section">
               <p className="nimrose-modal-section-title">Comments</p>

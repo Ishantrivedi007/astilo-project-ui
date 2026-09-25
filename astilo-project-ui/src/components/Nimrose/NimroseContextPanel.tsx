@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { CheckSquare, Clock, Focus } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CheckSquare, Clock, Focus, Play, Plus, Trash2 } from "lucide-react";
 
-import { fetchNimroseTasks } from "../../lib/nimroseApi";
+import { AppRoute } from "../../app/AppRoute";
+import {
+  createContextBubble,
+  deleteContextBubble,
+  fetchContextBubbles,
+  fetchNimroseTasks,
+  touchContextBubble,
+} from "../../lib/nimroseApi";
+import { useNimrosePrompt } from "./NimrosePromptDialog";
 
 const readFocusSessions = () => {
   try {
@@ -12,7 +21,17 @@ const readFocusSessions = () => {
   }
 };
 
-const NimroseContextPanel = () => {
+/** Context Bubbles — temporary self-contained workspace sessions that
+ * remember state. A bubble is a snapshot of the current section + query
+ * params (project/ticket/sprint/etc, exactly as the URL already encodes
+ * them); restoring just navigates there, and NimroseShell's key={viewKey}
+ * remount picks up the rest. Local UI state (search text, scroll position)
+ * is deliberately not captured. */
+const NimroseContextPanel = ({ active }: { active: string }) => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const { prompt } = useNimrosePrompt();
   const [now, setNow] = useState(() => new Date());
   const [focusSessions, setFocusSessions] = useState(readFocusSessions);
 
@@ -25,6 +44,31 @@ const NimroseContextPanel = () => {
     refetchInterval: 5000,
   });
   const taskCount = (tasksQuery.data ?? []).filter((t) => t.status !== "completed").length;
+
+  const bubblesQuery = useQuery({ queryKey: ["nimrose", "context-bubbles"], queryFn: fetchContextBubbles });
+  const bubbles = bubblesQuery.data ?? [];
+
+  const invalidateBubbles = () => queryClient.invalidateQueries({ queryKey: ["nimrose", "context-bubbles"] });
+
+  const saveMutation = useMutation({ mutationFn: createContextBubble, onSuccess: invalidateBubbles });
+  const deleteMutation = useMutation({ mutationFn: deleteContextBubble, onSuccess: invalidateBubbles });
+  const touchMutation = useMutation({ mutationFn: touchContextBubble });
+
+  const saveBubble = async () => {
+    const name = await prompt({ title: "Save current view", placeholder: "e.g. Q3 launch planning" });
+    if (!name?.trim()) return;
+    saveMutation.mutate({
+      name: name.trim(),
+      snapshot: { section: active, params: Object.fromEntries(searchParams) },
+    });
+  };
+
+  const restoreBubble = (bubble: (typeof bubbles)[number]) => {
+    touchMutation.mutate(bubble.id);
+    const params = new URLSearchParams(bubble.snapshot.params);
+    params.set("section", bubble.snapshot.section);
+    navigate(`${AppRoute.nimrose}?${params.toString()}`);
+  };
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -50,6 +94,33 @@ const NimroseContextPanel = () => {
       <div className="nimrose-context-stat">
         <Clock size={14} />
         <span>Nimrose Desk</span>
+      </div>
+
+      <div className="nimrose-context-bubbles">
+        <div className="nimrose-context-bubbles-header">
+          <span>Bubbles</span>
+          <button type="button" className="nimrose-icon-btn" onClick={saveBubble} aria-label="Save current view as a bubble">
+            <Plus size={14} />
+          </button>
+        </div>
+        {bubbles.length === 0 && <p className="nimrose-widget-empty">No saved views yet.</p>}
+        <ul className="nimrose-context-bubble-list">
+          {bubbles.map((bubble) => (
+            <li key={bubble.id} className="nimrose-context-bubble-item">
+              <button type="button" className="nimrose-context-bubble-restore" onClick={() => restoreBubble(bubble)}>
+                <Play size={11} /> {bubble.name}
+              </button>
+              <button
+                type="button"
+                className="nimrose-icon-btn"
+                onClick={() => deleteMutation.mutate(bubble.id)}
+                aria-label={`Delete bubble ${bubble.name}`}
+              >
+                <Trash2 size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </aside>
   );

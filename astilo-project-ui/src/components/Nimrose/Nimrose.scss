@@ -2065,6 +2065,94 @@
 }
 
 // -------------------------------------------------------------------------
+// Research Workspace
+// -------------------------------------------------------------------------
+
+.nimrose-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nimrose-workspace-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.nimrose-workspace-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.nimrose-workspace-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  background: rgb(var(--bg-rgb) / 0.3);
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.08);
+  }
+}
+
+.nimrose-workspace-list-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nimrose-workspace-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: rgb(var(--ink-rgb) / 0.55);
+  flex-shrink: 0;
+}
+
+.nimrose-workspace-pin {
+  color: rgb(var(--accent-rgb));
+  flex-shrink: 0;
+}
+
+.nimrose-workspace-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.nimrose-workspace-picker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  padding: 1rem;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.08);
+  }
+}
+
+// -------------------------------------------------------------------------
 // Settings
 // -------------------------------------------------------------------------
 
@@ -2509,4 +2597,105 @@
     color: rgb(var(--accent-rgb));
     flex-shrink: 0;
   }
+}
+
+// -------------------------------------------------------------------------
+// Context Bubbles
+// -------------------------------------------------------------------------
+
+.nimrose-context-bubbles {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(var(--hair-rgb) / 0.12);
+}
+
+.nimrose-context-bubbles-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.nimrose-context-bubble-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.nimrose-context-bubble-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.nimrose-context-bubble-restore {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  background: rgb(var(--bg-rgb) / 0.3);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgb(var(--accent-rgb) / 0.1);
+  }
+
+  svg {
+    color: rgb(var(--accent-rgb));
+    flex-shrink: 0;
+  }
+}
+
+// -------------------------------------------------------------------------
+// Project Workspace hub
+// -------------------------------------------------------------------------
+
+.nimrose-workspace-panel {
+  padding: 1.1rem;
+}
+
+.nimrose-workspace-code-panel {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+  min-height: 320px;
+}
+
+.nimrose-workspace-code-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nimrose-workspace-code-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nimrose-code-textarea {
+  flex: 1;
+  min-height: 280px;
+  font-family: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.2);
+  background: rgb(var(--bg-rgb) / 0.4);
+  color: rgb(var(--ink-rgb));
+  resize: vertical;
 }

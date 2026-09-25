@@ -62,7 +62,7 @@ const NimroseBrowserView = () => {
   const [sidePanel, setSidePanel] = useState<"none" | "bookmarks" | "history">("none");
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const spacesQuery = useQuery({ queryKey: ["nimrose", "browser-spaces"], queryFn: fetchBrowserSpaces });
+  const spacesQuery = useQuery({ queryKey: ["nimrose", "browser-spaces"], queryFn: () => fetchBrowserSpaces() });
   const spaceId = activeSpaceId ?? spacesQuery.data?.[0]?.id ?? null;
 
   const tabsQuery = useQuery({

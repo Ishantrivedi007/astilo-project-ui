@@ -69,6 +69,20 @@ export interface TicketLink {
   linkedTicketStatus: TicketStatus | null;
 }
 
+export type GitLinkProvider = "github" | "gitlab" | "bitbucket" | "other";
+export type GitLinkType = "commit" | "pull_request" | "issue" | "branch" | "other";
+
+export interface TicketGitLink {
+  id: number;
+  ticketId: number;
+  url: string;
+  provider: GitLinkProvider;
+  linkType: GitLinkType;
+  label: string | null;
+  addedBy: string | null;
+  createdAt: string | null;
+}
+
 export interface NimroseTicket {
   id: number;
   projectId: number;
@@ -91,15 +105,18 @@ export interface NimroseTicket {
   estimateMinutes: number | null;
   commentCount: number;
   attachmentCount: number;
+  gitLinkCount: number;
   createdAt: string | null;
   updatedAt: string | null;
   links?: TicketLink[];
   attachments?: TicketAttachment[];
+  gitLinks?: TicketGitLink[];
 }
 
 export interface TicketAttachment {
   id: number;
-  ticketId: number;
+  ticketId: number | null;
+  projectId: number | null;
   fileName: string;
   contentType: string | null;
   sizeBytes: number;
@@ -248,6 +265,18 @@ export const addTicketLink = (ticketId: number, relation: TicketLinkRelation, li
 export const removeTicketLink = (ticketId: number, linkId: number) =>
   apiClient.delete(`/nimrose/ticket-links/${ticketId}/${linkId}`).then((r) => r.data);
 
+// -- Git links (manual commit/PR/issue/branch URLs; gated behind the
+// current user's Settings > "Git links" switch) --
+
+export const fetchTicketGitLinks = (ticketId: number) =>
+  apiClient.get<TicketGitLink[]>(`/nimrose/ticket-git-links/${ticketId}`).then((r) => r.data);
+
+export const addTicketGitLink = (ticketId: number, url: string) =>
+  apiClient.post<TicketGitLink>(`/nimrose/ticket-git-links/${ticketId}`, { url }).then((r) => r.data);
+
+export const removeTicketGitLink = (ticketId: number, linkId: number) =>
+  apiClient.delete(`/nimrose/ticket-git-links/${ticketId}/${linkId}`).then((r) => r.data);
+
 // -- Activity --
 
 export const fetchTicketActivity = (ticketId: number) =>
@@ -288,6 +317,24 @@ export const uploadTicketAttachment = (ticketId: number, file: File) => {
 
 export const deleteTicketAttachment = (ticketId: number, attachmentId: number) =>
   apiClient.delete(`/nimrose/ticket-attachments/${ticketId}/${attachmentId}`).then((r) => r.data);
+
+// -- Project-level attachments (Project Workspace hub's Files tab) --
+
+export const fetchProjectAttachments = (projectId: number) =>
+  apiClient.get<TicketAttachment[]>(`/nimrose/project-attachments/${projectId}`).then((r) => r.data);
+
+export const uploadProjectAttachment = (projectId: number, file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return apiClient
+    .post<TicketAttachment>(`/nimrose/project-attachments/${projectId}`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((r) => r.data);
+};
+
+export const deleteProjectAttachment = (projectId: number, attachmentId: number) =>
+  apiClient.delete(`/nimrose/project-attachments/${projectId}/${attachmentId}`).then((r) => r.data);
 
 /** An attachment's raw file URL, e.g. for an <img src> or download link,
  * which can't carry an Authorization header — the token goes as a query

@@ -10,6 +10,8 @@ import {
   FileDown,
   FileText,
   FlaskConical,
+  FolderSearch,
+  Globe2,
   ImagePlus,
   Pencil,
   Plus,
@@ -31,6 +33,7 @@ import {
 } from "../../lib/nimroseApi";
 import {
   addResearchImage,
+  addResearchSource,
   addResearchStep,
   autoResearchStep,
   deleteResearchItem,
@@ -39,9 +42,12 @@ import {
   refreshResearchBrief,
   renameResearchItem,
   removeResearchImage,
+  removeResearchSource,
   removeResearchStep,
+  searchExternalSource,
   toggleResearchStep,
   updateResearchStep,
+  type ExternalSourceProvider,
 } from "../../lib/researchApi";
 import { searchNasaImages, type NasaImageData } from "../../lib/cosmosApi";
 import { searchWebImages, type WebImageResult } from "../../lib/webImagesApi";
@@ -85,6 +91,9 @@ const ResearchDetail = () => {
   const [imageSearchSubmitted, setImageSearchSubmitted] = useState("");
   const [imageSource, setImageSource] = useState<"nasa" | "web">("nasa");
   const [manualImageUrl, setManualImageUrl] = useState("");
+  const [sourceProvider, setSourceProvider] = useState<ExternalSourceProvider>("wikidata");
+  const [sourceSearch, setSourceSearch] = useState("");
+  const [sourceSearchSubmitted, setSourceSearchSubmitted] = useState("");
   const [newStepText, setNewStepText] = useState("");
   const [editingStepIndex, setEditingStepIndex] = useState<number | null>(null);
   const [editingStepText, setEditingStepText] = useState("");
@@ -120,6 +129,13 @@ const ResearchDetail = () => {
     retry: false,
   });
   const imageSearchLoading = imageSource === "nasa" ? nasaImageQuery.isLoading : webImageQuery.isLoading;
+
+  const sourceSearchQuery = useQuery({
+    queryKey: ["research", "source-search", sourceProvider, sourceSearchSubmitted],
+    queryFn: () => searchExternalSource(sourceProvider, sourceSearchSubmitted),
+    enabled: !!sourceSearchSubmitted,
+    retry: false,
+  });
 
   const invalidateItem = () => queryClient.invalidateQueries({ queryKey: ["research", "item", itemId] });
   const invalidateDocs = () => queryClient.invalidateQueries({ queryKey: ["research", "docs", folder] });
@@ -190,6 +206,15 @@ const ResearchDetail = () => {
     },
   });
 
+  const addSourceMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof addResearchSource>[1]) => addResearchSource(itemId, payload),
+    onSuccess: invalidateItem,
+  });
+  const removeSourceMutation = useMutation({
+    mutationFn: (index: number) => removeResearchSource(itemId, index),
+    onSuccess: invalidateItem,
+  });
+
   const createDocMutation = useMutation({
     mutationFn: (contentFormat: "markdown" | "html") =>
       createNimroseNote({
@@ -242,6 +267,15 @@ const ResearchDetail = () => {
     setImageSearchSubmitted(imageSearch.trim() || item.title);
   };
 
+  const sources = item.sources ?? [];
+  const sourceResults = sourceSearchQuery.data ?? [];
+  const alreadyAddedSource = (externalId: string | null) => !!externalId && sources.some((s) => s.externalId === externalId);
+
+  const submitSourceSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSourceSearchSubmitted(sourceSearch.trim() || item.title);
+  };
+
   return (
     <div className="research-page">
       <button type="button" className="research-pill mb-4" style={{ cursor: "pointer" }} onClick={() => navigate(AppRoute.research)}>
@@ -278,6 +312,16 @@ const ResearchDetail = () => {
             </button>
           </h1>
           <div className="research-actions">
+            {item.project?.id && (
+              <button
+                type="button"
+                className="research-pill"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate(`${AppRoute.nimrose}?section=workspace&project=${item.project!.id}`)}
+              >
+                <FolderSearch size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Open Workspace
+              </button>
+            )}
             <button type="button" className="research-pill" style={{ cursor: "pointer" }} onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}>
               <RefreshCw size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> {refreshMutation.isPending ? "Refreshing…" : "Regenerate summary"}
             </button>
@@ -605,6 +649,91 @@ const ResearchDetail = () => {
           <p className="research-empty" style={{ marginTop: "0.4rem" }}>
             Images from Openverse are openly licensed but not public domain — check each one's license before reuse.
           </p>
+        )}
+      </div>
+
+      <div className="research-section">
+        <h2 className="research-section-title">Sources</h2>
+
+        {sources.length > 0 && (
+          <ul className="research-empty" style={{ listStyle: "none", padding: 0 }}>
+            {sources.map((s, i) => (
+              <li key={`${s.externalId}-${i}`} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+                <span className="research-pill">{s.source}</span>
+                {s.url ? (
+                  <a href={s.url} target="_blank" rel="noreferrer">
+                    {s.title}
+                  </a>
+                ) : (
+                  <span>{s.title}</span>
+                )}
+                <button
+                  type="button"
+                  className="research-pill"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => removeSourceMutation.mutate(i)}
+                  aria-label="Remove source"
+                >
+                  <X size={10} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {sources.length === 0 && <p className="research-empty">No sources added yet.</p>}
+
+        <div className="research-image-source-toggle">
+          {(["wikidata", "arxiv", "pubmed", "openalex", "crossref", "openlibrary"] as ExternalSourceProvider[]).map((provider) => (
+            <button
+              key={provider}
+              type="button"
+              className={sourceProvider === provider ? "active" : ""}
+              onClick={() => setSourceProvider(provider)}
+            >
+              {provider}
+            </button>
+          ))}
+        </div>
+
+        <form className="research-image-add-row" onSubmit={submitSourceSearch}>
+          <input
+            value={sourceSearch}
+            onChange={(e) => setSourceSearch(e.target.value)}
+            placeholder={`Search ${sourceProvider} for "${item.title}"…`}
+          />
+          <button type="submit" className="research-pill" style={{ cursor: "pointer" }}>
+            <Globe2 size={11} style={{ display: "inline", verticalAlign: "-1px" }} /> Search
+          </button>
+        </form>
+
+        {sourceSearchQuery.isLoading && <p className="research-empty">Searching…</p>}
+        {sourceSearchQuery.isError && <p className="research-empty">That search failed — try again shortly.</p>}
+        {sourceSearchSubmitted && !sourceSearchQuery.isLoading && sourceResults.length === 0 && !sourceSearchQuery.isError && (
+          <p className="research-empty">No results for "{sourceSearchSubmitted}".</p>
+        )}
+        {sourceResults.length > 0 && (
+          <ul className="research-empty" style={{ listStyle: "none", padding: 0 }}>
+            {sourceResults.map((r, i) => (
+              <li key={`${r.externalId}-${i}`} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+                {r.url ? (
+                  <a href={r.url} target="_blank" rel="noreferrer">
+                    {r.title}
+                  </a>
+                ) : (
+                  <span>{r.title}</span>
+                )}
+                <button
+                  type="button"
+                  className="research-pill"
+                  style={{ cursor: "pointer" }}
+                  disabled={alreadyAddedSource(r.externalId)}
+                  onClick={() => addSourceMutation.mutate(r)}
+                >
+                  {alreadyAddedSource(r.externalId) ? "Added" : "+ Add"}
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 

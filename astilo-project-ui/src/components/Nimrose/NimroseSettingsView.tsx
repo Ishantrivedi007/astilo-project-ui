@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 import { Palette } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
+import { useAuth } from "../../auth/AuthProvider";
 import { useConfirm } from "../shared";
+import { updateProfile } from "../../lib/profileApi";
 import { DEFAULT_NEW_TAB_URL_KEY } from "./NimroseBrowserView";
 import { DEFAULT_PRESET_KEY, FOCUS_PRESETS } from "./NimroseFocusContext";
 
@@ -31,8 +34,14 @@ const LOCAL_DATA_KEYS = [
 const NimroseSettingsView = () => {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { user, updateUser } = useAuth();
   const [defaultTabUrl, setDefaultTabUrl] = useState(() => readLocal(DEFAULT_NEW_TAB_URL_KEY, "https://"));
   const [defaultPreset, setDefaultPreset] = useState(() => Number(readLocal(DEFAULT_PRESET_KEY, "0")));
+
+  const gitLinksMutation = useMutation({
+    mutationFn: (enabled: boolean) => updateProfile({ gitLinksEnabled: enabled }),
+    onSuccess: updateUser,
+  });
 
   return (
     <div>
@@ -75,6 +84,23 @@ const NimroseSettingsView = () => {
           </select>
         </label>
         <p className="nimrose-widget-footnote">Applies the next time you open Nimrose (the current running timer is unaffected).</p>
+      </div>
+
+      <div className="glass-card nimrose-settings-section">
+        <p className="nimrose-modal-section-title">Kanban</p>
+        <label className="nimrose-settings-row">
+          <span>Git &amp; code links on tickets</span>
+          <input
+            type="checkbox"
+            checked={user?.gitLinksEnabled ?? false}
+            onChange={(e) => gitLinksMutation.mutate(e.target.checked)}
+          />
+        </label>
+        <p className="nimrose-widget-footnote">
+          Lets you paste commit/PR/issue/branch URLs onto a ticket as reference links. Manual only — no
+          GitHub/GitLab account connection, no live status syncing. Off by default; turning it off hides
+          the feature for you (links other people already added stay visible to you either way).
+        </p>
       </div>
 
       <div className="glass-card nimrose-settings-section">

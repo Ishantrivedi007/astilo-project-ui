@@ -32,6 +32,7 @@ export interface ProfilePatch {
   gender?: string;
   website?: string;
   avatar?: string | null;
+  gitLinksEnabled?: boolean;
 }
 
 export const updateProfile = (patch: ProfilePatch) =>
