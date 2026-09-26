@@ -175,18 +175,85 @@
 }
 
 .cosmos-orbit-canvas-wrap {
+  position: relative;
   display: flex;
   justify-content: center;
   padding: 1rem;
   border-radius: 1.1rem;
   border: 1px solid rgba(140, 160, 255, 0.16);
-  background: rgba(6, 8, 20, 0.6);
+  background: radial-gradient(ellipse at 50% 45%, rgba(30, 34, 64, 0.55), rgba(4, 5, 14, 0.85));
+  overflow: hidden;
 }
 
 .cosmos-orbit-canvas {
   width: 100%;
   max-width: 520px;
   aspect-ratio: 1;
+}
+
+.cosmos-orbit-info-card {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 2;
+  min-width: 168px;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(140, 160, 255, 0.28);
+  background: rgba(10, 12, 26, 0.88);
+  backdrop-filter: blur(6px);
+  font-size: 0.78rem;
+  line-height: 1.5;
+
+  h4 {
+    margin: 0 0 0.3rem;
+    font-size: 0.9rem;
+  }
+
+  button {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+    background: none;
+    border: none;
+    color: rgba(232, 236, 255, 0.5);
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+
+    &:hover {
+      color: #e8ecff;
+    }
+  }
+
+  dt {
+    color: rgba(232, 236, 255, 0.5);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  dd {
+    margin: 0 0 0.35rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.cosmos-orbit-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: rgba(232, 236, 255, 0.6);
+
+  select {
+    padding: 0.3rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(140, 160, 255, 0.22);
+    background: rgba(15, 18, 40, 0.55);
+    color: #e8ecff;
+    font-size: 0.78rem;
+  }
 }
 
 .cosmos-satellite-canvas .cosmos-orbit-canvas {
