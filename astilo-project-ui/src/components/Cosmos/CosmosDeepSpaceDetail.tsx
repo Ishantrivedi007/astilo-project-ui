@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
-import { fetchDeepSpaceProbe } from "../../lib/cosmosApi";
+import { fetchDeepSpaceProbe, fetchDeepSpaceProbeImages, type DeepSpaceImage } from "../../lib/cosmosApi";
 import CosmosField from "./CosmosField";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
@@ -11,11 +12,20 @@ import "./Cosmos.scss";
 const CosmosDeepSpaceDetail = () => {
   const navigate = useNavigate();
   const { probeId } = useParams<{ probeId: string }>();
+  const [imagesOpened, setImagesOpened] = useState(false);
+  const [selected, setSelected] = useState<DeepSpaceImage | null>(null);
 
   const detailQuery = useQuery({
     queryKey: ["cosmos", "deep-space-probe", probeId],
     queryFn: () => fetchDeepSpaceProbe(probeId!),
     enabled: !!probeId,
+    retry: false,
+  });
+
+  const imagesQuery = useQuery({
+    queryKey: ["cosmos", "deep-space-images", probeId],
+    queryFn: () => fetchDeepSpaceProbeImages(probeId!),
+    enabled: !!probeId && imagesOpened,
     retry: false,
   });
 
@@ -115,6 +125,62 @@ const CosmosDeepSpaceDetail = () => {
               <ExternalLink size={12} /> Browse the PDS archive directly
             </a>
           )}
+        </div>
+      )}
+
+      <h2 className="cosmos-section-title">Photos it actually took</h2>
+      {!imagesOpened ? (
+        <button type="button" className="cosmos-chip" onClick={() => setImagesOpened(true)}>
+          Load images
+        </button>
+      ) : (
+        <>
+          {imagesQuery.isLoading && <p className="text-sm text-white/60">Decoding real imagery — can take a moment for full-resolution frames…</p>}
+          {imagesQuery.isError && <p className="cosmos-unavailable">Couldn't load images right now.</p>}
+          {imagesQuery.data && imagesQuery.data.data.results.length === 0 && (
+            <p className="cosmos-unavailable">No images available right now.</p>
+          )}
+          <div className="cosmos-imagelab-grid">
+            {imagesQuery.data?.data.results.map((img, i) => {
+              const thumb = img.imagePngBase64 ?? img.imageUrl;
+              return (
+                <button key={img.productLid ?? img.opusId ?? i} type="button" className="cosmos-imagelab-thumb" onClick={() => setSelected(img)}>
+                  {thumb ? <img src={thumb} alt={img.target ?? probe.name} loading="lazy" /> : <div className="cosmos-imagelab-noimg" />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {selected && (
+        <div className="cosmos-modal-overlay" onClick={() => setSelected(null)}>
+          <div className="cosmos-imagelab-detail glass-card" onClick={(e) => e.stopPropagation()}>
+            <img src={selected.imagePngBase64 ?? selected.imageUrl} alt={selected.target ?? probe.name} />
+            <div className="cosmos-imagelab-detail-body">
+              <CosmosSourceBadge source={selected.source} />
+              <h3>{selected.target ?? "Unknown target"}</h3>
+              <dl className="cosmos-field-grid">
+                <CosmosField label="Observation time" value={selected.observationTime} />
+                {selected.exposureMs !== undefined && <CosmosField label="Exposure" value={selected.exposureMs} unit="ms" />}
+                {selected.exposureSeconds !== undefined && <CosmosField label="Exposure" value={selected.exposureSeconds} unit="s" />}
+                {selected.stats && (
+                  <>
+                    <CosmosField label="Dimensions" value={`${selected.stats.width} × ${selected.stats.height} px`} />
+                    <CosmosField
+                      label="Pixel range"
+                      value={selected.stats.min !== null ? `${selected.stats.min.toFixed(1)} – ${selected.stats.max?.toFixed(1)}` : null}
+                    />
+                  </>
+                )}
+              </dl>
+              {selected.labelUrl && (
+                <a href={selected.labelUrl} target="_blank" rel="noreferrer" className="cosmos-chip mt-3 inline-flex items-center gap-1">
+                  <ExternalLink size={12} /> View full PDS4 label
+                </a>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

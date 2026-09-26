@@ -607,6 +607,31 @@ export async function fetchDeepSpaceMonitor() {
   return data as CosmosEnvelope<DeepSpaceMonitorData>;
 }
 
+// Real photos the probe took — New Horizons LORRI/MVIC (decoded server-side from
+// real PDS4 image data, like MAST's FITS pipeline) or Voyager ISS calibrated
+// browse imagery (NASA OPUS / Ring-Moon Systems Node) — never a placeholder.
+export interface DeepSpaceImage {
+  // New Horizons (PDS) shape
+  productLid?: string;
+  labelUrl?: string;
+  imagePngBase64?: string;
+  stats?: FitsImageStats;
+  exposureMs?: number | null;
+  // Voyager (OPUS) shape
+  opusId?: string;
+  imageUrl?: string;
+  exposureSeconds?: number | null;
+  // shared
+  target: string | null;
+  observationTime: string | null;
+  source: string;
+}
+
+export async function fetchDeepSpaceProbeImages(probeId: string) {
+  const { data } = await cosmos.get(`/deep-space/probe/images`, { params: { probe: probeId } });
+  return data as CosmosEnvelope<{ count: number; results: DeepSpaceImage[] }>;
+}
+
 // -- Cosmos Library (requires auth; the axios instance below attaches the token) --
 
 export type CosmosObjectType =
