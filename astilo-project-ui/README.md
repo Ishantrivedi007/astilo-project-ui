@@ -53,15 +53,38 @@ neither set, the Movies page renders a built-in demo catalogue. Only
 
 ## Structure
 
+The app has grown well past the original media-hub scope — this list is
+kept short intentionally (module purposes are self-explanatory from their
+names + the backend's Swagger docs describe every endpoint they call; see
+`astilo-project-be/README.md`).
+
 ```
 src/
-  app/                Routing (AppRoute, AppRoutes, AuthorizedRoute)
+  app/                Routing (AppRoute, AppRoutes, AuthorizedRoute, moduleNav — sidebar config)
+  auth/               AuthProvider, login/session handling
+  lib/                Typed API clients, one per module (cosmosApi, tradingApi, vaultApi, ...)
   components/
+    Admin/            Admin-only user management
+    Anime/            Jikan-backed catalogue, watch, watchlist, playlists
+    Code/             Astilo Code — Editor, Terminal, Database Explorer, API Studio
+    Cosmos/           Astronomy explorer — search, Hubble tab, Deep Space Probes,
+                      Orbit Explorer, Satellite Tracker, Space Weather, Reference Library
+    Customize/        Sidebar personalization (pinned modules)
     DashBoard/        Tremor dashboard + chart data
-    Login/
-    Movies/           Swiper coverflow gallery
-    MusicPlayer/      Player, playlist, lyrics
-    Navbar/           AcmeLogo
-    SharedComponents/ NavBar, SharedButton, Loader, config, SharedApiRequest
-    Store/            Product grid
+    Home/             Landing dashboard after login
+    Library/          Project Gutenberg / Open Library reader
+    Login/            Auth screens
+    Markets/          Live quotes, watchlists, macro/economic calendars, Trading
+    Messenger/        1:1 direct messages
+    Movies/ Anime/    Swiper coverflow galleries, TMDB/Jikan-backed
+    MusicPlayer/      Player, playlist, lyrics, yt-dlp downloads
+    Nimrose/          Project management — Kanban, sprints, notes, chat, embedded browser
+    Notifications/    Cross-module notification feed + activity timeline
+    Office/           Notes/Sheets/Slides/Code editor suite
+    Research/         Deterministic Wikipedia/NASA research briefs (no LLM)
+    Search/           Universal Search (Ctrl/Cmd+K)
+    SharedComponents/ Sidebar, TopBar, Loader, shared layout
+    Store/            Product grid, cart, wishlist, compare, price history
+    Vault/            Save-anything-from-anywhere personal list
+    shared/           Reusable UI kit (PageHeading, GlassPanel, Chart, Reveal, ...)
 ```

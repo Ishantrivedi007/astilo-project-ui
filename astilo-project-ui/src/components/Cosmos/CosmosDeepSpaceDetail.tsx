@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { fetchDeepSpaceProbe, fetchDeepSpaceProbeImages, type DeepSpaceImage } from "../../lib/cosmosApi";
+import Chart from "../shared/Chart";
 import CosmosField from "./CosmosField";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
@@ -91,28 +92,96 @@ const CosmosDeepSpaceDetail = () => {
             <p className="text-xs text-white/50 mb-2">
               CDAWeb archive covers this instrument through <strong>{new Date(sci.dataCoverageEnd).toLocaleDateString()}</strong> —
               real telemetry, released in batches rather than streamed live.
+              {sci.totalRecordsInWindow ? ` ${sci.totalRecordsInWindow} real records in the 48h window ending then.` : ""}
             </p>
           )}
-          {sci.productLid && (
+          {sci.recentReadings && sci.recentReadings.length > 0 && sci.frequenciesHz && (
             <>
               <p className="text-xs text-white/50 mb-2">
-                Most recently archived PDS product for this instrument. New Horizons' science archive
-                runs on a multi-year release cycle, so this reading is real but not current.
+                {sci.valueDescription?.replace(/^-+>\s*/, "") ?? "Electric field"} strength, measured in{" "}
+                <strong>{sci.valueUnits ?? "unknown units"}</strong> (volts per meter — how strong the local
+                electric field is at each frequency). This instrument samples {sci.frequenciesHz.length} frequency
+                channels at once, from {sci.frequenciesHz[0]} Hz up to {sci.frequenciesHz[sci.frequenciesHz.length - 1].toLocaleString()} Hz,
+                every ~16 seconds. Values are written in scientific notation — e.g. <code>1.80e-6</code> means
+                1.80 × 10⁻⁶ {sci.valueUnits ?? ""} (0.0000018 {sci.valueUnits ?? ""}), since real field strengths here
+                are extremely small.
               </p>
-              <p className="text-xs text-white/40 mb-2 break-all">{sci.productLid}</p>
+              <p className="text-xs text-white/50 mb-1">
+                Latest reading ({new Date(sci.recentReadings[0].timestamp ?? "").toLocaleString()}):
+              </p>
+              <Chart
+                type="line"
+                height={200}
+                series={[{
+                  name: `Field strength (${sci.valueUnits ?? "V/m"})`,
+                  data: sci.frequenciesHz.map((f, i) => ({ x: f, y: sci.recentReadings![0].values[i] })),
+                }]}
+                options={{
+                  xaxis: { title: { text: "Frequency (Hz)" }, type: "numeric" },
+                  yaxis: { title: { text: `Field strength (${sci.valueUnits ?? "V/m"})` } },
+                }}
+              />
+              <p className="text-xs text-white/50 mt-3 mb-1">Previous readings in this window (newest first) — value per frequency channel:</p>
+              <div className="cosmos-result-list">
+                {sci.recentReadings.slice(1, 6).map((reading, i) => (
+                  <div key={i} className="cosmos-card">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-xs text-white/40">{reading.timestamp ? new Date(reading.timestamp).toLocaleString() : "Unknown time"}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 sm:grid-cols-4">
+                      {reading.values.map((v, j) => (
+                        <p key={j} className="text-xs text-white/70">
+                          <span className="text-white/40">{sci.frequenciesHz![j]} Hz:</span> {v.toExponential(2)}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </>
           )}
-          {sci.sampleReading && (
-            <dl className="cosmos-field-grid">
-              {Object.entries(sci.sampleReading).slice(0, 8).map(([key, value]) => (
-                <CosmosField key={key} label={key} value={value as string | number} />
-              ))}
-            </dl>
-          )}
-          {sci.labelUrl && (
-            <a href={sci.labelUrl} target="_blank" rel="noreferrer" className="cosmos-chip mt-3 inline-flex items-center gap-1">
-              <ExternalLink size={12} /> View full PDS4 label
-            </a>
+          {sci.encounters && sci.encounters.length > 0 && (
+            <>
+              <p className="text-xs text-white/50 mb-2">
+                New Horizons' SWAP (Solar Wind Around Pluto) instrument, across its real encounters —
+                its archive runs on a multi-year release cycle, so these are real recorded readings, not
+                current ones. Fields marked "N/A" units are raw instrument counts (uncalibrated telemetry),
+                not a physical unit — shown honestly rather than converted to something not in the label.
+              </p>
+              {sci.encounters.map((enc, ei) => {
+                const label = enc.collection.includes("pluto") ? "Pluto encounter (2015)" : "Arrokoth / KEM1 encounter (2019)";
+                return (
+                  <div key={enc.collection} className={ei > 0 ? "mt-4" : ""}>
+                    <p className="text-xs font-semibold text-white/70 mb-1">
+                      {label} — "{enc.tableName}" table
+                    </p>
+                    <p className="text-xs text-white/40 mb-2 break-all">{enc.productLid}</p>
+                    <div className="cosmos-result-list">
+                      {enc.rows.slice(0, 3).map((row, ri) => (
+                        <div key={ri} className="cosmos-card">
+                          <dl className="cosmos-field-grid">
+                            {Object.entries(row).slice(0, 8).map(([key, value]) => {
+                              const info = enc.fieldInfo[key];
+                              return (
+                                <CosmosField
+                                  key={key}
+                                  label={info ? info.description : key}
+                                  value={value as string | number}
+                                  unit={info?.units && info.units !== "N/A" ? info.units : undefined}
+                                />
+                              );
+                            })}
+                          </dl>
+                        </div>
+                      ))}
+                    </div>
+                    <a href={enc.labelUrl} target="_blank" rel="noreferrer" className="cosmos-chip mt-2 inline-flex items-center gap-1">
+                      <ExternalLink size={12} /> View full PDS4 label
+                    </a>
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
       ) : (
@@ -146,6 +215,7 @@ const CosmosDeepSpaceDetail = () => {
               return (
                 <button key={img.productLid ?? img.opusId ?? i} type="button" className="cosmos-imagelab-thumb" onClick={() => setSelected(img)}>
                   {thumb ? <img src={thumb} alt={img.target ?? probe.name} loading="lazy" /> : <div className="cosmos-imagelab-noimg" />}
+                  {img.target && <span className="cosmos-imagelab-caption">{img.target}</span>}
                 </button>
               );
             })}

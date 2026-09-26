@@ -172,12 +172,22 @@ const MovieFilterBar = ({ value, onChange, showKindToggle = true }: MovieFilterB
     queryFn: () => fetchWatchProviders(value.kind),
   });
 
-  const { data: certifications } = useQuery({
+  const { data: fetchedCertifications } = useQuery({
     queryKey: ["tmdb-certifications", value.kind],
     staleTime: 1000 * 60 * 60,
     queryFn: () => fetchCertifications(value.kind),
-    placeholderData: () => (value.kind === "tv" ? TV_CERTIFICATIONS : MOVIE_CERTIFICATIONS),
   });
+  // The live TMDB list can come back empty (or the fetch can fail — both
+  // handled the same way, see fetchCertifications) well after
+  // placeholderData stops applying, which used to make the Rating filter
+  // disappear entirely instead of falling back. This static list is a
+  // real, permanent fallback, not just a loading placeholder.
+  const certifications =
+    fetchedCertifications && fetchedCertifications.length > 0
+      ? fetchedCertifications
+      : value.kind === "tv"
+        ? TV_CERTIFICATIONS
+        : MOVIE_CERTIFICATIONS;
 
   const set = <K extends keyof FilterState>(key: K, v: FilterState[K]) =>
     onChange({ ...value, [key]: v });
@@ -238,17 +248,15 @@ const MovieFilterBar = ({ value, onChange, showKindToggle = true }: MovieFilterB
         options={[{ value: "", label: "Any country" }, ...COUNTRIES.map((c) => ({ value: c.code, label: c.label }))]}
       />
 
-      {certifications && certifications.length > 0 && (
-        <CustomSelect
-          value={value.certification ?? ""}
-          onChange={(v) => set("certification", v || undefined)}
-          className="w-28"
-          options={[
-            { value: "", label: "Any rating" },
-            ...certifications.map((c) => ({ value: c, label: c })),
-          ]}
-        />
-      )}
+      <CustomSelect
+        value={value.certification ?? ""}
+        onChange={(v) => set("certification", v || undefined)}
+        className="w-28"
+        options={[
+          { value: "", label: "Any rating" },
+          ...certifications.map((c) => ({ value: c, label: c })),
+        ]}
+      />
 
       {providers && providers.length > 0 && (
         <CustomSelect

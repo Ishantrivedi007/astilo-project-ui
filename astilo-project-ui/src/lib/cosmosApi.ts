@@ -563,18 +563,38 @@ export interface DeepSpacePosition {
   lightTimeSeconds: number;
 }
 
+export interface DeepSpaceReading {
+  timestamp: string | null;
+  values: number[];
+}
+
 export interface DeepSpaceScienceData {
   available: boolean;
   // CDAWeb (Voyager 1/2) shape
   dataCoverageEnd?: string;
   windowHours?: number;
-  files?: unknown[];
+  frequenciesHz?: number[] | null;
+  recentReadings?: DeepSpaceReading[];
+  totalRecordsInWindow?: number;
+  valueUnits?: string | null;
+  valueDescription?: string | null;
   // PDS (New Horizons) shape
   productLid?: string;
   labelUrl?: string;
   tableName?: string;
   fields?: string[];
+  fieldInfo?: Record<string, { description: string; units: string | null }>;
   sampleReading?: Record<string, number | string>;
+  recentRows?: Record<string, number | string>[];
+  encounters?: {
+    collection: string;
+    productLid: string;
+    labelUrl: string;
+    tableName: string | null;
+    fields: string[];
+    fieldInfo: Record<string, { description: string; units: string | null }>;
+    rows: Record<string, number | string>[];
+  }[];
   pdsSearchUrl?: string;
   reason?: string | null;
 }
