@@ -1,4 +1,4 @@
-import { BookOpen, Calendar, FlaskConical, KanbanSquare, LineChart, Orbit, Sparkles } from "lucide-react";
+import { Archive, BookOpen, Calendar, FlaskConical, KanbanSquare, LineChart, MessageCircle, NotebookPen, Orbit, ShoppingBag, Sparkles } from "lucide-react";
 import type { NotificationModule } from "../../lib/notificationsApi";
 
 export const MODULE_LABEL: Record<NotificationModule, string> = {
@@ -9,6 +9,10 @@ export const MODULE_LABEL: Record<NotificationModule, string> = {
   cosmos: "Cosmos",
   markets: "Markets",
   library: "Library",
+  store: "Store",
+  vault: "Vault",
+  messenger: "Messenger",
+  office: "Studio",
 };
 
 export const MODULE_ICON: Record<NotificationModule, typeof Calendar> = {
@@ -19,6 +23,10 @@ export const MODULE_ICON: Record<NotificationModule, typeof Calendar> = {
   cosmos: Orbit,
   markets: LineChart,
   library: BookOpen,
+  store: ShoppingBag,
+  vault: Archive,
+  messenger: MessageCircle,
+  office: NotebookPen,
 };
 
 export const timeAgo = (iso: string | null) => {

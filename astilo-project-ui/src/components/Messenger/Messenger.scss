@@ -10,7 +10,7 @@
 
 .msgr-layout {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 1rem;
   flex: 1;
   min-height: 0;
@@ -562,7 +562,7 @@
 }
 
 .msgr-sticker-grid {
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 
   .msgr-emoji-btn {
     font-size: 1.5rem;
@@ -579,7 +579,7 @@
 
 .msgr-emoji-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.1rem;
 }
 

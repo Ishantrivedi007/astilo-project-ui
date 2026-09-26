@@ -227,6 +227,43 @@ export async function fetchSpectrum(obsid: string | number): Promise<CosmosEnvel
   return data;
 }
 
+export interface FitsImageStats {
+  width: number;
+  height: number;
+  min: number | null;
+  max: number | null;
+  mean: number | null;
+  std: number | null;
+}
+
+export interface FitsImageHeader {
+  instrument: string | null;
+  telescope: string | null;
+  filter: string | null;
+  exposureTime: number | null;
+  dateObs: string | null;
+  object: string | null;
+  ra: number | null;
+  dec: number | null;
+}
+
+export interface FitsImageData {
+  productFilename: string | null;
+  imagePngBase64: string;
+  stats: FitsImageStats;
+  header: FitsImageHeader;
+}
+
+/** A real, normalized preview generated server-side from the observation's
+ * own FITS image data (not the jpegURL quick-look thumbnail, which many
+ * observations lack) — see app/cosmos/mast.py's fetch_fits_image. Slower
+ * than the other Cosmos calls since it downloads and decodes an actual
+ * science FITS file, sometimes tens of MB. */
+export async function fetchFitsImage(obsid: string | number): Promise<CosmosEnvelope<FitsImageData>> {
+  const { data } = await cosmos.get(`/fits-image`, { params: { obsid }, timeout: 60_000 });
+  return data;
+}
+
 // -- Satellite tracker (CelesTrak live TLE catalog + SGP4, no API key) --
 
 export interface SatellitePositionData {
@@ -384,6 +421,120 @@ export async function searchSupernovae(name: string, limit = 10) {
   return data as CosmosEnvelope<{ queriedName: string; catalog: string; count: number; results: SupernovaRemnantRow[] }>;
 }
 
+// -- Hubble research catalog (curated seed list + SIMBAD-classified search) --
+
+export type HubbleCategory =
+  | "planet"
+  | "moon"
+  | "asteroid"
+  | "comet"
+  | "star"
+  | "exoplanet"
+  | "nebula"
+  | "galaxy"
+  | "supernova"
+  | "black_hole"
+  | "uncategorized";
+
+export interface HubbleCatalogEntry {
+  targetId: string;
+  name: string;
+  category: HubbleCategory;
+  thumbnailUrl: string | null;
+  obsCount: number;
+  hasImages: boolean;
+}
+
+export async function browseHubbleCatalog(category?: string, q?: string, limit = 40, offset = 0) {
+  const { data } = await cosmos.get(`/hubble/catalog`, { params: { category, q, limit, offset } });
+  return data as CosmosEnvelope<{ count: number; results: HubbleCatalogEntry[] }>;
+}
+
+export interface HubbleMonitorFinding {
+  targetId: string;
+  name: string;
+  category: HubbleCategory;
+  previousCount: number;
+  currentCount: number;
+  newObservations: number;
+}
+
+export interface HubbleMonitorData {
+  checkedTargetIds: string[];
+  findings: HubbleMonitorFinding[];
+  targetsEverChecked: number;
+  totalTargetsInCatalog: number;
+  checkedAt: string;
+}
+
+/** A real, polled diff against MAST's own observation counts for a
+ * rotating slice of the Hubble catalog — not a simulated live-telescope
+ * feed. Call on an interval (e.g. via react-query's refetchInterval) to
+ * build a live-updating "what's new" dashboard. */
+export async function fetchHubbleMonitor(limit = 12) {
+  const { data } = await cosmos.get(`/hubble/monitor`, { params: { limit } });
+  return data as CosmosEnvelope<HubbleMonitorData>;
+}
+
+export interface HubblePositionData {
+  name: string;
+  latitude: number;
+  longitude: number;
+  altitudeKm: number;
+  timestamp: string;
+}
+
+/** Hubble's real current position in low Earth orbit (lat/lon/altitude) —
+ * live CelesTrak TLE + SGP4 propagation, the same mechanism the satellite
+ * tracker uses for the ISS. This is where the telescope physically is in
+ * orbit, not where it's pointing/aiming for an observation (no public API
+ * exposes that). Not cached server-side — recomputed every call. */
+export async function fetchHubblePosition() {
+  const { data } = await cosmos.get(`/hubble/position`);
+  return data as CosmosEnvelope<HubblePositionData>;
+}
+
+export interface HubbleDistance {
+  valuePc: number | null;
+  valueLy: number | null;
+  method: string | null;
+  confidence: "measured" | "approximate" | "unavailable";
+}
+
+export interface HubbleClassification {
+  objectType: string | null;
+  spectralType: string | null;
+  morphologicalType: string | null;
+  orbitClass: string | null;
+}
+
+export interface HubbleComposition {
+  extract: string | null;
+  detailedExtract: string | null;
+  articleImages: { title: string; url: string }[];
+  pageUrl: string | null;
+}
+
+export interface HubbleTargetDetail {
+  target: { targetId: string; name: string; category: HubbleCategory };
+  classification: HubbleClassification;
+  distance: HubbleDistance;
+  composition: HubbleComposition;
+  physicalProperties: {
+    exoplanet: ExoplanetData | null;
+    star: StarData | null;
+    smallBody: AsteroidData | null;
+    highEnergy: unknown | null;
+  };
+  images: ObservationData[];
+  sourceEnvelopes: Record<string, CosmosEnvelope<unknown>>;
+}
+
+export async function fetchHubbleTarget(targetId: string) {
+  const { data } = await cosmos.get(`/hubble/target`, { params: { target: targetId } });
+  return data as CosmosEnvelope<HubbleTargetDetail>;
+}
+
 // -- Cosmos Library (requires auth; the axios instance below attaches the token) --
 
 export type CosmosObjectType =
@@ -398,7 +549,8 @@ export type CosmosObjectType =
   | "moon"
   | "nebula"
   | "comet"
-  | "spacecraft";
+  | "spacecraft"
+  | "hubbleTarget";
 
 export interface CosmosSavedItem {
   id: number;

@@ -1,6 +1,17 @@
 import { apiClient } from "./apiClient";
 
-export type NotificationModule = "kanban" | "research" | "calendar" | "nimrose" | "cosmos" | "markets" | "library";
+export type NotificationModule =
+  | "kanban"
+  | "research"
+  | "calendar"
+  | "nimrose"
+  | "cosmos"
+  | "markets"
+  | "library"
+  | "store"
+  | "vault"
+  | "messenger"
+  | "office";
 
 export interface AppNotification {
   id: number;
@@ -17,10 +28,14 @@ export interface NotificationsResult {
   unreadCount: number;
 }
 
-export const fetchNotifications = (params?: { module?: string; unreadOnly?: boolean }) =>
+export const fetchNotifications = (params?: { module?: string; unreadOnly?: boolean; limit?: number }) =>
   apiClient
     .get<NotificationsResult>("/notifications", {
-      params: { module: params?.module, unread_only: params?.unreadOnly ? 1 : undefined },
+      params: {
+        module: params?.module,
+        unread_only: params?.unreadOnly ? 1 : undefined,
+        limit: params?.limit,
+      },
     })
     .then((r) => r.data);
 

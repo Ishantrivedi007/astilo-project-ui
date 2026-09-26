@@ -97,3 +97,28 @@ export const fetchMyOrders = () => apiClient.get<Order[]>("/store/orders").then(
 
 export const fetchOrder = (id: number | string) =>
   apiClient.get<Order>("/store/orders", { params: { order_id: id } }).then((r) => r.data);
+
+export interface WishlistItem {
+  id: number;
+  productId: number;
+  addedAt: string | null;
+  product: Product | null;
+}
+
+export const fetchWishlist = () => apiClient.get<WishlistItem[]>("/store/wishlist").then((r) => r.data);
+
+export const addToWishlist = (productId: number) =>
+  apiClient.post<WishlistItem>("/store/wishlist", { productId }).then((r) => r.data);
+
+export const removeFromWishlist = (productId: number | string) =>
+  apiClient.delete(`/store/wishlist/${productId}`).then((r) => r.data);
+
+export interface PricePoint {
+  price: number;
+  recordedAt: string | null;
+}
+
+export const fetchPriceHistory = (productId: number | string) =>
+  apiClient
+    .get<PricePoint[]>("/store/price-history", { params: { product_id: productId } })
+    .then((r) => r.data);

@@ -15,6 +15,7 @@ export interface AuthUser {
   gender?: string | null;
   website?: string | null;
   gitLinksEnabled?: boolean;
+  pinnedModules?: string[] | null;
 }
 
 export interface AuthResponse {

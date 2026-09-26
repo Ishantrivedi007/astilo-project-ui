@@ -29,12 +29,12 @@
   display: grid;
   width: 100%;
   max-width: 1040px;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   overflow: hidden;
   border-radius: 2rem;
 
   @media (min-width: 960px) {
-    grid-template-columns: 1.05fr 1fr;
+    grid-template-columns: 1.05fr minmax(0, 1fr);
     min-height: 620px;
   }
 }

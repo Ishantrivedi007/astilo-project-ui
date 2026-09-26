@@ -13,7 +13,7 @@ import "./Notifications.scss";
  * Kanban/Research/Calendar/etc. Polls every 20s — genuinely real-time
  * (push/websocket) is a documented future step; this keeps the badge
  * fresh without the client hammering the API. */
-const NotificationBell = () => {
+const NotificationBell = ({ expanded = false }: { expanded?: boolean }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -47,14 +47,14 @@ const NotificationBell = () => {
       <button
         ref={anchorRef}
         type="button"
-        className="sidebar-item notif-bell"
+        className={`sidebar-item notif-bell ${expanded ? "sidebar-item--expanded" : ""}`}
         onClick={() => setOpen((o) => !o)}
         aria-label={`Notifications${unread > 0 ? ` (${unread} unread)` : ""}`}
         title="Notifications"
       >
         <Bell size={20} strokeWidth={2} />
         {unread > 0 && <span className="notif-bell-badge">{unread > 99 ? "99+" : unread}</span>}
-        <span className="sidebar-item-label">Notifications</span>
+        <span className={`sidebar-item-label ${expanded ? "sidebar-item-label--visible" : ""}`}>Notifications</span>
       </button>
 
       {open &&

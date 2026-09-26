@@ -1,6 +1,6 @@
 .chat-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 1rem;
   height: calc(100vh - 160px);
   min-height: 480px;

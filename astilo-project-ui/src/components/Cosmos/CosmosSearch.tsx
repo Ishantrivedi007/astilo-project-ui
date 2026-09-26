@@ -13,6 +13,7 @@ import {
   fetchMoon,
   fetchNebula,
   fetchSpacecraft,
+  fetchFitsImage,
   fetchSpectrum,
   fetchStar,
   isAmbiguousMatch,
@@ -663,10 +664,17 @@ const StarCard = ({ data, source }: { data: StarData; source: string }) => (
 
 const ObservationCard = ({ data }: { data: ObservationData }) => {
   const [showSpectrum, setShowSpectrum] = useState(false);
+  const [showFitsImage, setShowFitsImage] = useState(false);
   const spectrumQuery = useQuery({
     queryKey: ["cosmos", "spectrum", data.obsid],
     queryFn: () => fetchSpectrum(data.obsid!),
     enabled: showSpectrum && !!data.obsid,
+    retry: false,
+  });
+  const fitsImageQuery = useQuery({
+    queryKey: ["cosmos", "fits-image", data.obsid],
+    queryFn: () => fetchFitsImage(data.obsid!),
+    enabled: showFitsImage && !!data.obsid,
     retry: false,
   });
 
@@ -685,6 +693,11 @@ const ObservationCard = ({ data }: { data: ObservationData }) => {
       {data.productType === "spectrum" && data.obsid && (
         <button type="button" className="cosmos-chip" onClick={() => setShowSpectrum(true)}>
           View spectrum
+        </button>
+      )}
+      {data.productType === "image" && data.obsid && (
+        <button type="button" className="cosmos-chip" onClick={() => setShowFitsImage(true)}>
+          View FITS image
         </button>
       )}
     </div>
@@ -715,6 +728,26 @@ const ObservationCard = ({ data }: { data: ObservationData }) => {
               yaxis: { title: { text: "Flux" } },
             }}
           />
+        )}
+      </div>
+    )}
+    {showFitsImage && (
+      <div className="mt-3">
+        {fitsImageQuery.isLoading && <p className="text-xs text-white/60">Downloading &amp; normalizing FITS image…</p>}
+        {fitsImageQuery.isError && <p className="cosmos-unavailable text-xs">No image data product available.</p>}
+        {fitsImageQuery.data && (
+          <>
+            <img
+              src={fitsImageQuery.data.data.imagePngBase64}
+              alt={data.target ?? "FITS image"}
+              className="max-h-56 w-full rounded-lg object-contain"
+            />
+            <p className="mt-1 text-[11px] text-white/50">
+              {fitsImageQuery.data.data.stats.width}×{fitsImageQuery.data.data.stats.height}px
+              {fitsImageQuery.data.data.header.filter ? ` · ${fitsImageQuery.data.data.header.filter}` : ""}
+              {fitsImageQuery.data.data.header.exposureTime !== null ? ` · ${fitsImageQuery.data.data.header.exposureTime}s exposure` : ""}
+            </p>
+          </>
         )}
       </div>
     )}

@@ -5,7 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
-import { browseMission, fetchSpectrum, saveCosmosItem, type ObservationData } from "../../lib/cosmosApi";
+import { browseMission, fetchFitsImage, fetchSpectrum, saveCosmosItem, type ObservationData } from "../../lib/cosmosApi";
 import Chart from "../shared/Chart";
 import CosmosSourceBadge from "./CosmosSourceBadge";
 import "./Cosmos.scss";
@@ -31,6 +31,7 @@ const CosmosMissionBrowse = () => {
   const [selected, setSelected] = useState<ObservationData | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [showSpectrum, setShowSpectrum] = useState(false);
+  const [showFitsImage, setShowFitsImage] = useState(false);
 
   const browseQuery = useQuery({
     queryKey: ["cosmos", "mission-browse", submitted],
@@ -50,6 +51,13 @@ const CosmosMissionBrowse = () => {
     queryKey: ["cosmos", "spectrum", selected?.obsid],
     queryFn: () => fetchSpectrum(selected!.obsid!),
     enabled: showSpectrum && !!selected?.obsid,
+    retry: false,
+  });
+
+  const fitsImageQuery = useQuery({
+    queryKey: ["cosmos", "fits-image", selected?.obsid],
+    queryFn: () => fetchFitsImage(selected!.obsid!),
+    enabled: showFitsImage && !!selected?.obsid,
     retry: false,
   });
 
@@ -147,6 +155,7 @@ const CosmosMissionBrowse = () => {
             onClick={() => {
               setSelected(obs);
               setShowSpectrum(false);
+              setShowFitsImage(false);
             }}
           >
             {obs.previewImageUrl ? (
@@ -190,6 +199,11 @@ const CosmosMissionBrowse = () => {
                     View spectrum
                   </button>
                 )}
+                {selected.productType === "image" && selected.obsid && (
+                  <button type="button" className="cosmos-chip" onClick={() => setShowFitsImage(true)}>
+                    View FITS image &amp; analysis
+                  </button>
+                )}
                 {isAuthenticated && (
                   <button
                     type="button"
@@ -228,6 +242,61 @@ const CosmosMissionBrowse = () => {
                           }}
                         />
                       </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {showFitsImage && (
+                <div className="mt-4">
+                  {fitsImageQuery.isLoading && <p className="text-sm text-white/60">Downloading &amp; normalizing FITS image (can take a moment for large mosaics)…</p>}
+                  {fitsImageQuery.isError && <p className="cosmos-unavailable">No image data product available for this observation.</p>}
+                  {fitsImageQuery.data && (
+                    <>
+                      <CosmosSourceBadge source="MAST · real FITS image" />
+                      <div className="mt-2 overflow-hidden rounded-xl border border-white/10">
+                        <img src={fitsImageQuery.data.data.imagePngBase64} alt={selected.target ?? "FITS image"} className="w-full" />
+                      </div>
+                      <dl className="cosmos-field-grid mt-3">
+                        <div className="cosmos-field">
+                          <dt>Dimensions</dt>
+                          <dd>{fitsImageQuery.data.data.stats.width} × {fitsImageQuery.data.data.stats.height} px</dd>
+                        </div>
+                        <div className="cosmos-field">
+                          <dt>Pixel range</dt>
+                          <dd className={fitsImageQuery.data.data.stats.min !== null ? "" : "cosmos-unavailable"}>
+                            {fitsImageQuery.data.data.stats.min !== null
+                              ? `${fitsImageQuery.data.data.stats.min.toFixed(2)} – ${fitsImageQuery.data.data.stats.max?.toFixed(2)}`
+                              : "Data unavailable"}
+                          </dd>
+                        </div>
+                        <div className="cosmos-field">
+                          <dt>Mean · Std dev</dt>
+                          <dd className={fitsImageQuery.data.data.stats.mean !== null ? "" : "cosmos-unavailable"}>
+                            {fitsImageQuery.data.data.stats.mean !== null
+                              ? `${fitsImageQuery.data.data.stats.mean.toFixed(3)} · ${fitsImageQuery.data.data.stats.std?.toFixed(3)}`
+                              : "Data unavailable"}
+                          </dd>
+                        </div>
+                        <div className="cosmos-field">
+                          <dt>Filter</dt>
+                          <dd className={fitsImageQuery.data.data.header.filter ? "" : "cosmos-unavailable"}>
+                            {fitsImageQuery.data.data.header.filter || "Data unavailable"}
+                          </dd>
+                        </div>
+                        <div className="cosmos-field">
+                          <dt>Exposure time</dt>
+                          <dd className={fitsImageQuery.data.data.header.exposureTime !== null ? "" : "cosmos-unavailable"}>
+                            {fitsImageQuery.data.data.header.exposureTime !== null ? `${fitsImageQuery.data.data.header.exposureTime}s` : "Data unavailable"}
+                          </dd>
+                        </div>
+                        <div className="cosmos-field">
+                          <dt>Source file</dt>
+                          <dd className={fitsImageQuery.data.data.productFilename ? "" : "cosmos-unavailable"}>
+                            {fitsImageQuery.data.data.productFilename || "Data unavailable"}
+                          </dd>
+                        </div>
+                      </dl>
                     </>
                   )}
                 </div>

@@ -16,6 +16,8 @@ const Payment = lazy(() => import("../components/Store/Payment"));
 const OrderConfirmation = lazy(() => import("../components/Store/OrderConfirmation"));
 const OrderHistory = lazy(() => import("../components/Store/OrderHistory"));
 const OrderTracking = lazy(() => import("../components/Store/OrderTracking"));
+const StoreCompare = lazy(() => import("../components/Store/Compare"));
+const StoreWishlist = lazy(() => import("../components/Store/Wishlist"));
 const MusicPlayerIndex = lazy(() => import("../components/MusicPlayer"));
 const MovieHome = lazy(() => import("../components/Movies/MovieHome"));
 const MovieDetail = lazy(() => import("../components/Movies/MovieDetail"));
@@ -34,6 +36,8 @@ const CosmosCompare = lazy(() => import("../components/Cosmos/CosmosCompare"));
 const CosmosImageLab = lazy(() => import("../components/Cosmos/CosmosImageLab"));
 const CosmosOrbitExplorer = lazy(() => import("../components/Cosmos/CosmosOrbitExplorer"));
 const CosmosMissionBrowse = lazy(() => import("../components/Cosmos/CosmosMissionBrowse"));
+const CosmosHubble = lazy(() => import("../components/Cosmos/CosmosHubble"));
+const CosmosHubbleDetail = lazy(() => import("../components/Cosmos/CosmosHubbleDetail"));
 const CosmosSatelliteTracker = lazy(() => import("../components/Cosmos/CosmosSatelliteTracker"));
 const CosmosReferenceLibrary = lazy(() => import("../components/Cosmos/CosmosReferenceLibrary"));
 const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
@@ -55,7 +59,14 @@ const OfficeHome = lazy(() => import("../components/Office/OfficeHome"));
 const OfficeWord = lazy(() => import("../components/Office/OfficeWord"));
 const OfficeExcel = lazy(() => import("../components/Office/OfficeExcel"));
 const OfficePowerPoint = lazy(() => import("../components/Office/OfficePowerPoint"));
+const OfficeCode = lazy(() => import("../components/Office/OfficeCode"));
+const CodeHome = lazy(() => import("../components/Code/CodeHome"));
+const TerminalView = lazy(() => import("../components/Code/TerminalView"));
+const DatabaseExplorer = lazy(() => import("../components/Code/DatabaseExplorer"));
+const ApiStudio = lazy(() => import("../components/Code/ApiStudio"));
 const NotificationsView = lazy(() => import("../components/Notifications/NotificationsView"));
+const ActivityTimeline = lazy(() => import("../components/Notifications/ActivityTimeline"));
+const VaultHome = lazy(() => import("../components/Vault/VaultHome"));
 const MessengerHome = lazy(() => import("../components/Messenger/MessengerHome"));
 const LibraryHome = lazy(() => import("../components/Library/LibraryHome"));
 const LibraryReader = lazy(() => import("../components/Library/LibraryReader"));
@@ -97,6 +108,8 @@ const AppRoutes = () => (
         path={`${AppRoute.storeOrders}/:orderId/track`}
         element={getAuthRoute(<OrderTracking />)}
       />
+      <Route path={AppRoute.storeCompare} element={getAuthRoute(<StoreCompare />)} />
+      <Route path={AppRoute.storeWishlist} element={getAuthRoute(<StoreWishlist />)} />
       <Route path={`${AppRoute.store}/:id`} element={getAuthRoute(<ProductDetail />)} />
       <Route path={AppRoute.home} element={getAuthRoute(<Home />)} />
       <Route path={AppRoute.music} element={getAuthRoute(<MusicPlayerIndex />)} />
@@ -177,6 +190,8 @@ const AppRoutes = () => (
       <Route path={AppRoute.cosmosImageLab} element={getAuthRoute(<CosmosImageLab />)} />
       <Route path={AppRoute.cosmosOrbitExplorer} element={getAuthRoute(<CosmosOrbitExplorer />)} />
       <Route path={AppRoute.cosmosMissionBrowse} element={getAuthRoute(<CosmosMissionBrowse />)} />
+      <Route path={AppRoute.cosmosHubble} element={getAuthRoute(<CosmosHubble />)} />
+      <Route path={`${AppRoute.cosmosHubble}/:category/:targetId`} element={getAuthRoute(<CosmosHubbleDetail />)} />
       <Route path={AppRoute.cosmosSatelliteTracker} element={getAuthRoute(<CosmosSatelliteTracker />)} />
       <Route path={AppRoute.cosmosReferenceLibrary} element={getAuthRoute(<CosmosReferenceLibrary />)} />
       <Route path={AppRoute.markets} element={getAuthRoute(<MarketsHome />)} />
@@ -198,7 +213,28 @@ const AppRoutes = () => (
       <Route path={AppRoute.officeWord} element={getAuthRoute(<OfficeWord />)} />
       <Route path={AppRoute.officeExcel} element={getAuthRoute(<OfficeExcel />)} />
       <Route path={AppRoute.officeSlides} element={getAuthRoute(<OfficePowerPoint />)} />
+      <Route path={AppRoute.officeCode} element={getAuthRoute(<OfficeCode />)} />
+      <Route path={AppRoute.code} element={getAuthRoute(<CodeHome />)} />
+      <Route
+        path={AppRoute.codeTerminal}
+        element={getAuthRoute(
+          <RequireAdmin>
+            <TerminalView />
+          </RequireAdmin>
+        )}
+      />
+      <Route
+        path={AppRoute.codeDatabase}
+        element={getAuthRoute(
+          <RequireAdmin>
+            <DatabaseExplorer />
+          </RequireAdmin>
+        )}
+      />
+      <Route path={AppRoute.codeApiStudio} element={getAuthRoute(<ApiStudio />)} />
       <Route path={AppRoute.notifications} element={getAuthRoute(<NotificationsView />)} />
+      <Route path={AppRoute.activityTimeline} element={getAuthRoute(<ActivityTimeline />)} />
+      <Route path={AppRoute.vault} element={getAuthRoute(<VaultHome />)} />
       <Route path={AppRoute.messenger} element={getAuthRoute(<MessengerHome />)} />
       <Route path={AppRoute.library} element={getAuthRoute(<LibraryHome />)} />
       <Route path={AppRoute.libraryReader} element={getAuthRoute(<LibraryReader />)} />

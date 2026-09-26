@@ -33,6 +33,7 @@ export interface ProfilePatch {
   website?: string;
   avatar?: string | null;
   gitLinksEnabled?: boolean;
+  pinnedModules?: string[] | null;
 }
 
 export const updateProfile = (patch: ProfilePatch) =>

@@ -78,6 +78,84 @@
   .office-hub-icon { background: rgba(251, 146, 60, 0.18); color: #fb923c; }
 }
 
+.office-hub-tile--code {
+  &:hover { border-color: rgba(167, 139, 250, 0.5); }
+  .office-hub-icon { background: rgba(167, 139, 250, 0.18); color: #a78bfa; }
+}
+
+.office-code-lang-select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: rgb(var(--surface-rgb) / 0.6);
+  border: 1px solid rgb(var(--hair-rgb) / 0.2);
+  color: rgb(var(--ink-rgb) / 0.85);
+}
+
+.office-code-editor {
+  overflow: hidden;
+  border-radius: 0.7rem;
+  border: 1px solid rgb(var(--hair-rgb) / 0.15);
+}
+
+.office-file-tree {
+  gap: 0.1rem;
+
+  .office-doc-item {
+    gap: 0.35rem;
+  }
+}
+
+.office-tab-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.office-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.7rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: rgb(var(--ink-rgb) / 0.55);
+  background: rgb(var(--surface-rgb) / 0.35);
+  border: 1px solid rgb(var(--hair-rgb) / 0.12);
+  border-bottom: none;
+  cursor: pointer;
+  max-width: 160px;
+
+  span {
+    max-width: 100px;
+  }
+
+  button {
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    padding: 1px;
+    opacity: 0.5;
+
+    &:hover {
+      opacity: 1;
+      background: rgb(var(--ink-rgb) / 0.12);
+    }
+  }
+
+  &.active {
+    background: rgb(var(--surface-rgb) / 0.85);
+    color: rgb(var(--ink-rgb));
+    border-color: rgb(var(--accent-rgb) / 0.35);
+  }
+
+  &:hover:not(.active) {
+    background: rgb(var(--surface-rgb) / 0.55);
+  }
+}
+
 .office-hub-icon {
   width: 44px;
   height: 44px;
@@ -91,7 +169,7 @@
 
 .office-docs-layout {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 1rem;
   min-height: 480px;
   margin-top: 1rem;
@@ -237,7 +315,7 @@
 
 .office-slides-layout {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 1rem;
   margin-top: 1rem;
 }

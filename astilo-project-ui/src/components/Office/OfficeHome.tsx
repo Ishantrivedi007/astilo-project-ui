@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { FileText, Grid3x3, Presentation } from "lucide-react";
+import { FileText, Grid3x3, Presentation, FileCode2 } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import "./Office.scss";
@@ -28,6 +28,14 @@ const TILES = [
     href: AppRoute.officeSlides,
     className: "office-hub-tile--slides",
     desc: "Slide decks — add/reorder slides, rich content per slide, present full-screen.",
+  },
+  {
+    key: "code",
+    label: "Code",
+    icon: FileCode2,
+    href: AppRoute.officeCode,
+    className: "office-hub-tile--code",
+    desc: "Code files with real syntax highlighting (Monaco) — write and save, no execution.",
   },
 ];
 

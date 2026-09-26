@@ -52,6 +52,7 @@ const NAV_TILES = [
   { label: "Spacecraft", icon: Radio, href: `${AppRoute.cosmosSearch}?type=spacecraft` },
   { label: "Telescopes", icon: Telescope, href: `${AppRoute.cosmosSearch}?type=observation` },
   { label: "Observatories", icon: Antenna, href: AppRoute.cosmosMissionBrowse },
+  { label: "Hubble", icon: Telescope, href: AppRoute.cosmosHubble },
   { label: "X-ray sources", icon: Zap, href: `${AppRoute.cosmosSearch}?type=high-energy` },
   { label: "Image Lab", icon: ImageIcon, href: AppRoute.cosmosImageLab },
   { label: "Compare", icon: ArrowLeftRight, href: AppRoute.cosmosCompare },

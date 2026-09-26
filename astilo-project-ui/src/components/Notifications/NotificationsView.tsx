@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, History, Trash2 } from "lucide-react";
+import { AppRoute } from "../../app/AppRoute";
 
 import {
   clearAllNotifications,
@@ -56,6 +57,9 @@ const NotificationsView = () => {
           </h1>
         </div>
         <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button type="button" className="nimrose-chip" onClick={() => navigate(AppRoute.activityTimeline)}>
+            <History size={12} /> Activity Timeline
+          </button>
           <button type="button" className="nimrose-chip" onClick={() => markAllMutation.mutate()} disabled={(query.data?.unreadCount ?? 0) === 0}>
             <CheckCheck size={12} /> Mark all read
           </button>

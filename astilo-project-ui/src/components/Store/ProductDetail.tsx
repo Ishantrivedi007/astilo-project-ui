@@ -1,14 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button, Chip } from "@heroui/react";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
 import { AppInput, AppTextarea } from "../shared";
+import Chart from "../shared/Chart";
 import { AppRoute } from "../../app/AppRoute";
-import { fetchProduct, fetchProducts, type Product, type SpecGroup } from "../../lib/storeApi";
+import {
+  addToWishlist,
+  fetchPriceHistory,
+  fetchProduct,
+  fetchProducts,
+  fetchWishlist,
+  removeFromWishlist,
+  storeErrorMessage,
+  type Product,
+  type SpecGroup,
+} from "../../lib/storeApi";
 import { useProductStore, type ProductReview } from "./useProductStore";
 import { required } from "../../lib/validators";
+import SaveToVaultButton from "../Vault/SaveToVaultButton";
 
 const PLACEHOLDER_IMAGE = "https://placehold.co/500x500?text=%F0%9F%9B%8D%EF%B8%8F";
 
@@ -128,10 +140,45 @@ const ReviewCard = ({ review, onDelete }: { review: ProductReview; onDelete: (id
   </article>
 );
 
+const PriceHistoryChart = ({ productId }: { productId: number }) => {
+  const { data: history } = useQuery({
+    queryKey: ["store-price-history", productId],
+    queryFn: () => fetchPriceHistory(productId),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const points = (history ?? []).filter((h) => h.recordedAt);
+  if (points.length < 2) return null;
+
+  return (
+    <section className="mt-14">
+      <h2 className="mb-4 font-display text-2xl font-bold text-ink">Price history</h2>
+      <div className="glass-card p-4">
+        <Chart
+          type="area"
+          height={220}
+          series={[
+            {
+              name: "Price",
+              data: points.map((p) => ({ x: new Date(p.recordedAt as string).getTime(), y: p.price })),
+            },
+          ]}
+          options={{
+            xaxis: { type: "datetime" },
+            yaxis: { labels: { formatter: (v: number) => `$${v.toFixed(0)}` } },
+            tooltip: { x: { format: "MMM d, yyyy" }, y: { formatter: (v: number) => `$${v.toFixed(2)}` } },
+          }}
+        />
+      </div>
+    </section>
+  );
+};
+
 const ProductDetail = () => {
   const { id = "" } = useParams<{ id: string }>();
   const { addToCart, reviewsFor, addReview, deleteReview } = useProductStore();
   const [quantity, setQuantity] = useState(1);
+  const queryClient = useQueryClient();
 
   const { data: product, isLoading, isError } = useQuery<Product>({
     queryKey: ["store-product", id],
@@ -143,6 +190,34 @@ const ProductDetail = () => {
     queryKey: ["store-related", product?.category],
     queryFn: () => fetchProducts(product?.category ?? undefined),
     enabled: Boolean(product?.category),
+  });
+
+  const { data: wishlist } = useQuery({
+    queryKey: ["store-wishlist"],
+    queryFn: fetchWishlist,
+    staleTime: 1000 * 30,
+  });
+  const isWishlisted = useMemo(
+    () => Boolean(product && wishlist?.some((w) => w.productId === product.id)),
+    [wishlist, product]
+  );
+
+  const addWishlistMutation = useMutation({
+    mutationFn: (productId: number) => addToWishlist(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["store-wishlist"] });
+      toast.success(`Added "${product?.name}" to your wishlist ♡`);
+    },
+    onError: (err: unknown) => toast.error(storeErrorMessage(err, "Couldn't add that to your wishlist.")),
+  });
+
+  const removeWishlistMutation = useMutation({
+    mutationFn: (productId: number) => removeFromWishlist(productId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["store-wishlist"] });
+      toast.success(`Removed "${product?.name}" from your wishlist`);
+    },
+    onError: (err: unknown) => toast.error(storeErrorMessage(err, "Couldn't remove that from your wishlist.")),
   });
 
   useEffect(() => {
@@ -271,9 +346,26 @@ const ProductDetail = () => {
             >
               🛒 Add to cart
             </Button>
-            <Button radius="full" variant="bordered" className="border-hair/40 font-semibold text-ink">
-              ♡ Wishlist
+            <Button
+              radius="full"
+              variant="bordered"
+              className={`border-hair/40 font-semibold ${isWishlisted ? "text-danger" : "text-ink"}`}
+              isLoading={addWishlistMutation.isPending || removeWishlistMutation.isPending}
+              onPress={() =>
+                isWishlisted ? removeWishlistMutation.mutate(product.id) : addWishlistMutation.mutate(product.id)
+              }
+            >
+              {isWishlisted ? "♥ Wishlisted" : "♡ Wishlist"}
             </Button>
+            <SaveToVaultButton
+              title={product.name}
+              itemType="product"
+              url={`${AppRoute.store}/${product.id}`}
+              thumbnailUrl={product.imageUrl ?? undefined}
+              sourceModule="store"
+              content={product.description ?? undefined}
+              metadata={{ price: product.price, category: product.category }}
+            />
           </div>
         </div>
       </div>
@@ -285,6 +377,8 @@ const ProductDetail = () => {
           <SpecTable groups={product.specs} />
         </section>
       )}
+
+      <PriceHistoryChart productId={product.id} />
 
       {/* Reviews */}
       <section className="mt-14">

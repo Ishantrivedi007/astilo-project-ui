@@ -25,11 +25,25 @@ const emojiFor = (category: string) => {
   return "🛍️";
 };
 
+const MAX_COMPARE = 4;
+
 const ProductStore = () => {
   const [gridRef] = useAutoAnimate<HTMLDivElement>();
   const [category, setCategory] = useState<string | null>(null);
+  const [compareIds, setCompareIds] = useState<number[]>([]);
   const navigate = useNavigate();
   const { addToCart, cartCount } = useProductStore();
+
+  const toggleCompare = (id: number) => {
+    setCompareIds((prev) => {
+      if (prev.includes(id)) return prev.filter((p) => p !== id);
+      if (prev.length >= MAX_COMPARE) {
+        toast.error(`You can compare up to ${MAX_COMPARE} products at once.`);
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["store-products"],
@@ -49,21 +63,32 @@ const ProductStore = () => {
       <PageHeading
         eyebrow="✦ treat yourself"
         action={
-          <div className="relative inline-flex self-center">
+          <div className="flex items-center gap-2">
             <Button
               radius="full"
               variant="bordered"
               className="gap-2 border-hair/40 font-semibold text-ink"
-              onPress={() => navigate(AppRoute.storeCart)}
+              onPress={() => navigate(AppRoute.storeWishlist)}
             >
-              <span aria-hidden>🛒</span>
-              <span>Cart</span>
+              <span aria-hidden>♡</span>
+              <span>Wishlist</span>
             </Button>
-            {cartCount > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full border-2 border-[rgb(var(--surface-rgb))] bg-danger px-1 text-[11px] font-bold leading-none text-white">
-                {cartCount > 99 ? "99+" : cartCount}
-              </span>
-            )}
+            <div className="relative inline-flex self-center">
+              <Button
+                radius="full"
+                variant="bordered"
+                className="gap-2 border-hair/40 font-semibold text-ink"
+                onPress={() => navigate(AppRoute.storeCart)}
+              >
+                <span aria-hidden>🛒</span>
+                <span>Cart</span>
+              </Button>
+              {cartCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full border-2 border-[rgb(var(--surface-rgb))] bg-danger px-1 text-[11px] font-bold leading-none text-white">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
+            </div>
           </div>
         }
       >
@@ -71,7 +96,7 @@ const ProductStore = () => {
       </PageHeading>
 
       {categories.length > 0 && (
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-2 flex flex-wrap gap-2">
           <button
             className={`pill-filter ${category === null ? "is-active" : ""}`}
             onClick={() => setCategory(null)}
@@ -88,6 +113,12 @@ const ProductStore = () => {
             </button>
           ))}
         </div>
+      )}
+
+      {products.length > 0 && (
+        <p className="mb-4 text-xs text-ink/40">
+          Tap <span className="mx-0.5 inline-grid h-4 w-4 place-items-center rounded-full bg-black/50 align-middle text-[9px] text-white/90">⇄</span> on a product to add it to comparison.
+        </p>
       )}
 
       {isLoading ? (
@@ -127,6 +158,23 @@ const ProductStore = () => {
                         {emojiFor(p.category)} {p.category}
                       </Chip>
                     )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleCompare(p.id);
+                      }}
+                      aria-pressed={compareIds.includes(p.id)}
+                      aria-label={`Select ${p.name} to compare`}
+                      title="Add to compare"
+                      className={`absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-full border-2 text-xs font-bold backdrop-blur transition-all ${
+                        compareIds.includes(p.id)
+                          ? "border-accent bg-accent text-[#17131f] shadow-glow"
+                          : "border-white/80 bg-black/50 text-white/90 hover:scale-110 hover:border-white"
+                      }`}
+                    >
+                      {compareIds.includes(p.id) ? "✓" : "⇄"}
+                    </button>
                   </CardBody>
                   <p className="line-clamp-2 min-h-[2.5rem] px-3 pt-3 text-sm font-semibold text-ink">
                     {p.name}
@@ -154,6 +202,34 @@ const ProductStore = () => {
               </Card>
             </Reveal>
           ))}
+        </div>
+      )}
+
+      {compareIds.length > 0 && (
+        <div className="fixed inset-x-0 bottom-4 z-20 flex justify-center px-4">
+          <div className="glass-card flex items-center gap-3 px-4 py-2.5 shadow-glow">
+            <span className="text-sm font-semibold text-ink">
+              {compareIds.length} selected · up to {MAX_COMPARE}
+            </span>
+            <Button
+              radius="full"
+              size="sm"
+              variant="light"
+              className="font-semibold text-ink/60"
+              onPress={() => setCompareIds([])}
+            >
+              Clear
+            </Button>
+            <Button
+              radius="full"
+              size="sm"
+              isDisabled={compareIds.length < 2}
+              className="bg-gradient-to-r from-accent to-accent-2 font-bold text-[#17131f]"
+              onPress={() => navigate(`${AppRoute.storeCompare}?ids=${compareIds.join(",")}`)}
+            >
+              Compare
+            </Button>
+          </div>
         </div>
       )}
     </section>

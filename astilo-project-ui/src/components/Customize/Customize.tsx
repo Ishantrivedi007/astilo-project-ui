@@ -1,9 +1,14 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useTheme } from "../../theme/ThemeProvider";
 import { usePreferences } from "../../theme/PreferencesProvider";
 import { BACKGROUND_STYLES, LOADER_STYLES } from "../../theme/preferences";
 import type { ThemeMeta } from "../../theme/themes";
 import { PageHeading, GlassPanel } from "../shared";
 import AppLoader from "../SharedComponents/Loader/AppLoader";
+import { CATEGORY_LABEL, CATEGORY_ORDER, MODULE_NAV } from "../../app/moduleNav";
+import { useAuth } from "../../auth/AuthProvider";
+import { updateProfile } from "../../lib/profileApi";
 import "./Customize.scss";
 
 const ThemeCard = ({
@@ -42,9 +47,32 @@ const Customize = () => {
     customImage,
     setCustomImage,
   } = usePreferences();
+  const { user, updateUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const light = themes.filter((t) => t.mode === "light");
   const dark = themes.filter((t) => t.mode === "dark");
+
+  // null = never customized → every module shows, same as before this
+  // feature existed. An empty array is a deliberate "hide everything" —
+  // distinct from null, so "Show all" has something to reset back to.
+  const pinned = user?.pinnedModules ?? null;
+  const isPinned = (id: string) => pinned === null || pinned.includes(id);
+
+  const savePinned = useMutation({
+    mutationFn: (next: string[] | null) => updateProfile({ pinnedModules: next }),
+    onSuccess: (updated) => {
+      updateUser(updated);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: () => toast.error("Couldn't save your sidebar choices."),
+  });
+
+  const toggleModule = (id: string) => {
+    const base = pinned ?? MODULE_NAV.map((m) => m.id);
+    const next = base.includes(id) ? base.filter((m) => m !== id) : [...base, id];
+    savePinned.mutate(next);
+  };
 
   const handleImagePick = (file: File | undefined) => {
     if (!file) return;
@@ -87,6 +115,62 @@ const Customize = () => {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {dark.map((t) => (
             <ThemeCard key={t.id} theme={t} active={themeId === t.id} onPick={() => setThemeId(t.id)} />
+          ))}
+        </div>
+      </GlassPanel>
+
+      {/* Sidebar personalization */}
+      <GlassPanel
+        title="Sidebar"
+        subtitle="Pick which modules show in your sidebar — everything else stays one Ctrl/Cmd+K search away"
+        className="mb-8"
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs text-ink/50">
+            {pinned === null
+              ? "Showing every module (default)."
+              : `Showing ${pinned.length} of ${MODULE_NAV.length} modules.`}
+          </p>
+          {pinned !== null && (
+            <button
+              type="button"
+              onClick={() => savePinned.mutate(null)}
+              className="text-xs font-semibold text-accent-2 underline"
+            >
+              Show all modules
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {CATEGORY_ORDER.map((category) => (
+            <div key={category}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-ink/40">
+                {CATEGORY_LABEL[category]}
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {MODULE_NAV.filter((m) => m.category === category).map((mod) => {
+                  const Icon = mod.icon;
+                  const active = isPinned(mod.id);
+                  return (
+                    <button
+                      key={mod.id}
+                      type="button"
+                      onClick={() => toggleModule(mod.id)}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm font-medium transition-colors ${
+                        active
+                          ? "border-accent/40 bg-accent/10 text-ink"
+                          : "border-hair/15 text-ink/40 hover:text-ink/70"
+                      }`}
+                    >
+                      <Icon size={15} className="shrink-0" />
+                      <span className="min-w-0 flex-1 truncate">{mod.label}</span>
+                      {active && <span className="text-accent-2">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
         </div>
       </GlassPanel>
