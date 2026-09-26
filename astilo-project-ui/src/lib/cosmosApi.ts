@@ -535,6 +535,78 @@ export async function fetchHubbleTarget(targetId: string) {
   return data as CosmosEnvelope<HubbleTargetDetail>;
 }
 
+// -- Deep Space Probes (Voyager 1/2, New Horizons — real JPL Horizons trajectory
+// plus real raw instrument data from NASA CDAWeb/PDS, not a live telemetry stream) --
+
+export type DeepSpaceProbeId = "voyager-1" | "voyager-2" | "new-horizons";
+
+export interface DeepSpaceCatalogEntry {
+  probeId: DeepSpaceProbeId;
+  name: string;
+  status: string;
+  launchDate: string;
+  distanceAu: number | null;
+  speedKmS: number | null;
+}
+
+export async function fetchDeepSpaceCatalog() {
+  const { data } = await cosmos.get(`/deep-space/catalog`);
+  return data as CosmosEnvelope<{ count: number; results: DeepSpaceCatalogEntry[] }>;
+}
+
+export interface DeepSpacePosition {
+  timestamp: string | null;
+  distanceKm: number;
+  distanceAu: number;
+  speedKmS: number;
+  radialVelocityKmS: number;
+  lightTimeSeconds: number;
+}
+
+export interface DeepSpaceScienceData {
+  available: boolean;
+  // CDAWeb (Voyager 1/2) shape
+  dataCoverageEnd?: string;
+  windowHours?: number;
+  files?: unknown[];
+  // PDS (New Horizons) shape
+  productLid?: string;
+  labelUrl?: string;
+  tableName?: string;
+  fields?: string[];
+  sampleReading?: Record<string, number | string>;
+  pdsSearchUrl?: string;
+  reason?: string | null;
+}
+
+export interface DeepSpaceProbeDetail {
+  probe: { probeId: DeepSpaceProbeId; name: string; status: string; launchDate: string };
+  position: CosmosEnvelope<DeepSpacePosition | null>;
+  science: CosmosEnvelope<DeepSpaceScienceData>;
+}
+
+export async function fetchDeepSpaceProbe(probeId: string) {
+  const { data } = await cosmos.get(`/deep-space/probe`, { params: { probe: probeId } });
+  return data as CosmosEnvelope<DeepSpaceProbeDetail>;
+}
+
+export interface DeepSpaceMonitorFinding {
+  probeId: DeepSpaceProbeId;
+  name: string;
+  newDataMarker: string;
+}
+
+export interface DeepSpaceMonitorData {
+  findings: DeepSpaceMonitorFinding[];
+  checkedAt: string;
+  probesChecked: number;
+}
+
+export async function fetchDeepSpaceMonitor() {
+  const { data } = await cosmos.get(`/deep-space/monitor`);
+  return data as CosmosEnvelope<DeepSpaceMonitorData>;
+}
+
 // -- Cosmos Library (requires auth; the axios instance below attaches the token) --
 
 export type CosmosObjectType =

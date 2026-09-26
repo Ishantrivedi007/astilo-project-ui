@@ -38,6 +38,8 @@ const CosmosOrbitExplorer = lazy(() => import("../components/Cosmos/CosmosOrbitE
 const CosmosMissionBrowse = lazy(() => import("../components/Cosmos/CosmosMissionBrowse"));
 const CosmosHubble = lazy(() => import("../components/Cosmos/CosmosHubble"));
 const CosmosHubbleDetail = lazy(() => import("../components/Cosmos/CosmosHubbleDetail"));
+const CosmosDeepSpace = lazy(() => import("../components/Cosmos/CosmosDeepSpace"));
+const CosmosDeepSpaceDetail = lazy(() => import("../components/Cosmos/CosmosDeepSpaceDetail"));
 const CosmosSatelliteTracker = lazy(() => import("../components/Cosmos/CosmosSatelliteTracker"));
 const CosmosReferenceLibrary = lazy(() => import("../components/Cosmos/CosmosReferenceLibrary"));
 const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
@@ -192,6 +194,8 @@ const AppRoutes = () => (
       <Route path={AppRoute.cosmosMissionBrowse} element={getAuthRoute(<CosmosMissionBrowse />)} />
       <Route path={AppRoute.cosmosHubble} element={getAuthRoute(<CosmosHubble />)} />
       <Route path={`${AppRoute.cosmosHubble}/:category/:targetId`} element={getAuthRoute(<CosmosHubbleDetail />)} />
+      <Route path={AppRoute.cosmosDeepSpace} element={getAuthRoute(<CosmosDeepSpace />)} />
+      <Route path={`${AppRoute.cosmosDeepSpace}/:probeId`} element={getAuthRoute(<CosmosDeepSpaceDetail />)} />
       <Route path={AppRoute.cosmosSatelliteTracker} element={getAuthRoute(<CosmosSatelliteTracker />)} />
       <Route path={AppRoute.cosmosReferenceLibrary} element={getAuthRoute(<CosmosReferenceLibrary />)} />
       <Route path={AppRoute.markets} element={getAuthRoute(<MarketsHome />)} />

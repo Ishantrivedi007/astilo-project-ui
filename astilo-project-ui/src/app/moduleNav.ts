@@ -187,6 +187,7 @@ export const MODULE_NAV: NavModule[] = [
       { id: "cosmos-orbit-explorer", label: "Orbit Explorer", route: AppRoute.cosmosOrbitExplorer, icon: Orbit },
       { id: "cosmos-mission-browse", label: "Mission Browse", route: AppRoute.cosmosMissionBrowse, icon: Rocket },
       { id: "cosmos-hubble", label: "Hubble", route: AppRoute.cosmosHubble, icon: Telescope },
+      { id: "cosmos-deep-space", label: "Deep Space Probes", route: AppRoute.cosmosDeepSpace, icon: Rocket },
       { id: "cosmos-satellite-tracker", label: "Satellite Tracker", route: AppRoute.cosmosSatelliteTracker, icon: Satellite },
       { id: "cosmos-reference-library", label: "Reference Library", route: AppRoute.cosmosReferenceLibrary, icon: BookMarked },
     ],

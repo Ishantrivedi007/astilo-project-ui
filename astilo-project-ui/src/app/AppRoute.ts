@@ -35,6 +35,7 @@ export const AppRoute = {
   cosmosOrbitExplorer: "/cosmos/orbit-explorer",
   cosmosMissionBrowse: "/cosmos/mission-browse",
   cosmosHubble: "/cosmos/hubble",
+  cosmosDeepSpace: "/cosmos/deep-space",
   cosmosSatelliteTracker: "/cosmos/satellite-tracker",
   cosmosReferenceLibrary: "/cosmos/reference-library",
   markets: "/markets",
