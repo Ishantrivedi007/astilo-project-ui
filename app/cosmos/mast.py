@@ -6,6 +6,7 @@ Used here: Mashup "Mast.Caom.Cone" service for observation search by target
 name or coordinates, across Hubble/JWST/TESS/Kepler/GALEX/Spitzer.
 """
 
+import base64
 import datetime
 import io
 import json
@@ -216,6 +217,151 @@ def fetch_spectrum(obsid: str):
     return None
 
 
+def fetch_fits_image(obsid: str):
+    """Finds an image-type FITS data product for an observation, downloads
+    it, and turns the real pixel array into something a browser can show —
+    plus real analysis (pixel statistics, dimensions) and the science
+    header fields (instrument, filter, exposure time, target). Returns
+    None if no image FITS product exists.
+
+    Raw astronomical pixel data has enormous dynamic range (a handful of
+    saturated star pixels next to a faint galaxy smear), so a naive linear
+    map to 0-255 renders as almost solid black. The percentile-clip +
+    asinh stretch below is the same family of normalization DS9 (the
+    standard astronomy image viewer) and astropy's own ZScale+AsinhStretch
+    use — implemented directly on the percentile/arcsinh math rather than
+    imported from astropy.visualization, because that subpackage's import
+    chain (astropy.units -> astropy.constants -> ...) calls the
+    now-removed `numpy.in1d` under the astropy 6.1.7 + numpy 2.x
+    combination this backend runs (see requirements.txt) and raises
+    AttributeError on import alone. astropy.io.fits (used above) doesn't
+    touch that chain, so it's unaffected."""
+    import numpy as np
+    from astropy.io import fits
+    from PIL import Image
+
+    products = get_data_products(obsid)
+    candidates = [
+        p
+        for p in products
+        if (p.get("dataproduct_type") or "").lower() == "image"
+        and str(p.get("productFilename", "")).lower().endswith((".fits", ".fits.gz", ".fit"))
+    ]
+    if not candidates:
+        return None
+
+    # Prefer calibrated/drizzled science products (DRZ/DRC for HST,
+    # I2D for JWST, CAL as a fallback) over raw detector readouts.
+    priority = ("DRZ", "DRC", "I2D", "CAL")
+    candidates.sort(key=lambda p: (p.get("productSubGroupDescription") or "") not in priority)
+    image_row = candidates[0]
+
+    data_uri = image_row.get("dataURI")
+    if not data_uri:
+        return None
+
+    def fetch_bytes():
+        resp = cosmos_get(DOWNLOAD_URL, params={"uri": data_uri}, timeout=45)
+        resp.raise_for_status()
+        return resp.content
+
+    raw_bytes = fetch_bytes()
+
+    with fits.open(io.BytesIO(raw_bytes)) as hdul:
+        image_hdu = None
+        for hdu in hdul:
+            data = getattr(hdu, "data", None)
+            if data is not None and getattr(data, "ndim", 0) == 2:
+                image_hdu = hdu
+                break
+        if image_hdu is None:
+            return None
+
+        data = image_hdu.data.astype(float)
+        header = image_hdu.header
+        primary_header = hdul[0].header
+
+        finite = data[np.isfinite(data)]
+        stats = {
+            "width": int(data.shape[1]),
+            "height": int(data.shape[0]),
+            "min": _json_safe_float(finite.min()) if finite.size else None,
+            "max": _json_safe_float(finite.max()) if finite.size else None,
+            "mean": _json_safe_float(finite.mean()) if finite.size else None,
+            "std": _json_safe_float(finite.std()) if finite.size else None,
+        }
+
+        if finite.size:
+            # 1st/99th percentile clip — the same "ignore the extreme
+            # outliers" idea ZScale encodes, without needing its iterative
+            # sample-region algorithm.
+            lo, hi = np.percentile(finite, [1.0, 99.0])
+        else:
+            lo, hi = 0.0, 1.0
+        span = (hi - lo) or 1.0
+        clipped = np.clip((np.nan_to_num(data, nan=lo) - lo) / span, 0, 1)
+        # Asinh soft stretch: compresses bright peaks and lifts faint
+        # detail (linear data alone still looks mostly black/white after
+        # just a percentile clip) — arcsinh(k*x)/arcsinh(k) maps [0,1] to
+        # [0,1] while pulling shadow detail up non-linearly.
+        k = 10.0
+        normalized = np.arcsinh(k * clipped) / np.arcsinh(k)
+
+        img_array = (normalized * 255).astype(np.uint8)
+        img_array = np.flipud(img_array)  # FITS row 0 is the bottom; images are stored top-down
+
+        img = Image.fromarray(img_array, mode="L")
+        # Cap the longest edge so a multi-thousand-pixel drizzled mosaic
+        # doesn't ship a multi-megabyte PNG to the browser for what's
+        # ultimately a preview, not a science download.
+        max_edge = 1200
+        if max(img.size) > max_edge:
+            ratio = max_edge / max(img.size)
+            img = img.resize((max(1, int(img.width * ratio)), max(1, int(img.height * ratio))))
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        png_base64 = base64.b64encode(buf.getvalue()).decode("ascii")
+
+        def _num(key):
+            v = header.get(key, primary_header.get(key))
+            try:
+                return _json_safe_float(v) if v is not None else None
+            except (TypeError, ValueError):
+                return None
+
+        header_fields = {
+            "instrument": header.get("INSTRUME", primary_header.get("INSTRUME")),
+            "telescope": header.get("TELESCOP", primary_header.get("TELESCOP")),
+            "filter": header.get("FILTER") or header.get("FILTER1") or primary_header.get("FILTER"),
+            "exposureTime": _num("EXPTIME"),
+            "dateObs": header.get("DATE-OBS", primary_header.get("DATE-OBS")),
+            "object": header.get("OBJECT", primary_header.get("TARGNAME")),
+            "ra": _num("RA_TARG"),
+            "dec": _num("DEC_TARG"),
+        }
+
+        result = {
+            "productFilename": image_row.get("productFilename"),
+            "imagePngBase64": f"data:image/png;base64,{png_base64}",
+            "stats": stats,
+            "header": header_fields,
+        }
+        return envelope("MAST", "fits-image", str(obsid), result, None)
+
+
+def _resolve_download_url(mast_uri: str | None) -> str | None:
+    """MAST's own jpegURL field is a `mast:...` URI, not a resolvable HTTP(S)
+    URL — a browser's <img> tag can't load a custom URI scheme. Wrap it in
+    MAST's own download endpoint so callers get something actually
+    renderable, without changing what the field represents."""
+    if not mast_uri:
+        return None
+    if mast_uri.startswith("mast:"):
+        return f"{DOWNLOAD_URL}?uri={mast_uri}"
+    return mast_uri
+
+
 def _normalize_observation(row: dict):
     return {
         "observationId": row.get("obs_id"),
@@ -227,6 +373,6 @@ def _normalize_observation(row: dict):
         "raDeg": row.get("s_ra"),
         "decDeg": row.get("s_dec"),
         "productType": row.get("dataproduct_type"),
-        "previewImageUrl": row.get("jpegURL"),
+        "previewImageUrl": _resolve_download_url(row.get("jpegURL")),
         "obsid": row.get("obsid"),
     }

@@ -66,5 +66,28 @@ class Config:
     # Defaults OFF — an explicit opt-in, not an accidentally-exposed default.
     API_DOCS_ENABLED = os.getenv("API_DOCS_ENABLED", "false").strip().lower() in ("1", "true", "yes")
 
+    # Astilo Code's Terminal runs shell commands directly on this host as
+    # this process's own user — admin-gated and cwd-restricted, but NOT
+    # container/VM isolated (no Docker here per product decision), so an
+    # admin account with terminal access can still reach the rest of the
+    # host same as any other shell would. Defaults OFF for the same reason
+    # API_DOCS_ENABLED does: an explicit opt-in for something this capable,
+    # never an accidentally-exposed default.
+    CODE_TERMINAL_ENABLED = os.getenv("CODE_TERMINAL_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+    CODE_TERMINAL_TIMEOUT_SECONDS = int(os.getenv("CODE_TERMINAL_TIMEOUT_SECONDS", "20"))
+
+    # The one directory Terminal commands run in (cwd) and Code Editor files
+    # conceptually live in — created on first use if missing. Kept separate
+    # from ATTACHMENTS_DIR and the backend's own source tree.
+    CODE_SANDBOX_DIR = os.getenv(
+        "CODE_SANDBOX_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "code_sandbox")
+    )
+
+    # Astilo Code's Database Explorer connects to whatever connection string
+    # an admin supplies at request time — nothing is persisted server-side,
+    # so there's no credential store to secure or leak. Defaults OFF, same
+    # reasoning as CODE_TERMINAL_ENABLED.
+    CODE_DATABASE_ENABLED = os.getenv("CODE_DATABASE_ENABLED", "false").strip().lower() in ("1", "true", "yes")
+
 
 config = Config()

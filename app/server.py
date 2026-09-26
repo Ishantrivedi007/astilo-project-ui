@@ -1,3 +1,5 @@
+import json
+
 import cherrypy
 
 from app.config import config
@@ -10,10 +12,15 @@ from app.controllers.cosmos_controller import (
     CometController,
     CosmosLibraryController,
     DonkiController,
+    FitsImageController,
     ExoplanetController,
     GalaxyController,
     HighEnergyObservationController,
     HorizonsController,
+    HubbleCatalogController,
+    HubbleMonitorController,
+    HubblePositionController,
+    HubbleTargetController,
     MissionBrowseController,
     MoonController,
     NasaImagesController,
@@ -118,7 +125,12 @@ from app.controllers.songs_controller import (
     SongSearchController,
     SongsController,
 )
-from app.controllers.store_controller import OrdersController, ProductsController
+from app.controllers.store_controller import (
+    OrdersController,
+    PriceHistoryController,
+    ProductsController,
+    WishlistController as StoreWishlistController,
+)
 from app.controllers.trading_controller import (
     TradingAccountController,
     TradingDepositController,
@@ -129,6 +141,18 @@ from app.controllers.trading_controller import (
 )
 from app.controllers.users_controller import UsersController
 from app.controllers.watchlist_controller import WatchlistController
+from app.controllers.search_controller import GlobalSearchController
+from app.controllers.vault_controller import VaultController
+from app.controllers.code_controller import (
+    ApiStudioRequestController,
+    ApiStudioSendController,
+    DatabaseColumnsController,
+    DatabaseQueriesController,
+    DatabaseQueryController,
+    DatabaseTablesController,
+    NoteVersionsController,
+    TerminalController,
+)
 from app.db import init_db
 
 
@@ -148,6 +172,22 @@ def cors_tool():
 cherrypy.tools.cors = cherrypy.Tool("before_handler", cors_tool, priority=10)
 
 
+def json_error_handler(status, message, traceback, version):
+    """Every error response (400/401/403/404/500/...) as JSON instead of
+    CherryPy's default HTML page — every frontend error handler across the
+    app was falling back to a generic "Request failed (NNN)" because the
+    real message was buried in an HTML body it couldn't parse. `message` is
+    exactly the string passed to cherrypy.HTTPError(status, message) (or
+    CherryPy's own default text for uncaught exceptions), so callers get
+    the real reason, not just a status code."""
+    cherrypy.response.headers["Content-Type"] = "application/json"
+    try:
+        code = int(str(status).split(" ", 1)[0])
+    except ValueError:
+        code = 500
+    return json.dumps({"error": True, "status": code, "message": message})
+
+
 def build_app():
     init_db()
 
@@ -156,6 +196,7 @@ def build_app():
             "request.dispatch": cherrypy.dispatch.MethodDispatcher(),
             "tools.sessions.on": False,
             "tools.cors.on": True,
+            "error_page.default": json_error_handler,
         }
     }
 
@@ -170,9 +211,22 @@ def build_app():
     cherrypy.tree.mount(UsersController(), "/api/users", conf)
     cherrypy.tree.mount(SessionsController(), "/api/sessions", conf)
     cherrypy.tree.mount(FavoritesController(), "/api/favorites", conf)
+    cherrypy.tree.mount(GlobalSearchController(), "/api/search", conf)
+    cherrypy.tree.mount(VaultController(), "/api/vault", conf)
+
+    cherrypy.tree.mount(TerminalController(), "/api/code/terminal", conf)
+    cherrypy.tree.mount(DatabaseTablesController(), "/api/code/database/tables", conf)
+    cherrypy.tree.mount(DatabaseQueryController(), "/api/code/database/query", conf)
+    cherrypy.tree.mount(DatabaseColumnsController(), "/api/code/database/columns", conf)
+    cherrypy.tree.mount(DatabaseQueriesController(), "/api/code/database/queries", conf)
+    cherrypy.tree.mount(ApiStudioRequestController(), "/api/code/api-studio/requests", conf)
+    cherrypy.tree.mount(ApiStudioSendController(), "/api/code/api-studio/send", conf)
+    cherrypy.tree.mount(NoteVersionsController(), "/api/code/git/versions", conf)
     cherrypy.tree.mount(PlaylistsController(), "/api/playlists", conf)
     cherrypy.tree.mount(ProductsController(), "/api/store/products", conf)
     cherrypy.tree.mount(OrdersController(), "/api/store/orders", conf)
+    cherrypy.tree.mount(StoreWishlistController(), "/api/store/wishlist", conf)
+    cherrypy.tree.mount(PriceHistoryController(), "/api/store/price-history", conf)
     cherrypy.tree.mount(TmdbController(), "/api/media/tmdb", conf)
     cherrypy.tree.mount(LyricsController(), "/api/media/lyrics", conf)
     cherrypy.tree.mount(AnimeController(), "/api/media/anime", conf)
@@ -205,10 +259,15 @@ def build_app():
     cherrypy.tree.mount(CometController(), "/api/cosmos/comets", conf)
     cherrypy.tree.mount(SpacecraftController(), "/api/cosmos/spacecraft", conf)
     cherrypy.tree.mount(MissionBrowseController(), "/api/cosmos/mission-browse", conf)
+    cherrypy.tree.mount(HubbleCatalogController(), "/api/cosmos/hubble/catalog", conf)
+    cherrypy.tree.mount(HubbleTargetController(), "/api/cosmos/hubble/target", conf)
+    cherrypy.tree.mount(HubbleMonitorController(), "/api/cosmos/hubble/monitor", conf)
+    cherrypy.tree.mount(HubblePositionController(), "/api/cosmos/hubble/position", conf)
     cherrypy.tree.mount(SatelliteController(), "/api/cosmos/satellites", conf)
     cherrypy.tree.mount(SatelliteSearchController(), "/api/cosmos/satellites/search", conf)
     cherrypy.tree.mount(SatellitePassesController(), "/api/cosmos/satellites/passes", conf)
     cherrypy.tree.mount(SpectrumController(), "/api/cosmos/spectrum", conf)
+    cherrypy.tree.mount(FitsImageController(), "/api/cosmos/fits-image", conf)
     cherrypy.tree.mount(SpaceWeatherPulseController(), "/api/cosmos/space-weather/pulse", conf)
     cherrypy.tree.mount(AstronomyTopicsController(), "/api/cosmos/astronomy-topics", conf)
     cherrypy.tree.mount(WebImageSearchController(), "/api/images/search", conf)

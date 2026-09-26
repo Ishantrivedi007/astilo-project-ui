@@ -108,6 +108,11 @@ class UsersController:
                 user.avatar = avatar
             if "gitLinksEnabled" in body:
                 user.git_links_enabled = bool(body["gitLinksEnabled"])
+            if "pinnedModules" in body:
+                pinned = body["pinnedModules"]
+                if pinned is not None and not (isinstance(pinned, list) and all(isinstance(x, str) for x in pinned)):
+                    raise cherrypy.HTTPError(400, "pinnedModules must be a list of strings or null")
+                user.pinned_modules = pinned
 
             if body.get("newPassword"):
                 current = body.get("currentPassword") or ""

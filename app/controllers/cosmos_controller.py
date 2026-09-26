@@ -3,7 +3,7 @@ import datetime
 import cherrypy
 import requests
 
-from app.cosmos import exoplanets, gaia, heasarc, jpl, mast, nasa, satellites, simbad, wikipedia
+from app.cosmos import exoplanets, gaia, heasarc, hubble, jpl, mast, nasa, satellites, simbad, wikipedia
 from app.db import get_session
 from app.models import CosmosSavedItem
 
@@ -296,6 +296,66 @@ class MissionBrowseController:
         return _guard(mast.browse_mission, mission, int(limit), instrument, start_date, end_date)
 
 
+class HubbleCatalogController:
+    """Astilo's curated Hubble target catalog, browsable by category
+    (planet/moon/asteroid/comet/star/exoplanet/nebula/galaxy/supernova/
+    black_hole). `q` switches to a free-text SIMBAD-classified lookup for
+    targets outside the curated list. No API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, category=None, q=None, limit=40, offset=0):
+        if q:
+            return _guard(hubble.search_targets, q, int(limit))
+        return _guard(hubble.browse_targets, category, int(limit), int(offset))
+
+
+class HubbleTargetController:
+    """Aggregated Hubble research page for one target — composition,
+    distance from Earth, classification, and imagery pulled from MAST,
+    SIMBAD, the NASA Exoplanet Archive, Gaia, JPL SBDB, HEASARC and
+    Wikipedia as applicable to the target's category. No API key
+    required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, target=None):
+        if not target:
+            raise cherrypy.HTTPError(400, "target is required (e.g. ?target=crab-nebula)")
+        return _guard(hubble.get_target_detail, target)
+
+
+class HubblePositionController:
+    """Hubble's real current orbital position (lat/lon/altitude) via
+    CelesTrak TLE + SGP4 — the same live-tracking mechanism as
+    SatelliteController, resolved specifically to HST. This is where the
+    telescope physically is in orbit, not where it's pointing/aiming for a
+    given observation (no public API exposes that). No API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        return _guard(hubble.get_position)
+
+
+class HubbleMonitorController:
+    """Live-monitoring poll for the Hubble tab — checks a rotating slice of
+    the curated catalog against MAST's current observation counts and
+    reports which targets have genuinely new data since their last check.
+    A real diff against MAST's own archive, polled by the frontend on an
+    interval; not a simulation of telescope telemetry. No API key
+    required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, limit=12):
+        return _guard(hubble.check_for_new_observations, int(limit))
+
+
 class SpectrumController:
     """A real, parsed wavelength/flux spectrum for one MAST observation —
     downloads and parses the actual FITS data product. No API key
@@ -310,6 +370,24 @@ class SpectrumController:
         result = _guard(mast.fetch_spectrum, obsid)
         if result is None:
             raise cherrypy.HTTPError(404, f"No spectrum data product found for observation '{obsid}'")
+        return result
+
+
+class FitsImageController:
+    """A real, normalized preview PNG generated from an observation's own
+    FITS image data (not the jpegURL quick-look thumbnail, which many
+    observations lack), plus pixel statistics and header fields — the
+    actual FITS file is downloaded and decoded here. No API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, obsid=None):
+        if not obsid:
+            raise cherrypy.HTTPError(400, "obsid is required")
+        result = _guard(mast.fetch_fits_image, obsid)
+        if result is None:
+            raise cherrypy.HTTPError(404, f"No image data product found for observation '{obsid}'")
         return result
 
 
@@ -433,7 +511,7 @@ class CosmosLibraryController:
 
         valid_types = (
             "planet", "asteroid", "exoplanet", "star", "observation", "image", "galaxy", "supernova",
-            "moon", "nebula", "comet", "spacecraft",
+            "moon", "nebula", "comet", "spacecraft", "hubbleTarget",
         )
         if object_type not in valid_types or not external_id:
             raise cherrypy.HTTPError(400, f"objectType ({'|'.join(valid_types)}) and externalId are required")

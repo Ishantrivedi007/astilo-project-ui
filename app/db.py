@@ -43,6 +43,7 @@ def init_db():
     _migrate_attachment_project_column()
     _migrate_cosmos_research_sources_column()
     _migrate_user_git_links_column()
+    _migrate_user_pinned_modules_column()
 
 
 def _migrate_board_column_wip_limit():
@@ -182,6 +183,16 @@ def _migrate_user_git_links_column():
     default)."""
     with engine.connect() as conn:
         conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS git_links_enabled BOOLEAN NOT NULL DEFAULT false")
+        conn.commit()
+
+
+def _migrate_user_pinned_modules_column():
+    """create_all only creates missing tables, not columns on ones that
+    already exist — patch in pinned_modules for users created before the
+    customizable-sidebar feature existed (NULL = show every module, the
+    same as before this column existed)."""
+    with engine.connect() as conn:
+        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS pinned_modules JSON")
         conn.commit()
 
 

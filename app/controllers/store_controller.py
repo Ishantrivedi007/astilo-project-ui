@@ -3,7 +3,8 @@ import random
 import cherrypy
 
 from app.db import get_session
-from app.models import Order, OrderItem, Product, utcnow
+from app.models import Order, OrderItem, Product, ProductPriceHistory, WishlistItem, utcnow
+from app.notify import notify
 
 SHIP_TRANSITIONS = {
     "pending": {"cancelled"},
@@ -52,6 +53,8 @@ class ProductsController:
             )
             session.add(product)
             session.flush()
+            session.add(ProductPriceHistory(product_id=product.id, price=product.price))
+            session.flush()
             return product.to_dict()
 
     @cherrypy.tools.auth()
@@ -70,7 +73,10 @@ class ProductsController:
             if "description" in body:
                 product.description = body["description"]
             if "price" in body:
-                product.price = float(body["price"])
+                new_price = float(body["price"])
+                if new_price != product.price:
+                    session.add(ProductPriceHistory(product_id=product.id, price=new_price))
+                product.price = new_price
             if "imageUrl" in body:
                 product.image_url = body["imageUrl"]
             if "category" in body:
@@ -231,3 +237,90 @@ class OrdersController:
                 return order.to_dict()
 
             raise cherrypy.HTTPError(400, "action or status is required")
+
+
+class WishlistController:
+    """GET: the user's wishlist, each item enriched with the product it
+    points to. POST: add a product (idempotent). DELETE /<product_id>:
+    remove by product id, same shape callers already have on hand."""
+
+    exposed = True
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def GET(self):
+        user_id = int(cherrypy.request.user["sub"])
+        with get_session() as session:
+            items = (
+                session.query(WishlistItem)
+                .filter_by(user_id=user_id)
+                .order_by(WishlistItem.added_at.desc())
+                .all()
+            )
+            result = []
+            for item in items:
+                product = session.get(Product, item.product_id)
+                result.append({**item.to_dict(), "product": product.to_dict() if product else None})
+            return result
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.json_in()
+    def POST(self):
+        user_id = int(cherrypy.request.user["sub"])
+        body = cherrypy.request.json or {}
+        product_id = body.get("productId")
+        if product_id is None:
+            raise cherrypy.HTTPError(400, "productId is required")
+        product_id = int(product_id)
+
+        with get_session() as session:
+            product = session.get(Product, product_id)
+            if not product:
+                raise cherrypy.HTTPError(404, "Product not found")
+
+            existing = session.query(WishlistItem).filter_by(user_id=user_id, product_id=product_id).first()
+            if existing:
+                return {**existing.to_dict(), "product": product.to_dict()}
+
+            item = WishlistItem(user_id=user_id, product_id=product_id)
+            session.add(item)
+            session.flush()
+            notify(session, user_id, "store", f"Added {product.name} to your wishlist")
+            return {**item.to_dict(), "product": product.to_dict()}
+
+    @cherrypy.tools.auth()
+    @cherrypy.tools.json_out()
+    def DELETE(self, product_id):
+        user_id = int(cherrypy.request.user["sub"])
+        with get_session() as session:
+            item = session.query(WishlistItem).filter_by(user_id=user_id, product_id=int(product_id)).first()
+            if not item:
+                raise cherrypy.HTTPError(404, "Wishlist item not found")
+            session.delete(item)
+            return {"deleted": True}
+
+
+class PriceHistoryController:
+    """GET ?product_id=<id>: chronological price points for a product. Every
+    product has at least one row from creation, so callers never have to
+    special-case an empty history."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, product_id):
+        with get_session() as session:
+            product = session.get(Product, int(product_id))
+            if not product:
+                raise cherrypy.HTTPError(404, "Product not found")
+
+            history = (
+                session.query(ProductPriceHistory)
+                .filter_by(product_id=int(product_id))
+                .order_by(ProductPriceHistory.recorded_at.asc())
+                .all()
+            )
+            if not history:
+                return [{"price": product.price, "recordedAt": None}]
+            return [h.to_dict() for h in history]

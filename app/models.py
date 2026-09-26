@@ -48,6 +48,12 @@ class User(Base):
     # project-wide moderation).
     git_links_enabled = Column(Boolean, nullable=False, default=False)
 
+    # Sidebar personalization: which moduleNav.ts module ids to show. None
+    # means "show everything" (the default, unmodified experience) — an
+    # empty list is a deliberate "hide everything" choice, distinct from
+    # never having customized it.
+    pinned_modules = Column(JSON, nullable=True)
+
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
     cosmos_saved_items = relationship("CosmosSavedItem", back_populates="user", cascade="all, delete-orphan")
     nimrose_projects = relationship("NimroseProject", back_populates="user", cascade="all, delete-orphan")
@@ -77,6 +83,7 @@ class User(Base):
             "gender": self.gender,
             "website": self.website,
             "gitLinksEnabled": bool(self.git_links_enabled),
+            "pinnedModules": self.pinned_modules,
         }
 
 
@@ -188,6 +195,43 @@ class Product(Base):
             "category": self.category,
             "stock": self.stock,
             "specs": self.specs,
+        }
+
+
+class ProductPriceHistory(Base):
+    """One row per price the product has ever been set to. Written whenever
+    a product is created or its price changes (see store_controller.py) —
+    never edited or backfilled otherwise, so this is the real history, not a
+    derived snapshot."""
+
+    __tablename__ = "product_price_history"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    price = Column(Float, nullable=False)
+    recorded_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "price": self.price,
+            "recordedAt": self.recorded_at.isoformat() if self.recorded_at else None,
+        }
+
+
+class WishlistItem(Base):
+    __tablename__ = "wishlist_items"
+    __table_args__ = (UniqueConstraint("user_id", "product_id", name="uq_wishlist_item"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    added_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "productId": self.product_id,
+            "addedAt": self.added_at.isoformat() if self.added_at else None,
         }
 
 
@@ -379,6 +423,21 @@ class CosmosSavedItem(Base):
             "sources": self.research_sources_json or [],
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class HubbleMonitorState(Base):
+    """Last-known MAST observation count per Hubble catalog target — the
+    persisted baseline app/cosmos/hubble.py::check_for_new_observations
+    diffs against to report genuinely new observations between polls,
+    rather than fabricating live activity. One row per target, updated
+    in place as each gets checked."""
+
+    __tablename__ = "hubble_monitor_state"
+
+    id = Column(Integer, primary_key=True)
+    target_id = Column(String(80), unique=True, nullable=False)
+    last_obs_count = Column(Integer, nullable=False, default=0)
+    last_checked_at = Column(DateTime, default=utcnow)
 
 
 class LoginEvent(Base):
@@ -1141,7 +1200,10 @@ DEFAULT_BOARD_COLUMNS = (
 )
 
 
-NOTIFICATION_MODULES = ("kanban", "research", "calendar", "nimrose", "cosmos", "markets", "library")
+NOTIFICATION_MODULES = (
+    "kanban", "research", "calendar", "nimrose", "cosmos", "markets", "library",
+    "store", "vault", "messenger", "office",
+)
 
 
 class Notification(Base):
@@ -1571,4 +1633,129 @@ class PriceAlert(Base):
             "triggeredAt": self.triggered_at.isoformat() if self.triggered_at else None,
             "triggeredPrice": self.triggered_price,
             "cancelledAt": self.cancelled_at.isoformat() if self.cancelled_at else None,
+        }
+
+
+class VaultItem(Base):
+    """Astilo Vault — a generalized "save this" for anything in the app,
+    not just books (Library) or products (Wishlist). Deliberately freeform:
+    item_type/source_module are plain strings rather than a fixed enum
+    since the whole point is covering content the rest of the schema
+    doesn't have a dedicated table for (a Cosmos image, a Markets note, a
+    plain link) alongside content that does. `metadata_json` carries
+    whatever shape that source needs (price, authors, a symbol, ...);
+    `related_ids` is a lightweight same-table link list (no join table) for
+    "these saved items go together"."""
+
+    __tablename__ = "vault_items"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String(300), nullable=False)
+    item_type = Column(String(40), nullable=False, default="link")  # link | note | image | product | article | ...
+    content = Column(Text, nullable=True)
+    url = Column(String(1000), nullable=True)
+    thumbnail_url = Column(String(1000), nullable=True)
+    source_module = Column(String(40), nullable=True)  # e.g. "store", "cosmos", "markets", "manual"
+    tags = Column(JSON, nullable=True)  # list[str]
+    metadata_json = Column(JSON, nullable=True)  # freeform dict, shape depends on source_module
+    related_ids = Column(JSON, nullable=True)  # list[int] — other VaultItem ids
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "itemType": self.item_type,
+            "content": self.content,
+            "url": self.url,
+            "thumbnailUrl": self.thumbnail_url,
+            "sourceModule": self.source_module,
+            "tags": self.tags or [],
+            "metadata": self.metadata_json or {},
+            "relatedIds": self.related_ids or [],
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class NimroseNoteVersion(Base):
+    """Astilo Code's local "Git" — a snapshot of a NimroseNote's content at
+    a point in time. Only ever written for kind="code" notes, one row per
+    save that actually changed the content (see NimroseNotesController.PUT
+    in nimrose_controller.py). No remote/branches/commits — local version
+    history and revert, exactly the scope asked for."""
+
+    __tablename__ = "nimrose_note_versions"
+
+    id = Column(Integer, primary_key=True)
+    note_id = Column(Integer, ForeignKey("nimrose_notes.id"), nullable=False)
+    content = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "noteId": self.note_id,
+            "content": self.content,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ApiStudioRequest(Base):
+    """A saved request in Astilo Code's API Studio — Postman-style request
+    collection, scoped to the owning user."""
+
+    __tablename__ = "api_studio_requests"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(200), nullable=False)
+    method = Column(String(10), nullable=False, default="GET")
+    url = Column(String(2000), nullable=False)
+    headers = Column(JSON, nullable=True)  # dict[str, str]
+    body = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "method": self.method,
+            "url": self.url,
+            "headers": self.headers or {},
+            "body": self.body,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class SavedSqlQuery(Base):
+    """A saved SQL file in Astilo Code's Database Explorer — multiple named
+    query files per user, same spirit as ApiStudioRequest. Deliberately
+    does NOT store a connection string: DatabaseTablesController/
+    DatabaseQueryController persist nothing server-side by design (the
+    string round-trips from the caller each request), and a connection
+    string can embed real DB credentials — saving one here would quietly
+    turn this into a credential store. The client keeps whichever
+    connection is currently active in its own state instead."""
+
+    __tablename__ = "saved_sql_queries"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String(200), nullable=False)
+    sql = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "sql": self.sql,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+            "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }

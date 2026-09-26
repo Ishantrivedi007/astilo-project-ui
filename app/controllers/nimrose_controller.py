@@ -19,6 +19,7 @@ from app.models import (
     NimroseBoardColumn,
     NimroseCalendarEvent,
     NimroseNote,
+    NimroseNoteVersion,
     NimrosePhase,
     NimroseProject,
     NimroseProjectActivity,
@@ -1094,6 +1095,12 @@ class NimroseNotesController:
             session.add(note)
             session.flush()
             _log_project_activity(session, project_id, "note_created", title)
+            # Word documents share kind="note" with plain Nimrose notes (no
+            # separate flag distinguishes them), so only Excel/Slides —
+            # unambiguously Studio/Office documents — get a notification here.
+            if note.kind in ("sheet", "slides"):
+                doc_label = "spreadsheet" if note.kind == "sheet" else "slide deck"
+                notify(session, _user_id(), "office", f"Created {doc_label}: {title}", link="/office")
             return note.to_dict()
 
     @cherrypy.tools.auth()
@@ -1110,6 +1117,12 @@ class NimroseNotesController:
             if "title" in body:
                 note.title = (body["title"] or "").strip() or "Untitled note"
             if "content" in body:
+                # Astilo Code's local "Git": snapshot the outgoing content
+                # before it's overwritten, but only for real code files —
+                # every keystroke of every plain note would otherwise
+                # flood this table for a history nobody asked for there.
+                if note.kind == "code" and body["content"] != note.content:
+                    session.add(NimroseNoteVersion(note_id=note.id, content=note.content))
                 note.content = body["content"]
             if "contentFormat" in body:
                 note.content_format = "html" if body["contentFormat"] == "html" else "markdown"
@@ -1135,6 +1148,7 @@ class NimroseNotesController:
                 raise cherrypy.HTTPError(404, "Note not found")
             require_entity_access(session, note.project_id, note.user_id, _user_id(), min_role="editor")
             _log_project_activity(session, note.project_id, "note_deleted", note.title)
+            session.query(NimroseNoteVersion).filter_by(note_id=note.id).delete()
             session.delete(note)
             return {"deleted": True}
 

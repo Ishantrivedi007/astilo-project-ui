@@ -11,6 +11,7 @@ from app.auth import decode_token
 from app.config import config
 from app.db import get_session
 from app.models import Conversation, ConversationParticipant, DirectMessage, LoginEvent, PersonalContact, User
+from app.notify import notify
 
 IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"}
 
@@ -342,6 +343,21 @@ class MessengerMessagesController:
 
             session.add(message)
             session.flush()
+
+            sender = session.get(User, user_id)
+            other_participants = (
+                session.query(ConversationParticipant)
+                .filter(
+                    ConversationParticipant.conversation_id == int(conversation_id),
+                    ConversationParticipant.user_id != user_id,
+                )
+                .all()
+            )
+            preview = text if text else {"image": "Sent a photo", "file": "Sent a file", "contact": "Shared a contact"}.get(kind, "New message")
+            sender_name = sender.name if sender else "Someone"
+            for participant in other_participants:
+                notify(session, participant.user_id, "messenger", f"{sender_name} sent you a message", body=preview[:140], link="/messenger")
+
             return message.to_dict()
 
     @cherrypy.tools.auth()
