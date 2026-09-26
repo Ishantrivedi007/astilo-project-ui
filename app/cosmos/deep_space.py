@@ -43,9 +43,15 @@ PROBES = {
         "launchDate": "1977-09-05",
         "cdawebDataset": "VG1_PWS_LR",
         "cdawebVariable": "electric_field_timeseries",
-        "pdsInstrumentLid": None,
         "opusInstrument": "Voyager ISS",
-        "flybyTargets": ["Jupiter", "Saturn"],
+        "opusIdPrefix": "vg-iss-1-",
+        # Real closest-approach dates, ± a real encounter-window margin —
+        # scopes OPUS's cross-spacecraft "Voyager ISS" search to this
+        # probe's own flyby instead of returning Voyager 1 for everything.
+        "flybyWindows": {
+            "Jupiter": ("1979-02-01", "1979-04-15"),  # closest approach 1979-03-05
+            "Saturn": ("1980-10-01", "1980-12-15"),  # closest approach 1980-11-12
+        },
         "status": "Active — beyond the heliopause in interstellar space since 2012",
     },
     "voyager-2": {
@@ -54,9 +60,14 @@ PROBES = {
         "launchDate": "1977-08-20",
         "cdawebDataset": "VG2_PWS_LR",
         "cdawebVariable": "electric_field_timeseries",
-        "pdsInstrumentLid": None,
         "opusInstrument": "Voyager ISS",
-        "flybyTargets": ["Jupiter", "Saturn", "Uranus", "Neptune"],
+        "opusIdPrefix": "vg-iss-2-",
+        "flybyWindows": {
+            "Jupiter": ("1979-06-01", "1979-08-15"),  # closest approach 1979-07-09
+            "Saturn": ("1981-07-01", "1981-09-15"),  # closest approach 1981-08-25
+            "Uranus": ("1985-11-01", "1986-02-15"),  # closest approach 1986-01-24
+            "Neptune": ("1989-06-01", "1989-09-15"),  # closest approach 1989-08-25
+        },
         "status": "Active — beyond the heliopause in interstellar space since 2018",
     },
     "new-horizons": {
@@ -65,8 +76,21 @@ PROBES = {
         "launchDate": "2006-01-19",
         "cdawebDataset": None,
         "cdawebVariable": None,
-        "pdsInstrumentLid": "urn:nasa:pds:context:instrument:nh.swap",
-        "pdsImageInstrumentLids": ["urn:nasa:pds:context:instrument:nh.lorri", "urn:nasa:pds:context:instrument:nh.mvic"],
+        # Explicit per-encounter collections, not a generic instrument
+        # search — the generic ref_lid_instrument search only ever surfaces
+        # the Arrokoth-era (KEM1) delivery in practice (a huge, arbitrarily
+        # -ordered result set with the 2015 Pluto encounter buried in it),
+        # so each real encounter is named directly via its own collection.
+        "pdsScienceCollections": [
+            "urn:nasa:pds:nh_swap:pluto_raw",
+            "urn:nasa:pds:nh_swap:kem1_raw",
+        ],
+        "pdsImageCollections": [
+            "urn:nasa:pds:nh_lorri:pluto_raw",
+            "urn:nasa:pds:nh_mvic:pluto_raw",
+            "urn:nasa:pds:nh_lorri:kem1_raw",
+            "urn:nasa:pds:nh_mvic:kem1_cal",
+        ],
         "status": "Active — traveling through the Kuiper Belt after its 2015 Pluto flyby",
     },
 }
@@ -123,69 +147,144 @@ def _pds_search(query: str, limit: int = 50, fields: str | None = None):
     return cached_fetch("pds_search", params, fetch, ttl_seconds=24 * 3600)
 
 
-def _fetch_new_horizons_science(instrument_lid: str):
-    """Best-effort: finds the most recently-modified archived New Horizons
-    instrument product and parses its real telemetry table via pds4_tools.
-    New Horizons' PDS archive runs on a multi-year release cycle (mission
-    data-rights embargo), so "most recent" here is real archived data, not
-    anything close to live — the returned timestamp says so explicitly.
-    Degrades to an explicit unavailable+link shape on any failure (query
-    syntax drift, a product with no parseable table, network hiccup)
-    rather than raising, matching this codebase's never-fabricate rule."""
-    fallback = {"available": False, "pdsSearchUrl": PDS_SBN_SEARCH_UI, "reason": None}
-    try:
-        raw = _pds_search(
-            f'(ref_lid_instrument eq "{instrument_lid}")',
-            limit=50,
-            fields="lid,ops:Label_File_Info.ops:file_ref,pds:Identification_Area.pds:product_class,pds:Modification_Detail.pds:modification_date",
-        )
-    except Exception as exc:
-        fallback["reason"] = f"PDS search failed: {exc}"
-        return fallback
+_FIELD_BLOCK = re.compile(r"<Field_(?:Binary|Character)>.*?</Field_(?:Binary|Character)>", re.DOTALL)
+_FIELD_NAME = re.compile(r"<name>(.*?)</name>")
+_FIELD_DESC = re.compile(r"<description>(.*?)</description>", re.DOTALL)
+_FIELD_UNITS_HINT = re.compile(r"Units:\s*([^\s]+(?:\s[^\s]+)?)\s*(?:$|Byte|Bit|Type)")
 
-    candidates = []
-    for item in raw.get("data", []):
-        props = item.get("properties", {})
-        product_class = props.get("pds:Identification_Area.pds:product_class") or []
-        if "Product_Observational" not in product_class:
+# Tables that carry spacecraft engineering/health data, not the actual
+# science measurement — deprioritized in favor of a genuine science table
+# (e.g. "Summary") when a product has both, same real-data-first principle
+# as MAST's calibrated-over-raw product preference elsewhere in this file.
+_NON_SCIENCE_TABLE_NAMES = {"housekeeping", "housekeeping table", "thrusters", "thrusters table"}
+
+
+def _parse_field_descriptions(label_text: str) -> dict[str, dict]:
+    """Real per-field descriptions straight from the PDS4 label's own
+    <description> elements (e.g. "An estimate of the solar wind density")
+    — not something guessed from the field name. Where the label states a
+    real unit it's kept; where it says "N/A" (true for most of SWAP's raw
+    telemetry fields — this is uncalibrated instrument counts, not a
+    physical unit), that's surfaced honestly rather than invented."""
+    result = {}
+    for block in _FIELD_BLOCK.findall(label_text):
+        name_match = _FIELD_NAME.search(block)
+        desc_match = _FIELD_DESC.search(block)
+        if not name_match or not desc_match:
             continue
-        file_ref = (props.get("ops:Label_File_Info.ops:file_ref") or [None])[0]
-        mod_date = (props.get("pds:Modification_Detail.pds:modification_date") or [None])[0]
-        if file_ref and file_ref.endswith((".lblx", ".xml")):
-            candidates.append((mod_date or "", file_ref, item.get("id")))
+        desc = " ".join(desc_match.group(1).split())
+        # Full label reads "Full Mnemonic: X  General Description: Y   Subsystem: ...";
+        # the "General Description" segment is the human-readable part worth surfacing.
+        general = re.search(r"General Description:\s*(.*?)\s*Subsystem:", desc)
+        clean_desc = general.group(1) if general else desc
+        units_match = _FIELD_UNITS_HINT.search(desc)
+        units = units_match.group(1).strip() if units_match else None
+        result[name_match.group(1)] = {"description": clean_desc, "units": units}
+    return result
 
-    if not candidates:
-        fallback["reason"] = "No observational products found for this instrument in this page of results"
-        return fallback
 
-    candidates.sort(key=lambda c: c[0], reverse=True)
-    _, label_url, lid = candidates[0]
+def _fetch_new_horizons_science(collection_lids: list[str]):
+    """Real New Horizons SWAP (Solar Wind Around Pluto) instrument
+    telemetry, spanning BOTH real encounters explicitly named in
+    `collection_lids` (Pluto 2015, Arrokoth 2019/KEM1) — same reasoning as
+    _fetch_new_horizons_images: a generic ref_lid_instrument search only
+    ever surfaces one encounter in practice. Each collection's most
+    recently-modified product is parsed via pds4_tools; a real per-field
+    description is pulled straight from the PDS4 label (never invented),
+    and several real rows (not just one) are returned so the reading looks
+    like actual instrument output, not a single cherry-picked number.
+    Degrades to an explicit unavailable+link shape only if every
+    collection fails."""
+    fallback = {"available": False, "pdsSearchUrl": PDS_SBN_SEARCH_UI, "reason": None}
+    readings_by_encounter = []
 
-    try:
+    for collection_lid in collection_lids:
+        try:
+            raw = _pds_collection_members(collection_lid, limit=20)
+        except Exception:
+            continue
+
+        candidates = []
+        for item in raw.get("data", []):
+            props = item.get("properties", {})
+            if "Product_Observational" not in (props.get("pds:Identification_Area.pds:product_class") or []):
+                continue
+            file_ref = (props.get("ops:Label_File_Info.ops:file_ref") or [None])[0]
+            if file_ref and file_ref.endswith((".lblx", ".xml")):
+                candidates.append((file_ref, item.get("id")))
+
+        if not candidates:
+            continue
+
+        # Not every product in a collection has an actual science table —
+        # some packet types (e.g. Pluto's "Coarse Histogram" raw products)
+        # only carry Housekeeping/Thrusters engineering tables. Try a
+        # handful of candidates until one has a real, non-engineering
+        # table rather than accepting whichever happens to be first.
         import pds4_tools
 
-        structures = pds4_tools.read(label_url, quiet=True, lazy_load=True)
-        tables = [s for s in structures if type(s).__name__ == "TableStructure"]
-        if not tables:
-            fallback["reason"] = "Product has no parseable table structure"
-            return fallback
+        found = None
+        for label_url, lid in candidates[:8]:
+            try:
+                structures = pds4_tools.read(label_url, quiet=True, lazy_load=True)
+                tables = [s for s in structures if type(s).__name__ == "TableStructure"]
+                science_table = next(
+                    (t for t in tables if (getattr(t, "id", "") or "").lower() not in _NON_SCIENCE_TABLE_NAMES),
+                    None,
+                )
+                if science_table is None:
+                    continue
+                fields = list(science_table.data.dtype.names) if hasattr(science_table.data, "dtype") and science_table.data.dtype.names else []
+                if not fields:
+                    continue
+                found = (structures, label_url, lid, science_table, fields)
+                break
+            except Exception:
+                continue
 
-        table = tables[0]
-        fields = list(table.data.dtype.names) if hasattr(table.data, "dtype") and table.data.dtype.names else []
-        first_row = {name: _json_safe(table.data[name][0]) for name in fields} if fields else {}
+        if found is None:
+            continue
+        structures, label_url, lid, science_table, fields = found
 
-        return {
-            "available": True,
-            "productLid": lid,
-            "labelUrl": label_url,
-            "tableName": getattr(table, "id", None),
-            "fields": fields,
-            "sampleReading": first_row,
-        }
-    except Exception as exc:
-        fallback["reason"] = f"Could not parse PDS4 table: {exc}"
-        fallback["labelUrl"] = label_url
+        try:
+            row_count = min(5, len(science_table.data))
+            rows = [{name: _json_safe(science_table.data[name][i]) for name in fields} for i in range(row_count)]
+
+            label_text = structures.label.to_string()
+            field_info = _parse_field_descriptions(label_text)
+
+            readings_by_encounter.append({
+                "collection": collection_lid,
+                "productLid": lid,
+                "labelUrl": label_url,
+                "tableName": getattr(science_table, "id", None),
+                "fields": fields,
+                "fieldInfo": {name: field_info[name] for name in fields if name in field_info},
+                "rows": rows,
+            })
+        except Exception:
+            continue
+
+    if not readings_by_encounter:
+        fallback["reason"] = "No parseable SWAP products found across any known encounter collection"
         return fallback
+
+    # Prefer a "Summary"-named table (the real per-period solar-wind
+    # estimate) as the headline encounter shown at the top level; any
+    # engineering-only table that slipped through still appears in
+    # `encounters` for whichever collection produced it.
+    primary = next((e for e in readings_by_encounter if "summary" in (e["tableName"] or "").lower()), readings_by_encounter[0])
+    return {
+        "available": True,
+        "productLid": primary["productLid"],
+        "labelUrl": primary["labelUrl"],
+        "tableName": primary["tableName"],
+        "fields": primary["fields"],
+        "fieldInfo": primary["fieldInfo"],
+        "sampleReading": primary["rows"][0] if primary["rows"] else {},
+        "recentRows": primary["rows"],
+        "encounters": readings_by_encounter,
+    }
 
 
 def _json_safe(v):
@@ -206,15 +305,16 @@ def get_probe_science_data(probe_id: str):
             if result is None:
                 return envelope("NASA CDAWeb (SPDF)", probe["cdawebDataset"], None, {"available": False}, None)
             data = dict(result["data"])
+            data.pop("files", None)  # raw CDF blob (megabytes) — recentReadings/frequenciesHz already extracted the useful values
             data["available"] = True
             data["dataCoverageEnd"] = coverage["End"] if coverage else None
             return envelope("NASA CDAWeb (SPDF)", probe["cdawebDataset"], probe_id, data, None)
         except Exception:
             return envelope("NASA CDAWeb (SPDF)", probe["cdawebDataset"], None, {"available": False}, None)
 
-    if probe["pdsInstrumentLid"]:
-        data = _fetch_new_horizons_science(probe["pdsInstrumentLid"])
-        return envelope("NASA PDS (Small Bodies Node)", probe["pdsInstrumentLid"], probe_id, data, None)
+    if probe.get("pdsScienceCollections"):
+        data = _fetch_new_horizons_science(probe["pdsScienceCollections"])
+        return envelope("NASA PDS (Small Bodies Node)", "nh.swap", probe_id, data, None)
 
     return envelope("Astilo Deep Space", "none", probe_id, {"available": False}, None)
 
@@ -224,20 +324,38 @@ _EXPOSURE_LINE = re.compile(r"<img:exposure_duration[^>]*>([\d.]+)</img:exposure
 _START_TIME_LINE = re.compile(r"<start_date_time>(.*?)</start_date_time>")
 
 
-def _fetch_new_horizons_images(instrument_lids: list[str], limit_per_instrument: int = 3):
+def _pds_collection_members(collection_lid: str, limit: int = 20):
+    """Lists real products belonging to one named PDS4 collection (e.g. one
+    specific encounter's LORRI raw-data delivery) via the /members
+    endpoint — more reliable than the generic ref_lid_instrument search,
+    which returns a huge (tens of thousands), arbitrarily-ordered result
+    set that in practice never surfaces older encounters (e.g. the 2015
+    Pluto flyby was never seen in the first several hundred generic-search
+    results, though it's real, present data)."""
+    params = {"limit": limit, "fields": "lid,ops:Label_File_Info.ops:file_ref,pds:Identification_Area.pds:product_class"}
+
+    def fetch():
+        resp = cosmos_get(f"{PDS_SEARCH_URL}/{collection_lid}/members", params=params, timeout=25, headers={"Accept": "application/json"})
+        resp.raise_for_status()
+        return resp.json()
+
+    return cached_fetch("pds_members", {"collection": collection_lid, "limit": limit}, fetch, ttl_seconds=24 * 3600)
+
+
+def _fetch_new_horizons_images(collection_lids: list[str], limit_per_collection: int = 3):
     """Real LORRI/MVIC photos New Horizons actually took, decoded from
     their PDS4 image arrays via pds4_tools + the shared normalize-to-PNG
     helper (identical math to MAST's FITS pipeline). Each image is
     independently try/excepted — one bad/oversized product shouldn't blank
-    the whole gallery."""
+    the whole gallery. `collection_lids` names each real encounter/
+    instrument delivery explicitly (see PROBES) so the gallery actually
+    spans New Horizons' real targets (Pluto/Charon in 2015, Arrokoth in
+    2019) instead of only ever showing whichever one a generic search
+    happens to surface first."""
     images = []
-    for instrument_lid in instrument_lids:
+    for collection_lid in collection_lids:
         try:
-            raw = _pds_search(
-                f'(ref_lid_instrument eq "{instrument_lid}")',
-                limit=30,
-                fields="lid,ops:Label_File_Info.ops:file_ref,pds:Identification_Area.pds:product_class,pds:Modification_Detail.pds:modification_date",
-            )
+            raw = _pds_collection_members(collection_lid, limit=limit_per_collection * 4)
         except Exception:
             continue
 
@@ -247,13 +365,10 @@ def _fetch_new_horizons_images(instrument_lids: list[str], limit_per_instrument:
             if "Product_Observational" not in (props.get("pds:Identification_Area.pds:product_class") or []):
                 continue
             file_ref = (props.get("ops:Label_File_Info.ops:file_ref") or [None])[0]
-            mod_date = (props.get("pds:Modification_Detail.pds:modification_date") or [None])[0]
             if file_ref and file_ref.endswith((".lblx", ".xml")):
-                candidates.append((mod_date or "", file_ref, item.get("id")))
+                candidates.append((file_ref, item.get("id")))
 
-        candidates.sort(key=lambda c: c[0], reverse=True)
-
-        for _, label_url, lid in candidates[:limit_per_instrument]:
+        for label_url, lid in candidates[:limit_per_collection]:
             try:
                 import pds4_tools
 
@@ -290,20 +405,33 @@ def _fetch_new_horizons_images(instrument_lids: list[str], limit_per_instrument:
     return images
 
 
-def _fetch_voyager_images(probe: dict, limit_per_target: int = 4):
+def _fetch_voyager_images(probe: dict, limit_per_target: int = 6):
     """Real Voyager ISS photos of each probe's actual flyby targets — the
     calibrated browse JPEG NASA's OPUS API already renders (real imagery,
     not a placeholder), plus real per-observation metadata (target,
-    observation time, exposure duration) from the same search result."""
+    observation time, exposure duration) from the same search result.
+
+    OPUS's `instrument=Voyager ISS` filter covers BOTH spacecraft (it has
+    no separate "Voyager 1 ISS"/"Voyager 2 ISS" value) — for a target both
+    probes visited (Jupiter, Saturn), an unfiltered search returns Voyager
+    1's earlier flyby first every time, so Voyager 2's own gallery would
+    silently show Voyager 1's photos. Each opusId encodes which spacecraft
+    took it (`vg-iss-1-...`/`vg-iss-2-...`), so a wider candidate pool is
+    fetched per target and filtered down to the right probe."""
     images = []
-    for target in probe["flybyTargets"]:
+    for target, (time1, time2) in probe["flybyWindows"].items():
         try:
-            search_env = opus.search_images(target, instrument=probe["opusInstrument"], limit=limit_per_target)
+            search_env = opus.search_images(target, instrument=probe["opusInstrument"], limit=limit_per_target * 3, time1=time1, time2=time2)
             rows = search_env["data"]["results"]
         except Exception:
             continue
 
-        for row in rows:
+        # The time window should already isolate this probe's own flyby;
+        # the opusId-prefix check is a cheap belt-and-suspenders guard
+        # against an edge case at a window boundary.
+        matched = [r for r in rows if r["opusId"].startswith(probe["opusIdPrefix"])][:limit_per_target]
+
+        for row in matched:
             try:
                 image_url = opus.fetch_browse_image_url(row["opusId"])
                 if not image_url:
@@ -325,8 +453,8 @@ def _fetch_voyager_images(probe: dict, limit_per_target: int = 4):
 def get_probe_images(probe_id: str):
     probe = PROBES[probe_id]
 
-    if probe.get("pdsImageInstrumentLids"):
-        images = _fetch_new_horizons_images(probe["pdsImageInstrumentLids"])
+    if probe.get("pdsImageCollections"):
+        images = _fetch_new_horizons_images(probe["pdsImageCollections"])
         return envelope("NASA PDS (Small Bodies Node)", "images", probe_id, {"count": len(images), "results": images}, None)
 
     if probe.get("opusInstrument"):

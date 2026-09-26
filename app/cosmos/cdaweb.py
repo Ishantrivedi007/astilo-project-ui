@@ -42,7 +42,72 @@ def fetch_recent_data(dataset_id: str, variable: str, end: datetime.datetime, ho
     if not cdf_files:
         return None
 
-    return envelope("NASA CDAWeb (SPDF)", dataset_id, variable, {"windowHours": hours, "files": cdf_files}, None)
+    parsed = _parse_readings(cdf_files[0], variable)
+    data = {"windowHours": hours, "files": cdf_files, **parsed}
+    return envelope("NASA CDAWeb (SPDF)", dataset_id, variable, data, None)
+
+
+def _variable_by_name(cdf_file: dict, name: str) -> dict | None:
+    for v in cdf_file.get("cdfVariables", {}).get("variable", []):
+        if v.get("name") == name:
+            return v
+    return None
+
+
+def _records(var: dict | None) -> list[dict]:
+    if not var:
+        return []
+    return var.get("cdfVarData", {}).get("record", [])
+
+
+def _var_attribute(var: dict | None, name: str) -> str | None:
+    if not var:
+        return None
+    for attr in var.get("cdfVAttributes", {}).get("attribute", []):
+        if attr.get("name") == name:
+            entries = attr.get("entry", [])
+            return entries[0].get("value") if entries else None
+    return None
+
+
+def _parse_readings(cdf_file: dict, variable: str, max_readings: int = 12) -> dict:
+    """Pulls real timestamps + the last few real value-arrays out of
+    CDAWeb's deeply-nested CDF JSON, plus the frequency-channel labels a
+    spectrogram variable like electric_field_timeseries is sampled at —
+    real numbers straight from the archive, not summarized/paraphrased."""
+    value_var = _variable_by_name(cdf_file, variable)
+    epoch_records = _records(_variable_by_name(cdf_file, "epoch"))
+    value_records = _records(value_var)
+    freq_records = _records(_variable_by_name(cdf_file, "frequency"))
+
+    units = _var_attribute(value_var, "UNITS")
+    description = _var_attribute(value_var, "CATDESC")
+
+    frequencies = None
+    if freq_records:
+        raw = freq_records[0].get("value", [""])[0]
+        try:
+            frequencies = [float(x) for x in raw.split()]
+        except ValueError:
+            frequencies = None
+
+    readings = []
+    for epoch_row, value_row in zip(epoch_records[-max_readings:], value_records[-max_readings:]):
+        timestamp = (epoch_row.get("value") or [None])[0]
+        raw_values = (value_row.get("value") or [""])[0]
+        try:
+            values = [float(x) for x in raw_values.split()]
+        except ValueError:
+            continue
+        readings.append({"timestamp": timestamp, "values": values})
+
+    return {
+        "frequenciesHz": frequencies,
+        "recentReadings": list(reversed(readings)),  # newest first
+        "totalRecordsInWindow": len(value_records),
+        "valueUnits": units,
+        "valueDescription": description,
+    }
 
 
 def dataset_time_range(dataset_id: str):

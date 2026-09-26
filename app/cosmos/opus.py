@@ -20,8 +20,17 @@ BASE_URL = "https://opus.pds-rings.seti.org/opus/api"
 _BROWSE_KEYS = ("vgiss_calib_browse", "vgiss_cleaned_browse", "vgiss_geomed_browse", "vgiss_raw_browse")
 
 
-def search_images(target: str, instrument: str = "Voyager ISS", limit: int = 12):
+def search_images(target: str, instrument: str = "Voyager ISS", limit: int = 12, time1: str | None = None, time2: str | None = None):
+    """`time1`/`time2` (ISO dates) scope the search to a real encounter
+    window — needed because OPUS's `instrument=Voyager ISS` filter covers
+    BOTH spacecraft (there's no separate per-probe instrument value), so an
+    unscoped search for a target both probes visited (Jupiter, Saturn)
+    always returns Voyager 1's earlier flyby first, never Voyager 2's."""
     params = {"instrument": instrument, "target": target, "limit": limit}
+    if time1:
+        params["time1"] = time1
+    if time2:
+        params["time2"] = time2
 
     def fetch():
         resp = cosmos_get(f"{BASE_URL}/data.json", params=params, timeout=25, headers={"Accept": "application/json"})
