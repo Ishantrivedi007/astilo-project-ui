@@ -440,6 +440,20 @@ class HubbleMonitorState(Base):
     last_checked_at = Column(DateTime, default=utcnow)
 
 
+class DeepSpaceMonitorState(Base):
+    """Last-known science-data marker (a CDAWeb coverage-end timestamp or a
+    PDS product LID) per deep-space probe — the persisted baseline
+    app/cosmos/deep_space.py::check_for_new_probe_data diffs against to
+    report genuinely new archived data between polls."""
+
+    __tablename__ = "deep_space_monitor_state"
+
+    id = Column(Integer, primary_key=True)
+    probe_id = Column(String(40), unique=True, nullable=False)
+    last_seen_timestamp = Column(String(255), nullable=True)
+    last_checked_at = Column(DateTime, default=utcnow)
+
+
 class LoginEvent(Base):
     """One row per successful login/register — powers the profile's
     sign-in history. Auth is stateless JWT (no server-side session table),

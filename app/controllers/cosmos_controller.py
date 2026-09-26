@@ -3,7 +3,7 @@ import datetime
 import cherrypy
 import requests
 
-from app.cosmos import exoplanets, gaia, heasarc, hubble, jpl, mast, nasa, satellites, simbad, wikipedia
+from app.cosmos import deep_space, exoplanets, gaia, heasarc, hubble, jpl, mast, nasa, satellites, simbad, wikipedia
 from app.db import get_session
 from app.models import CosmosSavedItem
 
@@ -294,6 +294,44 @@ class MissionBrowseController:
         if not mission:
             raise cherrypy.HTTPError(400, "mission is required (e.g. ?mission=JWST)")
         return _guard(mast.browse_mission, mission, int(limit), instrument, start_date, end_date)
+
+
+class DeepSpaceCatalogController:
+    """Voyager 1, Voyager 2, and New Horizons — real live distance/speed via
+    JPL Horizons for each. No API key required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        return _guard(deep_space.get_catalog)
+
+
+class DeepSpaceProbeController:
+    """One probe's full detail: live position/distance/speed (JPL Horizons)
+    plus real raw instrument science data — NASA CDAWeb for the Voyagers,
+    NASA PDS (parsed via pds4_tools) for New Horizons. No API key
+    required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, probe=None):
+        if not probe or probe not in deep_space.PROBES:
+            raise cherrypy.HTTPError(400, f"probe is required, one of: {', '.join(deep_space.PROBES)}")
+        return _guard(deep_space.get_probe_detail, probe)
+
+
+class DeepSpaceMonitorController:
+    """Real diff against each probe's latest archived science-data marker
+    since the last check — not a live telemetry simulation. No API key
+    required."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self):
+        return _guard(deep_space.check_for_new_probe_data)
 
 
 class HubbleCatalogController:

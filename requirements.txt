@@ -10,3 +10,4 @@ mutagen==1.48.1
 sgp4==2.23
 astropy==6.1.7
 Pillow==12.3.0
+pds4_tools==1.4
