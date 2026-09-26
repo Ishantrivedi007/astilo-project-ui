@@ -6,7 +6,6 @@ Used here: Mashup "Mast.Caom.Cone" service for observation search by target
 name or coordinates, across Hubble/JWST/TESS/Kepler/GALEX/Spitzer.
 """
 
-import base64
 import datetime
 import io
 import json
@@ -224,21 +223,13 @@ def fetch_fits_image(obsid: str):
     header fields (instrument, filter, exposure time, target). Returns
     None if no image FITS product exists.
 
-    Raw astronomical pixel data has enormous dynamic range (a handful of
-    saturated star pixels next to a faint galaxy smear), so a naive linear
-    map to 0-255 renders as almost solid black. The percentile-clip +
-    asinh stretch below is the same family of normalization DS9 (the
-    standard astronomy image viewer) and astropy's own ZScale+AsinhStretch
-    use — implemented directly on the percentile/arcsinh math rather than
-    imported from astropy.visualization, because that subpackage's import
-    chain (astropy.units -> astropy.constants -> ...) calls the
-    now-removed `numpy.in1d` under the astropy 6.1.7 + numpy 2.x
-    combination this backend runs (see requirements.txt) and raises
-    AttributeError on import alone. astropy.io.fits (used above) doesn't
-    touch that chain, so it's unaffected."""
-    import numpy as np
+    Pixel normalization (percentile clip + asinh stretch) is shared with
+    New Horizons' image pipeline via app/cosmos/imaging.py — see that
+    module's docstring for why it's hand-rolled rather than using
+    astropy.visualization directly."""
     from astropy.io import fits
-    from PIL import Image
+
+    from app.cosmos.imaging import array_to_png_and_stats
 
     products = get_data_products(obsid)
     candidates = [
@@ -281,47 +272,8 @@ def fetch_fits_image(obsid: str):
         header = image_hdu.header
         primary_header = hdul[0].header
 
-        finite = data[np.isfinite(data)]
-        stats = {
-            "width": int(data.shape[1]),
-            "height": int(data.shape[0]),
-            "min": _json_safe_float(finite.min()) if finite.size else None,
-            "max": _json_safe_float(finite.max()) if finite.size else None,
-            "mean": _json_safe_float(finite.mean()) if finite.size else None,
-            "std": _json_safe_float(finite.std()) if finite.size else None,
-        }
-
-        if finite.size:
-            # 1st/99th percentile clip — the same "ignore the extreme
-            # outliers" idea ZScale encodes, without needing its iterative
-            # sample-region algorithm.
-            lo, hi = np.percentile(finite, [1.0, 99.0])
-        else:
-            lo, hi = 0.0, 1.0
-        span = (hi - lo) or 1.0
-        clipped = np.clip((np.nan_to_num(data, nan=lo) - lo) / span, 0, 1)
-        # Asinh soft stretch: compresses bright peaks and lifts faint
-        # detail (linear data alone still looks mostly black/white after
-        # just a percentile clip) — arcsinh(k*x)/arcsinh(k) maps [0,1] to
-        # [0,1] while pulling shadow detail up non-linearly.
-        k = 10.0
-        normalized = np.arcsinh(k * clipped) / np.arcsinh(k)
-
-        img_array = (normalized * 255).astype(np.uint8)
-        img_array = np.flipud(img_array)  # FITS row 0 is the bottom; images are stored top-down
-
-        img = Image.fromarray(img_array, mode="L")
-        # Cap the longest edge so a multi-thousand-pixel drizzled mosaic
-        # doesn't ship a multi-megabyte PNG to the browser for what's
-        # ultimately a preview, not a science download.
-        max_edge = 1200
-        if max(img.size) > max_edge:
-            ratio = max_edge / max(img.size)
-            img = img.resize((max(1, int(img.width * ratio)), max(1, int(img.height * ratio))))
-
-        buf = io.BytesIO()
-        img.save(buf, format="PNG", optimize=True)
-        png_base64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        # FITS row 0 is the bottom; images are stored top-down.
+        png_data_uri, stats = array_to_png_and_stats(data, flip_vertical=True)
 
         def _num(key):
             v = header.get(key, primary_header.get(key))
@@ -343,7 +295,7 @@ def fetch_fits_image(obsid: str):
 
         result = {
             "productFilename": image_row.get("productFilename"),
-            "imagePngBase64": f"data:image/png;base64,{png_base64}",
+            "imagePngBase64": png_data_uri,
             "stats": stats,
             "header": header_fields,
         }

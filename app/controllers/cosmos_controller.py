@@ -322,6 +322,23 @@ class DeepSpaceProbeController:
         return _guard(deep_space.get_probe_detail, probe)
 
 
+class DeepSpaceProbeImagesController:
+    """Real photos the probe actually took — New Horizons LORRI/MVIC images
+    decoded from NASA PDS4 products (pds4_tools), or Voyager ISS calibrated
+    browse imagery from NASA's OPUS API (Ring-Moon Systems Node) — plus
+    real target/exposure/observation-time metadata for each. No API key
+    required. Lazy/on-demand like Hubble's fits-image/spectrum endpoints,
+    since decoding images is slower than the main probe detail call."""
+
+    exposed = True
+
+    @cherrypy.tools.json_out()
+    def GET(self, probe=None):
+        if not probe or probe not in deep_space.PROBES:
+            raise cherrypy.HTTPError(400, f"probe is required, one of: {', '.join(deep_space.PROBES)}")
+        return _guard(deep_space.get_probe_images, probe)
+
+
 class DeepSpaceMonitorController:
     """Real diff against each probe's latest archived science-data marker
     since the last check — not a live telemetry simulation. No API key

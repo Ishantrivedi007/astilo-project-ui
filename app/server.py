@@ -14,6 +14,7 @@ from app.controllers.cosmos_controller import (
     DeepSpaceCatalogController,
     DeepSpaceMonitorController,
     DeepSpaceProbeController,
+    DeepSpaceProbeImagesController,
     DonkiController,
     FitsImageController,
     ExoplanetController,
@@ -268,6 +269,7 @@ def build_app():
     cherrypy.tree.mount(HubblePositionController(), "/api/cosmos/hubble/position", conf)
     cherrypy.tree.mount(DeepSpaceCatalogController(), "/api/cosmos/deep-space/catalog", conf)
     cherrypy.tree.mount(DeepSpaceProbeController(), "/api/cosmos/deep-space/probe", conf)
+    cherrypy.tree.mount(DeepSpaceProbeImagesController(), "/api/cosmos/deep-space/probe/images", conf)
     cherrypy.tree.mount(DeepSpaceMonitorController(), "/api/cosmos/deep-space/monitor", conf)
     cherrypy.tree.mount(SatelliteController(), "/api/cosmos/satellites", conf)
     cherrypy.tree.mount(SatelliteSearchController(), "/api/cosmos/satellites/search", conf)
