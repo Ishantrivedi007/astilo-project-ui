@@ -42,6 +42,43 @@ const CosmosDeepSpace = lazy(() => import("../components/Cosmos/CosmosDeepSpace"
 const CosmosDeepSpaceDetail = lazy(() => import("../components/Cosmos/CosmosDeepSpaceDetail"));
 const CosmosSatelliteTracker = lazy(() => import("../components/Cosmos/CosmosSatelliteTracker"));
 const CosmosReferenceLibrary = lazy(() => import("../components/Cosmos/CosmosReferenceLibrary"));
+const AbyssHome = lazy(() => import("../components/Abyss/AbyssHome"));
+const AbyssOceanExplorer = lazy(() => import("../components/Abyss/AbyssOceanExplorer"));
+const AbyssDepthDescent = lazy(() => import("../components/Abyss/AbyssDepthDescent"));
+const AbyssSoundscape = lazy(() => import("../components/Abyss/AbyssSoundscape"));
+const AbyssEdnaLab = lazy(() => import("../components/Abyss/AbyssEdnaLab"));
+const AbyssOceanChemistry = lazy(() => import("../components/Abyss/AbyssOceanChemistry"));
+const AbyssMicroscope = lazy(() => import("../components/Abyss/AbyssMicroscope"));
+const AbyssMysteryLab = lazy(() => import("../components/Abyss/AbyssMysteryLab"));
+const AbyssFoodWeb = lazy(() => import("../components/Abyss/AbyssFoodWeb"));
+const AbyssReefTwin = lazy(() => import("../components/Abyss/AbyssReefTwin"));
+const AbyssBuildACreature = lazy(() => import("../components/Abyss/AbyssBuildACreature"));
+const AbyssEvolutionSim = lazy(() => import("../components/Abyss/AbyssEvolutionSim"));
+const AbyssNereus = lazy(() => import("../components/Abyss/AbyssNereus"));
+const AbyssCoverageExplorer = lazy(() => import("../components/Abyss/AbyssCoverageExplorer"));
+const AbyssDatasetComparison = lazy(() => import("../components/Abyss/AbyssDatasetComparison"));
+const AbyssPaleoOcean = lazy(() => import("../components/Abyss/AbyssPaleoOcean"));
+const AbyssOceanVsSpace = lazy(() => import("../components/Abyss/AbyssOceanVsSpace"));
+const AbyssExpeditions = lazy(() => import("../components/Abyss/AbyssExpeditions"));
+const AbyssRealExpeditions = lazy(() => import("../components/Abyss/AbyssRealExpeditions"));
+const AbyssProvenanceGraph = lazy(() => import("../components/Abyss/AbyssProvenanceGraph"));
+const AbyssDataInspector = lazy(() => import("../components/Abyss/AbyssDataInspector"));
+const AbyssTaxonomyTree = lazy(() => import("../components/Abyss/AbyssTaxonomyTree"));
+const AbyssEvolutionExplorer = lazy(() => import("../components/Abyss/AbyssEvolutionExplorer"));
+const AbyssHabitats = lazy(() => import("../components/Abyss/AbyssHabitats"));
+const AbyssHydrothermalVents = lazy(() => import("../components/Abyss/AbyssHydrothermalVents"));
+const AbyssMicrobialOcean = lazy(() => import("../components/Abyss/AbyssMicrobialOcean"));
+const AbyssScaleExplorer = lazy(() => import("../components/Abyss/AbyssScaleExplorer"));
+const AbyssKnowledgeMap = lazy(() => import("../components/Abyss/AbyssKnowledgeMap"));
+const AbyssTheUnknown = lazy(() => import("../components/Abyss/AbyssTheUnknown"));
+const AbyssCompareSpecies = lazy(() => import("../components/Abyss/AbyssCompareSpecies"));
+const AbyssLab = lazy(() => import("../components/Abyss/AbyssLab"));
+const AbyssOceanHeatExplorer = lazy(() => import("../components/Abyss/AbyssOceanHeatExplorer"));
+const AbyssMarineAnatomy = lazy(() => import("../components/Abyss/AbyssMarineAnatomy"));
+const AbyssSearch = lazy(() => import("../components/Abyss/AbyssSearch"));
+const AbyssSpeciesProfile = lazy(() => import("../components/Abyss/AbyssSpeciesProfile"));
+const AbyssCodex = lazy(() => import("../components/Abyss/AbyssCodex"));
+const AbyssDataSources = lazy(() => import("../components/Abyss/AbyssDataSources"));
 const MarketsHome = lazy(() => import("../components/Markets/MarketsHome"));
 const MarketsAssetView = lazy(() => import("../components/Markets/MarketsAssetView"));
 const MarketsWorldMap = lazy(() => import("../components/Markets/MarketsWorldMap"));
@@ -198,6 +235,43 @@ const AppRoutes = () => (
       <Route path={`${AppRoute.cosmosDeepSpace}/:probeId`} element={getAuthRoute(<CosmosDeepSpaceDetail />)} />
       <Route path={AppRoute.cosmosSatelliteTracker} element={getAuthRoute(<CosmosSatelliteTracker />)} />
       <Route path={AppRoute.cosmosReferenceLibrary} element={getAuthRoute(<CosmosReferenceLibrary />)} />
+      <Route path={AppRoute.abyss} element={getAuthRoute(<AbyssHome />)} />
+      <Route path={AppRoute.abyssOcean} element={getAuthRoute(<AbyssOceanExplorer />)} />
+      <Route path={AppRoute.abyssDepthDescent} element={getAuthRoute(<AbyssDepthDescent />)} />
+      <Route path={AppRoute.abyssSoundscape} element={getAuthRoute(<AbyssSoundscape />)} />
+      <Route path={AppRoute.abyssEdnaLab} element={getAuthRoute(<AbyssEdnaLab />)} />
+      <Route path={AppRoute.abyssChemistry} element={getAuthRoute(<AbyssOceanChemistry />)} />
+      <Route path={AppRoute.abyssMicroscope} element={getAuthRoute(<AbyssMicroscope />)} />
+      <Route path={AppRoute.abyssMysteryLab} element={getAuthRoute(<AbyssMysteryLab />)} />
+      <Route path={AppRoute.abyssFoodWeb} element={getAuthRoute(<AbyssFoodWeb />)} />
+      <Route path={AppRoute.abyssReefTwin} element={getAuthRoute(<AbyssReefTwin />)} />
+      <Route path={AppRoute.abyssBuildACreature} element={getAuthRoute(<AbyssBuildACreature />)} />
+      <Route path={AppRoute.abyssEvolutionSim} element={getAuthRoute(<AbyssEvolutionSim />)} />
+      <Route path={AppRoute.abyssNereus} element={getAuthRoute(<AbyssNereus />)} />
+      <Route path={AppRoute.abyssCoverage} element={getAuthRoute(<AbyssCoverageExplorer />)} />
+      <Route path={AppRoute.abyssDatasetComparison} element={getAuthRoute(<AbyssDatasetComparison />)} />
+      <Route path={AppRoute.abyssPaleoOcean} element={getAuthRoute(<AbyssPaleoOcean />)} />
+      <Route path={AppRoute.abyssOceanVsSpace} element={getAuthRoute(<AbyssOceanVsSpace />)} />
+      <Route path={AppRoute.abyssExpeditions} element={getAuthRoute(<AbyssExpeditions />)} />
+      <Route path={AppRoute.abyssRealExpeditions} element={getAuthRoute(<AbyssRealExpeditions />)} />
+      <Route path={AppRoute.abyssProvenanceGraph} element={getAuthRoute(<AbyssProvenanceGraph />)} />
+      <Route path={AppRoute.abyssDataInspector} element={getAuthRoute(<AbyssDataInspector />)} />
+      <Route path={AppRoute.abyssTaxonomyTree} element={getAuthRoute(<AbyssTaxonomyTree />)} />
+      <Route path={AppRoute.abyssEvolutionExplorer} element={getAuthRoute(<AbyssEvolutionExplorer />)} />
+      <Route path={AppRoute.abyssHabitats} element={getAuthRoute(<AbyssHabitats />)} />
+      <Route path={AppRoute.abyssHydrothermalVents} element={getAuthRoute(<AbyssHydrothermalVents />)} />
+      <Route path={AppRoute.abyssMicrobialOcean} element={getAuthRoute(<AbyssMicrobialOcean />)} />
+      <Route path={AppRoute.abyssScaleExplorer} element={getAuthRoute(<AbyssScaleExplorer />)} />
+      <Route path={AppRoute.abyssKnowledgeMap} element={getAuthRoute(<AbyssKnowledgeMap />)} />
+      <Route path={AppRoute.abyssTheUnknown} element={getAuthRoute(<AbyssTheUnknown />)} />
+      <Route path={AppRoute.abyssCompareSpecies} element={getAuthRoute(<AbyssCompareSpecies />)} />
+      <Route path={AppRoute.abyssLab} element={getAuthRoute(<AbyssLab />)} />
+      <Route path={AppRoute.abyssOceanHeat} element={getAuthRoute(<AbyssOceanHeatExplorer />)} />
+      <Route path={AppRoute.abyssMarineAnatomy} element={getAuthRoute(<AbyssMarineAnatomy />)} />
+      <Route path={AppRoute.abyssSearch} element={getAuthRoute(<AbyssSearch />)} />
+      <Route path={`${AppRoute.abyssSpecies}/:aphiaId`} element={getAuthRoute(<AbyssSpeciesProfile />)} />
+      <Route path={AppRoute.abyssCodex} element={getAuthRoute(<AbyssCodex />)} />
+      <Route path={AppRoute.abyssDataSources} element={getAuthRoute(<AbyssDataSources />)} />
       <Route path={AppRoute.markets} element={getAuthRoute(<MarketsHome />)} />
       <Route path={AppRoute.marketsAsset} element={getAuthRoute(<MarketsAssetView />)} />
       <Route path={AppRoute.marketsMap} element={getAuthRoute(<MarketsWorldMap />)} />

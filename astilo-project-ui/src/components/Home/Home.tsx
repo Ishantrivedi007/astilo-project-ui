@@ -1,7 +1,7 @@
 import { useMemo, type CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Clapperboard, Music, Sparkles, ShoppingBag, Palette, CalendarClock, Orbit } from "lucide-react";
+import { Clapperboard, Music, Sparkles, ShoppingBag, Palette, CalendarClock, Orbit, Waves, History, Mountain, Dna, Atom } from "lucide-react";
 
 import { AppRoute } from "../../app/AppRoute";
 import { useAuth } from "../../auth/AuthProvider";
@@ -18,12 +18,19 @@ const QUICK_ACCESS = [
   { label: "Anime", href: AppRoute.anime, icon: Sparkles },
   { label: "Store", href: AppRoute.store, icon: ShoppingBag },
   { label: "Cosmos", href: AppRoute.cosmos, icon: Orbit },
+  { label: "Abyss", href: AppRoute.abyss, icon: Waves },
   { label: "Nimrose Desk", href: AppRoute.nimrose, icon: CalendarClock },
   { label: "Customize", href: AppRoute.customize, icon: Palette },
 ];
 
-// Browser now lives inside Nimrose Desk rather than as its own top-level tile.
-const COMING_SOON: { label: string; icon: typeof Clapperboard }[] = [];
+// Future Explore worlds (blueprint section 66) — architected for, not built
+// yet. Shown as disabled tiles so the eventual shape of Explore is visible.
+const COMING_SOON: { label: string; icon: typeof Clapperboard }[] = [
+  { label: "Epoch — deep time", icon: History },
+  { label: "Terra — our living planet", icon: Mountain },
+  { label: "Genesis — life itself", icon: Dna },
+  { label: "Quantum — fundamental reality", icon: Atom },
+];
 
 const greeting = () => {
   const hour = new Date().getHours();

@@ -1,0 +1,604 @@
+.abyss-page {
+  position: relative;
+  min-height: calc(100vh - 4rem);
+  margin: -1.5rem -1rem;
+  padding: 2.5rem 1.5rem 4rem;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  color: #e4f6f5;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(20, 160, 170, 0.14), transparent 42%),
+    linear-gradient(180deg, #020b10 0%, #04161d 45%, #020b10 100%);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(1.5px 1.5px at 12% 25%, rgba(94, 234, 212, 0.5), transparent),
+      radial-gradient(1px 1px at 32% 68%, rgba(94, 234, 212, 0.35), transparent),
+      radial-gradient(1.5px 1.5px at 58% 18%, rgba(103, 232, 249, 0.45), transparent),
+      radial-gradient(1px 1px at 78% 52%, rgba(94, 234, 212, 0.3), transparent),
+      radial-gradient(1px 1px at 46% 82%, rgba(103, 232, 249, 0.4), transparent),
+      radial-gradient(1.5px 1.5px at 90% 34%, rgba(94, 234, 212, 0.35), transparent);
+    background-repeat: repeat;
+    background-size: 640px 640px;
+    opacity: 0.65;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.abyss-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #5eead4;
+}
+
+.abyss-title {
+  font-family: var(--font-display, inherit);
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  font-weight: 700;
+  margin: 0.35rem 0 0.5rem;
+  background: linear-gradient(90deg, #ffffff, #7dd3fc 55%, #5eead4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.abyss-tagline {
+  color: rgba(228, 246, 245, 0.62);
+  font-size: 0.95rem;
+}
+
+.abyss-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+}
+
+.abyss-nav-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  background: rgba(8, 28, 32, 0.55);
+  color: #e4f6f5;
+  text-decoration: none;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(94, 234, 212, 0.5);
+    background: rgba(12, 38, 43, 0.7);
+  }
+
+  span {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+}
+
+.abyss-card {
+  border-radius: 1.1rem;
+  border: 1px solid rgba(94, 234, 212, 0.18);
+  background: rgba(6, 24, 28, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 1.25rem;
+}
+
+.abyss-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #67e8f9;
+  background: rgba(103, 232, 249, 0.1);
+  border: 1px solid rgba(103, 232, 249, 0.25);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+// Confidence levels get visually distinct colors so observed, modelled,
+// curated, simulated and AI-inferred content can never be mistaken for one
+// another at a glance — the UI expression of Astilo Abyss rule #6.
+.abyss-confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+
+  &--observed {
+    color: #5eead4;
+    background: rgba(94, 234, 212, 0.1);
+    border-color: rgba(94, 234, 212, 0.3);
+  }
+
+  &--modelled {
+    color: #7dd3fc;
+    background: rgba(125, 211, 252, 0.1);
+    border-color: rgba(125, 211, 252, 0.3);
+  }
+
+  &--curated {
+    color: #c4b5fd;
+    background: rgba(196, 181, 253, 0.1);
+    border-color: rgba(196, 181, 253, 0.3);
+  }
+
+  &--simulated {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    border-color: rgba(251, 191, 36, 0.3);
+  }
+
+  &--ai_inferred {
+    color: #fb923c;
+    background: rgba(251, 146, 60, 0.1);
+    border-color: rgba(251, 146, 60, 0.3);
+  }
+
+  &--unknown {
+    color: rgba(228, 246, 245, 0.5);
+    background: rgba(228, 246, 245, 0.06);
+    border-color: rgba(228, 246, 245, 0.18);
+  }
+}
+
+.abyss-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.9rem;
+}
+
+.abyss-field {
+  dt {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(228, 246, 245, 0.45);
+  }
+  dd {
+    margin: 0.15rem 0 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e4f6f5;
+  }
+}
+
+.abyss-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 2rem 0 0.9rem;
+  color: #e4f6f5;
+}
+
+.abyss-unavailable {
+  color: rgba(228, 246, 245, 0.35);
+  font-style: italic;
+  font-weight: 400 !important;
+}
+
+// Depth Descent — the background shifts per zone (blueprint section 68:
+// "make the environment part of the UI"), from bright sunlight teal down to
+// near-black hadal, independent of the page's own .abyss-page gradient.
+.abyss-descent-stage {
+  position: relative;
+  min-height: calc(100vh - 4rem);
+  margin: -1.5rem -1rem;
+  padding: 2rem 1.5rem 4rem;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  color: #e4f6f5;
+  transition: background 1.2s ease;
+
+  &[data-zone="sunlight"] {
+    background: linear-gradient(180deg, #0a3d42 0%, #0e5a63 60%, #116873 100%);
+  }
+  &[data-zone="twilight"] {
+    background: linear-gradient(180deg, #071b2e 0%, #0b2942 60%, #0a2238 100%);
+  }
+  &[data-zone="midnight"] {
+    background: linear-gradient(180deg, #020810 0%, #040f1c 60%, #020810 100%);
+  }
+  &[data-zone="abyssal"] {
+    background: linear-gradient(180deg, #000305 0%, #02080c 60%, #000305 100%);
+  }
+  &[data-zone="hadal"] {
+    background: linear-gradient(180deg, #000000 0%, #040506 60%, #000000 100%);
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+// Marine snow — subtle drifting particles once past the sunlit zone.
+.abyss-marine-snow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 15% 10%, rgba(228, 246, 245, 0.4), transparent),
+    radial-gradient(1px 1px at 40% 40%, rgba(228, 246, 245, 0.3), transparent),
+    radial-gradient(1.5px 1.5px at 65% 70%, rgba(228, 246, 245, 0.35), transparent),
+    radial-gradient(1px 1px at 85% 25%, rgba(228, 246, 245, 0.25), transparent),
+    radial-gradient(1px 1px at 25% 85%, rgba(228, 246, 245, 0.3), transparent);
+  background-repeat: repeat;
+  background-size: 400px 500px;
+  opacity: 0.5;
+  animation: abyss-snow-drift 18s linear infinite;
+}
+
+@keyframes abyss-snow-drift {
+  from { background-position: 0 0; }
+  to { background-position: 0 500px; }
+}
+
+// Deep-sea discovery mode — darkness hides the UI except a flashlight disc
+// that follows the pointer (blueprint section 4).
+.abyss-flashlight-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(
+    circle 160px at var(--flashlight-x, 50%) var(--flashlight-y, 50%),
+    transparent 0%,
+    rgba(0, 0, 0, 0.55) 45%,
+    rgba(0, 0, 0, 0.94) 100%
+  );
+}
+
+.abyss-descent-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-variant-numeric: tabular-nums;
+
+  div {
+    dt {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(228, 246, 245, 0.45);
+    }
+    dd {
+      margin: 0.1rem 0 0;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+  }
+}
+
+.abyss-descent-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+
+  input[type="range"] {
+    flex: 1;
+    accent-color: #5eead4;
+  }
+}
+
+.abyss-scan-tool-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+// Mandatory on every simulation result (blueprint rule #10/#14): never let a
+// modeled/simulated output be mistaken for an observation or a forecast.
+.abyss-sim-banner {
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+
+  strong {
+    display: block;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: #fbbf24;
+    margin-bottom: 0.2rem;
+  }
+
+  p {
+    font-size: 0.8rem;
+    color: rgba(228, 246, 245, 0.65);
+    margin: 0;
+  }
+}
+
+.abyss-food-web-chain {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: 1.5rem 0;
+}
+
+.abyss-food-web-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(94, 234, 212, 0.2);
+  background: rgba(8, 28, 32, 0.6);
+  min-width: 110px;
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: #5eead4;
+  }
+}
+
+.abyss-food-web-arrow {
+  color: rgba(94, 234, 212, 0.4);
+  font-size: 1.2rem;
+}
+
+.abyss-pop-bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(228, 246, 245, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.abyss-pop-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+
+  &--up {
+    left: 50%;
+    background: #5eead4;
+  }
+  &--down {
+    right: 50%;
+    background: #fb7185;
+  }
+}
+
+.abyss-provenance-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 2rem 0;
+}
+
+.abyss-provenance-root {
+  padding: 0.9rem 1.4rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(94, 234, 212, 0.4);
+  background: rgba(94, 234, 212, 0.1);
+  font-weight: 700;
+  font-style: italic;
+  margin-bottom: 1.5rem;
+}
+
+.abyss-provenance-branches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.25rem;
+  position: relative;
+  padding-top: 1.5rem;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: rgba(94, 234, 212, 0.25);
+  }
+}
+
+.abyss-provenance-node {
+  position: relative;
+  min-width: 220px;
+  max-width: 260px;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(94, 234, 212, 0.2);
+  background: rgba(8, 28, 32, 0.6);
+  padding: 0.9rem 1rem;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -1.5rem;
+    left: 50%;
+    width: 1px;
+    height: 1.5rem;
+    background: rgba(94, 234, 212, 0.25);
+  }
+}
+
+.abyss-media-card {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 1.25rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.abyss-depth-scale {
+  position: relative;
+  height: 420px;
+  margin: 1.5rem 0.5rem 1.5rem 0;
+  border-left: 2px solid rgba(94, 234, 212, 0.2);
+}
+
+.abyss-depth-scale-marker {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+
+  &::before {
+    content: "";
+    width: 10px;
+    height: 2px;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  span {
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  &--depth {
+    &::before {
+      background: #5eead4;
+    }
+    span {
+      color: rgba(94, 234, 212, 0.85);
+    }
+  }
+
+  &--mountain {
+    &::before {
+      background: #fbbf24;
+    }
+    span {
+      color: rgba(251, 191, 36, 0.85);
+    }
+  }
+
+  &--current {
+    z-index: 2;
+    &::before {
+      background: #fff;
+      width: 16px;
+    }
+    span {
+      color: #fff;
+      font-weight: 700;
+    }
+  }
+}
+
+.abyss-table-wrap {
+  overflow-x: auto;
+}
+
+.abyss-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th,
+  td {
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid rgba(94, 234, 212, 0.14);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(228, 246, 245, 0.5);
+  }
+
+  tbody tr:hover td {
+    background: rgba(94, 234, 212, 0.05);
+  }
+
+  tbody tr[data-disabled="true"] td {
+    opacity: 0.45;
+  }
+
+  a {
+    color: #67e8f9;
+  }
+}
+
+// Mobile responsiveness pass — phones narrower than ~640px.
+@media (max-width: 640px) {
+  .abyss-page,
+  .abyss-descent-stage {
+    padding: 1.75rem 1rem 3rem;
+    margin: -1.5rem -0.75rem;
+  }
+
+  .abyss-title {
+    font-size: clamp(1.6rem, 7vw, 2.4rem);
+  }
+
+  .abyss-descent-readout {
+    gap: 1rem;
+  }
+
+  .abyss-descent-controls {
+    flex-wrap: wrap;
+
+    span {
+      min-width: 0 !important;
+    }
+  }
+
+  .abyss-provenance-branches::before {
+    display: none;
+  }
+
+  .abyss-provenance-node {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+
+    &::before {
+      display: none;
+    }
+  }
+
+  .abyss-table {
+    font-size: 0.75rem;
+
+    th,
+    td {
+      padding: 0.4rem 0.5rem;
+    }
+  }
+
+  .abyss-field-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+}

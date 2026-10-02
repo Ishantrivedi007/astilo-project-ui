@@ -389,6 +389,16 @@ const CosmosOrbitExplorer = () => {
                     {activeDetail.position.z.toFixed(2)}
                   </dd>
                 </dl>
+                {activeDetail.body.label === "Earth" && (
+                  <button
+                    type="button"
+                    className="cosmos-chip mt-2"
+                    style={{ position: "static" }}
+                    onClick={() => navigate(AppRoute.abyssOcean)}
+                  >
+                    🌊 Open in Abyss
+                  </button>
+                )}
               </div>
             )}
 
