@@ -44,6 +44,7 @@ def init_db():
     _migrate_cosmos_research_sources_column()
     _migrate_user_git_links_column()
     _migrate_user_pinned_modules_column()
+    _seed_abyss_license_registry()
 
 
 def _migrate_board_column_wip_limit():
@@ -231,3 +232,21 @@ def _migrate_song_columns():
         for column, ddl_type in (("lyrics_text", "TEXT"), ("lyrics_synced", "TEXT")):
             conn.exec_driver_sql(f"ALTER TABLE songs ADD COLUMN IF NOT EXISTS {column} {ddl_type}")
         conn.commit()
+
+
+def _seed_abyss_license_registry():
+    """Populates the data_sources license registry with the providers
+    Abyss's blueprint verified (see app/abyss/license_registry.py), so the
+    registry is never empty on a fresh install and every dataset's terms are
+    visible before a single API call is made. Idempotent — only inserts
+    providers/datasets that aren't already present, and never overwrites a
+    row an admin may have hand-edited since."""
+    from app.abyss.license_registry import SEED_DATA_SOURCES
+    from app.models import DataSource
+
+    with get_session() as session:
+        existing = {(row.provider, row.dataset) for row in session.query(DataSource.provider, DataSource.dataset)}
+        for entry in SEED_DATA_SOURCES:
+            if (entry["provider"], entry["dataset"]) in existing:
+                continue
+            session.add(DataSource(**entry))

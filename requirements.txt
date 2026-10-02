@@ -11,3 +11,8 @@ sgp4==2.23
 astropy==6.1.7
 Pillow==12.3.0
 pds4_tools==1.4
+numpy==2.5.3
+copernicusmarine==2.5.0
+setuptools<81  # tensorflow_hub-style pkg_resources usage elsewhere in the TF stack needs this; newer setuptools dropped pkg_resources
+tensorflow==2.22.0rc0  # only wheel currently published for this Python version; Bioacoustic Classifier (YAMNet)
+librosa==1.0.0  # decodes mp3/wav for the Bioacoustic Classifier

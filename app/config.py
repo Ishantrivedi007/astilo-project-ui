@@ -89,5 +89,43 @@ class Config:
     # reasoning as CODE_TERMINAL_ENABLED.
     CODE_DATABASE_ENABLED = os.getenv("CODE_DATABASE_ENABLED", "false").strip().lower() in ("1", "true", "yes")
 
+    # Abyss's license policy: which licenses an external dataset must carry
+    # to be ingested at all. CC BY-NC is rejected by default because it rules
+    # out any future commercial use of Astilo; flip it on only if that's
+    # acceptable for your deployment. This gates GBIF dataset ingestion in
+    # particular, since GBIF mixes CC0/CC BY/CC BY-NC per dataset.
+    ABYSS_ALLOW_CC0 = os.getenv("ABYSS_ALLOW_CC0", "true").strip().lower() in ("1", "true", "yes")
+    ABYSS_ALLOW_CC_BY = os.getenv("ABYSS_ALLOW_CC_BY", "true").strip().lower() in ("1", "true", "yes")
+    ABYSS_ALLOW_CC_BY_NC = os.getenv("ABYSS_ALLOW_CC_BY_NC", "false").strip().lower() in ("1", "true", "yes")
+
+    # Global Fishing Watch is excluded from the default build — its standard
+    # API terms are free for non-commercial use only, which doesn't fit
+    # Astilo's "no paid APIs, no license surprises" rule. Kept as an opt-in
+    # developer flag rather than deleted outright.
+    ABYSS_FEATURE_GFW = os.getenv("ABYSS_FEATURE_GFW", "false").strip().lower() in ("1", "true", "yes")
+
+    # Nereus (Abyss's contextual AI) runs entirely against a local Ollama
+    # instance — no paid LLM API, per the Abyss build rules. Defaults assume
+    # Ollama's standard local install; override NEREUS_MODEL to whatever
+    # you've actually pulled (`ollama pull <model>`). When Ollama isn't
+    # reachable, Nereus degrades to a clear "offline" response rather than
+    # fabricating an answer — see app/abyss/nereus.py.
+    NEREUS_OLLAMA_BASE_URL = os.getenv("NEREUS_OLLAMA_BASE_URL", "http://localhost:11434")
+    NEREUS_MODEL = os.getenv("NEREUS_MODEL", "qwen3:8b")
+
+    # Where Nereus's local RAG index (TF-IDF over real Wikipedia article
+    # text — see app/abyss/knowledge_base.py) is persisted to disk, so it
+    # survives restarts instead of rebuilding (and re-hitting Wikipedia)
+    # every time the server starts.
+    ABYSS_KNOWLEDGE_BASE_DIR = os.getenv(
+        "ABYSS_KNOWLEDGE_BASE_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "abyss_knowledge_base")
+    )
+
+    # Where the real YAMNet SavedModel (Bioacoustic Classifier) is cached
+    # after its one-time download — see app/abyss/bioacoustic_classifier.py.
+    ABYSS_YAMNET_DIR = os.getenv(
+        "ABYSS_YAMNET_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "abyss_yamnet_model")
+    )
+
 
 config = Config()

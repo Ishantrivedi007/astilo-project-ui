@@ -1773,3 +1773,98 @@ class SavedSqlQuery(Base):
             "createdAt": self.created_at.isoformat() if self.created_at else None,
             "updatedAt": self.updated_at.isoformat() if self.updated_at else None,
         }
+
+
+class AbyssCache(Base):
+    """Cached responses from external marine/ocean APIs (OBIS, GBIF, WoRMS,
+    Copernicus Marine, EMODnet, NASA Earthdata, etc.), keyed by source + a
+    hash of the request params — mirrors CosmosCache."""
+
+    __tablename__ = "abyss_cache"
+
+    id = Column(Integer, primary_key=True)
+    cache_key = Column(String(255), unique=True, nullable=False)  # "<source>:<sha256 of params>"
+    source = Column(String(40), nullable=False)  # obis | gbif | worms | copernicus_marine | emodnet | nasa_earthdata
+    payload_json = Column(JSON, nullable=False)
+    fetched_at = Column(DateTime, default=utcnow)
+
+
+class AbyssSavedItem(Base):
+    """A user's Abyss Codex/Library entry — a species, observation, habitat,
+    etc. saved for later, with source provenance kept alongside it so the
+    record stays traceable. Mirrors CosmosSavedItem."""
+
+    __tablename__ = "abyss_saved_items"
+    __table_args__ = (UniqueConstraint("user_id", "object_type", "external_id", name="uq_abyss_saved_item"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    object_type = Column(String(30), nullable=False)  # species | occurrence | habitat | expedition | sound
+    external_id = Column(String(255), nullable=False)  # e.g. OBIS/GBIF occurrence id, WoRMS AphiaID
+    collection = Column(String(40), nullable=False, default="codex")  # codex | favorites | expeditions | ...
+    title = Column(String(255))
+    source = Column(String(80))  # e.g. "OBIS", "GBIF", "WoRMS"
+    source_dataset = Column(String(80))
+    image_url = Column(String(500))
+    data_json = Column(JSON)  # normalized snapshot at save time
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "objectType": self.object_type,
+            "externalId": self.external_id,
+            "collection": self.collection,
+            "title": self.title,
+            "source": self.source,
+            "sourceDataset": self.source_dataset,
+            "imageUrl": self.image_url,
+            "data": self.data_json,
+            "notes": self.notes,
+            "createdAt": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class DataSource(Base):
+    """Astilo's license registry — the mandatory, queryable record of every
+    external dataset's license and attribution terms (Abyss rule #4/#5:
+    never assume "publicly accessible" means "free for unrestricted reuse",
+    and reject datasets whose license conflicts with policy). Not
+    Abyss-specific by table design, but Abyss is its first consumer."""
+
+    __tablename__ = "data_sources"
+    __table_args__ = (UniqueConstraint("provider", "dataset", name="uq_data_source_provider_dataset"),)
+
+    id = Column(Integer, primary_key=True)
+    module = Column(String(40), nullable=False, default="abyss")  # abyss | cosmos | markets | ...
+    provider = Column(String(80), nullable=False)  # e.g. "OBIS", "GBIF", "Copernicus Marine"
+    dataset = Column(String(120), nullable=False)  # e.g. "Ocean Biodiversity Information System occurrences"
+    license = Column(String(80), nullable=False)  # e.g. "CC0", "CC BY 4.0", "CC BY-NC 4.0", "varies per dataset"
+    commercial_allowed = Column(Boolean, nullable=True)  # null = depends on the specific sub-dataset
+    attribution_required = Column(Boolean, nullable=False, default=True)
+    enabled = Column(Boolean, nullable=False, default=True)  # false when policy/config disables it (e.g. GFW)
+    source_url = Column(String(500))
+    terms_url = Column(String(500))
+    notes = Column(Text, nullable=True)
+    retrieved_at = Column(DateTime, default=utcnow)
+    license_checked_at = Column(DateTime, default=utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "module": self.module,
+            "provider": self.provider,
+            "dataset": self.dataset,
+            "license": self.license,
+            "commercialAllowed": self.commercial_allowed,
+            "attributionRequired": self.attribution_required,
+            "enabled": self.enabled,
+            "sourceUrl": self.source_url,
+            "termsUrl": self.terms_url,
+            "notes": self.notes,
+            "retrievedAt": self.retrieved_at.isoformat() if self.retrieved_at else None,
+            "licenseCheckedAt": self.license_checked_at.isoformat() if self.license_checked_at else None,
+        }

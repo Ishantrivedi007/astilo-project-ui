@@ -6,3 +6,5 @@ __pycache__/
 venv/
 tools/
 attachments/
+abyss_knowledge_base/
+abyss_yamnet_model/

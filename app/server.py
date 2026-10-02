@@ -3,7 +3,60 @@ import json
 import cherrypy
 
 from app.config import config
-from app.controllers.auth_controller import AuthController
+from app.controllers.auth_controller import AuthController  # noqa: F401  (registers cherrypy.tools.auth before other controllers use it)
+from app.controllers.abyss_controller import (
+    AbyssCodexController,
+    BioacousticClassifyController,
+    AbyssStatusController,
+    CoverageIndexController,
+    CreatureEvaluateController,
+    DataSourceRegistryController,
+    DatasetComparisonController,
+    DepthComparisonController,
+    DepthEncounterController,
+    DepthPhysicsController,
+    DepthZoneCatalogController,
+    EdnaSampleController,
+    EvolutionDivergenceController,
+    EvolutionRelativesController,
+    EvolutionRunController,
+    FoodWebGraphController,
+    FoodWebSimulateController,
+    HabitatCatalogController,
+    HydrothermalVentOverviewController,
+    KnowledgeBaseBuildController,
+    KnowledgeBaseStatusController,
+    MarineAnatomyDiagramsController,
+    MarineAnatomySpeciesController,
+    MicrobialOceanController,
+    MicroscopeSampleCatalogController,
+    MicroscopeSpecimensController,
+    MysteryGuessController,
+    MysteryPuzzleController,
+    NereusAskController,
+    NereusStatusController,
+    OceanChemistryController,
+    OceanCurrentController,
+    OceanDepthController,
+    OceanHeatController,
+    OceanLayerCatalogController,
+    OceanVsSpaceController,
+    PaleoOceanController,
+    ProvenanceGraphController,
+    RealExpeditionCatalogController,
+    ReefTwinSimulateController,
+    RegionalCoverageController,
+    SalinityController,
+    ScaleExplorerController,
+    SpeciesImageController,
+    SoundCatalogController,
+    SoundProxyController,
+    SpeciesGbifOccurrenceController,
+    SpeciesProfileController,
+    SpeciesSearchController,
+    TaxonomyChildrenController,
+    TheUnknownController,
+)
 from app.controllers.cosmos_controller import (
     ApodController,
     AstronomyTopicsController,
@@ -278,6 +331,57 @@ def build_app():
     cherrypy.tree.mount(FitsImageController(), "/api/cosmos/fits-image", conf)
     cherrypy.tree.mount(SpaceWeatherPulseController(), "/api/cosmos/space-weather/pulse", conf)
     cherrypy.tree.mount(AstronomyTopicsController(), "/api/cosmos/astronomy-topics", conf)
+    cherrypy.tree.mount(AbyssStatusController(), "/api/abyss/status", conf)
+    cherrypy.tree.mount(DataSourceRegistryController(), "/api/abyss/data-sources", conf)
+    cherrypy.tree.mount(SpeciesSearchController(), "/api/abyss/species/search", conf)
+    cherrypy.tree.mount(SpeciesProfileController(), "/api/abyss/species/profile", conf)
+    cherrypy.tree.mount(SpeciesGbifOccurrenceController(), "/api/abyss/species/occurrences/gbif", conf)
+    cherrypy.tree.mount(AbyssCodexController(), "/api/abyss/codex", conf)
+    cherrypy.tree.mount(OceanLayerCatalogController(), "/api/abyss/ocean/layers", conf)
+    cherrypy.tree.mount(OceanDepthController(), "/api/abyss/ocean/depth", conf)
+    cherrypy.tree.mount(DepthZoneCatalogController(), "/api/abyss/depth-descent/zones", conf)
+    cherrypy.tree.mount(DepthComparisonController(), "/api/abyss/depth-descent/comparisons", conf)
+    cherrypy.tree.mount(DepthPhysicsController(), "/api/abyss/depth-descent/at", conf)
+    cherrypy.tree.mount(DepthEncounterController(), "/api/abyss/depth-descent/encounter", conf)
+    cherrypy.tree.mount(SoundCatalogController(), "/api/abyss/sounds/catalog", conf)
+    cherrypy.tree.mount(SoundProxyController(), "/api/abyss/sounds/proxy", conf)
+    cherrypy.tree.mount(BioacousticClassifyController(), "/api/abyss/sounds/classify", conf)
+    cherrypy.tree.mount(OceanChemistryController(), "/api/abyss/ocean/chemistry", conf)
+    cherrypy.tree.mount(EdnaSampleController(), "/api/abyss/edna/sample", conf)
+    cherrypy.tree.mount(MysteryPuzzleController(), "/api/abyss/mystery/puzzle", conf)
+    cherrypy.tree.mount(MysteryGuessController(), "/api/abyss/mystery/guess", conf)
+    cherrypy.tree.mount(MicroscopeSampleCatalogController(), "/api/abyss/microscope/samples", conf)
+    cherrypy.tree.mount(MicroscopeSpecimensController(), "/api/abyss/microscope/specimens", conf)
+    cherrypy.tree.mount(FoodWebGraphController(), "/api/abyss/food-web/graph", conf)
+    cherrypy.tree.mount(FoodWebSimulateController(), "/api/abyss/food-web/simulate", conf)
+    cherrypy.tree.mount(ReefTwinSimulateController(), "/api/abyss/reef-twin/simulate", conf)
+    cherrypy.tree.mount(CreatureEvaluateController(), "/api/abyss/creature/evaluate", conf)
+    cherrypy.tree.mount(EvolutionRunController(), "/api/abyss/evolution/run", conf)
+    cherrypy.tree.mount(NereusStatusController(), "/api/abyss/nereus/status", conf)
+    cherrypy.tree.mount(NereusAskController(), "/api/abyss/nereus/ask", conf)
+    cherrypy.tree.mount(KnowledgeBaseStatusController(), "/api/abyss/knowledge/status", conf)
+    cherrypy.tree.mount(KnowledgeBaseBuildController(), "/api/abyss/knowledge/build", conf)
+    cherrypy.tree.mount(RegionalCoverageController(), "/api/abyss/coverage/regions", conf)
+    cherrypy.tree.mount(DatasetComparisonController(), "/api/abyss/compare/datasets", conf)
+    cherrypy.tree.mount(PaleoOceanController(), "/api/abyss/paleo-ocean/eras", conf)
+    cherrypy.tree.mount(OceanVsSpaceController(), "/api/abyss/ocean-vs-space/worlds", conf)
+    cherrypy.tree.mount(RealExpeditionCatalogController(), "/api/abyss/real-expeditions", conf)
+    cherrypy.tree.mount(ProvenanceGraphController(), "/api/abyss/provenance/graph", conf)
+    cherrypy.tree.mount(SpeciesImageController(), "/api/abyss/species-image", conf)
+    cherrypy.tree.mount(TaxonomyChildrenController(), "/api/abyss/taxonomy/children", conf)
+    cherrypy.tree.mount(EvolutionRelativesController(), "/api/abyss/evolution/relatives", conf)
+    cherrypy.tree.mount(EvolutionDivergenceController(), "/api/abyss/evolution/divergence", conf)
+    cherrypy.tree.mount(HabitatCatalogController(), "/api/abyss/habitats", conf)
+    cherrypy.tree.mount(MarineAnatomySpeciesController(), "/api/abyss/anatomy/species", conf)
+    cherrypy.tree.mount(MarineAnatomyDiagramsController(), "/api/abyss/anatomy/diagrams", conf)
+    cherrypy.tree.mount(HydrothermalVentOverviewController(), "/api/abyss/hydrothermal-vents", conf)
+    cherrypy.tree.mount(MicrobialOceanController(), "/api/abyss/microbial-ocean", conf)
+    cherrypy.tree.mount(ScaleExplorerController(), "/api/abyss/scale-explorer", conf)
+    cherrypy.tree.mount(CoverageIndexController(), "/api/abyss/coverage/index", conf)
+    cherrypy.tree.mount(TheUnknownController(), "/api/abyss/the-unknown", conf)
+    cherrypy.tree.mount(OceanHeatController(), "/api/abyss/copernicus/temperature", conf)
+    cherrypy.tree.mount(SalinityController(), "/api/abyss/copernicus/salinity", conf)
+    cherrypy.tree.mount(OceanCurrentController(), "/api/abyss/copernicus/current", conf)
     cherrypy.tree.mount(WebImageSearchController(), "/api/images/search", conf)
     cherrypy.tree.mount(MarketsAssetController(), "/api/markets/asset", conf)
     cherrypy.tree.mount(MarketsSearchController(), "/api/markets/search", conf)
